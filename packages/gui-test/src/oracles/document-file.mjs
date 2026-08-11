@@ -115,6 +115,11 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       atomicNumber: node?.atomicNumber ?? node?.atomic_number ?? null,
       charge: node?.charge ?? null,
       numHydrogens: node?.numHydrogens ?? node?.num_hydrogens ?? null,
+      numHydrogensOverride: !node
+        ? null
+        : Object.prototype.hasOwnProperty.call(node.meta ?? {}, "numHydrogensOverride")
+          ? node.meta.numHydrogensOverride
+          : null,
       radicalCount: !node
         ? null
         : Object.prototype.hasOwnProperty.call(node.meta ?? {}, "radicalCount")

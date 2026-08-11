@@ -95,6 +95,19 @@ test("saved-document node oracle normalizes omitted zero and kills wrong radical
   assert.equal(evaluateDocumentNodeProperties(explicitNull, canonicalZero).passed, false);
 });
 
+test("saved-document node oracle distinguishes persisted hydrogen overrides from automatic values", () => {
+  const hidden = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 0, meta: { numHydrogensOverride: 0 }, label: { text: "N", sourceText: "N" } },
+  ] } } } }));
+  const expected = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 0, numHydrogensOverride: 0, labelText: "N", labelSourceText: "N" }];
+  assert.equal(evaluateDocumentNodeProperties(hidden, expected).passed, true);
+  const automatic = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 0, label: { text: "N", sourceText: "N" } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(automatic, expected).passed, false);
+  assert.equal(evaluateDocumentNodeProperties(hidden, [{ ...expected[0], numHydrogensOverride: 1 }]).passed, false);
+});
+
 test("saved-document arrow oracle checks exact public CCJS properties", () => {
   const bytes = Buffer.from(JSON.stringify({
     styles: { style_red: { stroke: "#ff0000" } },

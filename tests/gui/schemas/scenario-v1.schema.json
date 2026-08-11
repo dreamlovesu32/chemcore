@@ -323,6 +323,7 @@
                   "atomicNumber": { "type": "integer", "minimum": 1, "maximum": 118 },
                   "charge": { "type": "integer", "minimum": -16, "maximum": 16 },
                   "numHydrogens": { "type": "integer", "minimum": 0, "maximum": 32 },
+                  "numHydrogensOverride": { "type": "integer", "minimum": 0, "maximum": 32 },
                   "radicalCount": { "type": "integer", "minimum": 0, "maximum": 16 },
                   "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }

@@ -72,6 +72,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.electron-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
+    "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -132,6 +133,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.charge-symbol-attachment-persistence.production",
       "scenario.core.atom.electron-symbol-attachment-persistence.production",
       "scenario.core.atom.element-label-persistence.production",
+      "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -192,6 +194,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.electron-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
+    "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -240,6 +243,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.electron-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
+    "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -283,6 +287,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.charge-symbol-attachment-persistence.production",
       "scenario.core.atom.electron-symbol-attachment-persistence.production",
       "scenario.core.atom.element-label-persistence.production",
+      "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -345,6 +350,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-radical-cation-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-radical-anion-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-element-label-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-implicit-hydrogen-visibility-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-drag-count-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-endpoint-attachment-continuation-production.json"),
     join(guiTestsDir, "scenarios", "core", "undo-redo-bond-production.json"),
@@ -376,8 +382,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 42);
-  assert.equal(result.summary.scenarios, 44);
+  assert.equal(result.summary.entries, 43);
+  assert.equal(result.summary.scenarios, 45);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -516,6 +522,28 @@ test("the element-label matrix kills wrong-palette, wrong-target, and node-seman
   assert.equal(apply.completion.selector, '[data-node-id="n_2"]');
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-node-properties").expected, [
     { id: "n_2", element: "N", atomicNumber: 7, charge: 0, labelText: "NH2", labelSourceText: "NH2" },
+  ]);
+});
+
+test("the implicit-hydrogen matrix kills wrong-menu-value, missing-history, and automatic-zero mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-implicit-hydrogen-visibility-history-persistence-production.json"));
+  const initialMenu = scenario.actions.find((action) => action.id === "open-automatic-hydrogen-menu");
+  const hide = scenario.actions.find((action) => action.id === "hide-implicit-hydrogens");
+  const restore = scenario.actions.find((action) => action.id === "restore-automatic-hydrogens");
+  const undo = scenario.actions.find((action) => action.id === "undo-second-hide");
+  const redo = scenario.actions.find((action) => action.id === "redo-second-hide");
+  assert.equal(initialMenu.target.strategy, "entity-id");
+  assert.match(initialMenu.completion.selector, /data-canvas-context-value="auto"/);
+  assert.equal(hide.target.name, "Hide");
+  assert.equal(hide.completion.text, "N");
+  assert.equal(restore.target.name, "Automatic");
+  assert.equal(restore.completion.text, "NH2");
+  assert.equal(undo.key, "Control+Z");
+  assert.equal(undo.completion.text, "NH2");
+  assert.equal(redo.key, "Control+Y");
+  assert.equal(redo.completion.text, "N");
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-explicit-hidden-hydrogen-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 0, numHydrogensOverride: 0, labelText: "N", labelSourceText: "N" },
   ]);
 });
 

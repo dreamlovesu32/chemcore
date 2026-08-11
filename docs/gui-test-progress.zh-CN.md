@@ -2,11 +2,11 @@
 
 最后更新：2026-08-11  
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**44**
+登记场景：**45**
 
 当前产品候选：`b4465999da835e091ca6eef89a5c39a6584a7740f2848ac037d2dde8d7c9a5d2`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**42/44 reusable passed，0 product failed，2 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；Lone pair 的修复闭包已在源码等价的新候选上独立通过，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷及 Lone pair 的 locator/oracle 首次失败证据永久保留。当前影响图只选择新增的 uncircled Plus/Minus→atom 两个分支；完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**44/45 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；Lone pair 修复闭包与 uncircled Plus/Minus 闭包均已在源码等价候选上独立通过，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷及 Lone pair 的 locator/oracle 首次失败证据永久保留。当前影响图只选择新增的 implicit-hydrogen Automatic/Hide、历史和显式零覆盖分支；完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；41/41 qualification 与 Lone pair 独立修复闭包均已通过。六元环 Bond 融合、Element、正电荷及 Lone pair 的首次 test/oracle 失败证据均保留；当前启动 uncircled Plus/Minus 精确影响批次，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；41/41 qualification、Lone pair 修复闭包及 uncircled Plus/Minus 闭包均已通过。六元环 Bond 融合、Element、正电荷及 Lone pair 的首次 test/oracle 失败证据均保留；当前启动 implicit-hydrogen Automatic/Hide 精确影响批次，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -56,11 +56,11 @@
 
 | 状态 | 功能族 | 已有真实覆盖 | 明确剩余 |
 |---|---|---|---|
-| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen Element/`NH2` 标签、正/负电荷、Radical cation/Radical anion、Electron 及 Lone pair→atom 已取得真实 OS 输入与精确持久化证据；uncircled Plus/Minus→atom 场景已登记 | uncircled Plus/Minus 待实机证据；其他元素、氢值域、模板、端点反转、双键位置循环、立体化学、反应语义、全部属性与格式 |
+| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen Element/`NH2` 标签及全部八种 Charge/Electron symbol→atom 已取得真实 OS 输入与精确持久化证据；implicit-hydrogen Automatic/Hide、历史与显式零覆盖场景已登记 | implicit-hydrogen 场景待实机证据；其他元素、其余氢值域、模板、端点反转、双键位置循环、立体化学、反应语义、全部属性与格式 |
 | 🟡 | Arrow | 多对象属性、锁定混合、属性持久化 | 全部直接绘制预设、所有 head/curve/no-go/color 值、组合/大文档 |
 | 🟡 | Text | 新建、既有编辑、多行、主要样式、行距、取消、历史、持久化 | 局部选区、全部字体/字号/对齐/行距边界、IME/composition、Formula、端点标签、锁定/组合/大文档 |
 | 🟡 | Shape | 四种 kind、五种代表样式、批量样式、历史、持久化 | 全颜色/Faded、控制点、缩放/旋转、锁定/组合/剪贴板、格式与大文档 |
-| 🟡 | Charge/Electron Symbol | 八种公开 symbol、批量颜色、历史、持久化；Circle plus→Nitrogen、Circle minus→Oxygen、Radical cation、Radical anion、Electron 与 Lone pair→Nitrogen 的化学/Link 精确场景已通过，uncircled Plus/Minus 场景已登记 | uncircled Plus/Minus 附着待实机证据；标签字形目标、轨道式放置、重分配、变换、组合、格式与大文档 |
+| 🟡 | Charge/Electron Symbol | 八种公开 symbol、批量颜色、历史、持久化；Circle plus/minus、uncircled Plus/Minus、Radical cation/anion、Electron 与 Lone pair→atom 的化学/Link 精确场景均已通过 | 标签字形目标、轨道式放置、重分配、变换、组合、格式与大文档 |
 | 🟡 | Bracket | 三种成对括号、可见侧属性、层级、历史、持久化 | 标签、repeat Link、分子包含、控制柄、锁定/组合、格式与大文档 |
 | 🟡 | Table | 插入、2×2→3×3、对齐、边框、历史、持久化 | 全部增删位置、内容、清空/适应、全部对齐/边组合/颜色、锁定/剪贴板/格式/大文档 |
 | 🟡 | Orbital | 七种模板、双向几何迁移、批量模板/样式/相位、历史、持久化 | 全颜色、全部 style×phase、原子/标签附着、变换、组合、格式与大文档 |
@@ -89,9 +89,9 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 44 个场景
+## 4. 已登记的 45 个场景
 
-所有 44 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，Lone pair 修复闭包在源码等价的新候选上独立通过，因此当前 registry 为 42/44 reusable passed；影响图接着只选择新增 uncircled Plus/Minus→atom 两个分支。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 45 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，Lone pair 修复闭包与 uncircled Plus/Minus 闭包在源码等价候选上独立通过，因此当前 registry 为 44/45 reusable passed；影响图接着只选择新增 implicit-hydrogen Automatic/Hide、历史与显式零覆盖分支。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -110,8 +110,9 @@
 | ✅ | `core.atom.radical-anion-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Radical anion 并附着；精确持久化 -1 formal charge、零隐式氢、`N` 标签、radical count 1、双 chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
 | ✅ | `core.atom.electron-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Electron 并附着；精确持久化中性 formal charge、一个隐式氢、`NH` 标签、radical count 1、radical chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
 | ✅ | `core.atom.lone-pair-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Lone pair 并附着；修复闭包已精确通过中性 formal charge、两个隐式氢、`NH2` 标签、canonical 零 radical count、零 chemistry delta、目标 atom ID 与 auto-link 来源；首次 oracle 失败证据永久保留 |
-| 🟡 | `core.atom.plus-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，明确选择 uncircled Plus 并附着；要求持久化独立 `plus` kind、+1 formal charge、三个隐式氢、`NH3`、chemistry delta 与 auto-link，当前待独立后台证据 |
-| 🟡 | `core.atom.minus-symbol-attachment-persistence.production` | 从真实单键端点与 Oxygen Element 状态继续，明确选择 uncircled Minus 并附着；要求持久化独立 `minus` kind、-1 formal charge、零隐式氢、`O`、chemistry delta 与 auto-link，当前待独立后台证据 |
+| ✅ | `core.atom.plus-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，明确选择 uncircled Plus 并附着；已持久化独立 `plus` kind、+1 formal charge、三个隐式氢、`NH3`、chemistry delta 与 auto-link，独立后台证据已通过 |
+| ✅ | `core.atom.minus-symbol-attachment-persistence.production` | 从真实单键端点与 Oxygen Element 状态继续，明确选择 uncircled Minus 并附着；已持久化独立 `minus` kind、-1 formal charge、零隐式氢、`O`、chemistry delta 与 auto-link，独立后台证据已通过 |
+| 🟡 | `core.atom.implicit-hydrogen-visibility-history-persistence.production` | 真实绘制并标记终端 Nitrogen，经公开原子菜单在 Automatic 与 Hide 之间切换，检查选中态、`NH2`/`N` 渲染、撤销/重做，并要求保存显式 `numHydrogensOverride=0`；当前待独立后台证据 |
 | ✅ | `core.chain.drag-count-persistence.production` | Chain 工具的真实 OS 可变长度拖拽、四键之字形提交、原生保存与精确连通拓扑 |
 | ✅ | `core.chain.endpoint-attachment-continuation.production` | 从已存在端点继续真实 OS Chain 拖拽，要求八键仍为单一九节点分子并精确持久化 |
 | ✅ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
@@ -170,15 +171,17 @@ Lone pair→Nitrogen 首批 `impact-0b349a2-atom-lone-pair-attachment-production
 
 Lone pair oracle 修复批次 `impact-3636734-atom-lone-pair-oracle-fix-production-1786456273648` 已通过：13/13 actions、6/6 oracles、0 diagnostics；报告 SHA-256 `c5a45a332e47cd6ad104105d9ec8024900e9c92b68229df1270f38559be53447`，manifest SHA-256 `348db5c451da8c1ff73ed71b022b27cf34ebb73d4677a0cec3cfade6b4e18332`，9 个证据对象共 7,673,085 bytes 全部独立复算一致。该报告来自源码闭包相同但 candidate SHA 不同的修复候选，故作为受影响闭包独立通过记录，不与既有 41/41 单候选 qualification 混合。
 
+Uncircled Plus/Minus→atom 批次 `impact-197b40a-atom-uncircled-charge-production-1786457150191` 已通过：两场景均完成 13/13 actions、6/6 oracles、0 diagnostics；Plus 报告/manifest SHA-256 分别为 `35d1d708325aa42d422a11b605c98d2e220774ddabe0f3b5c06a2fd6c2ac682a`、`8a2a2c826bd88d76ba8982d2f981f7b3860f845219d52fccac3255442fec6bc6`，Minus 分别为 `603e10ae179e4e104bb3432bad0587a2bc4984138bb9a70f055c7a3df97468c3`、`d059edb9e673a539db5efb896bfdfe96da33adad2d751b501b9236b57e9c1c48`；18 个证据对象共 15,380,642 bytes 全部独立复算一致。终态、heartbeat、checkpoint、提交 `197b40aec421c338f4cf9c2b9ee8871ef95ade78`、候选、源码闭包、profile 与 queue 哈希均匹配。
+
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 44 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 45 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 41 场景已有单候选完整资格；Lone pair 修复闭包已独立通过。当前 44 场景 registry 保留六元环 Bond 融合、Element、正电荷及 Lone pair 附着的首次 test/oracle 失败，新增 uncircled Plus/Minus→atom 场景待证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 41 场景已有单候选完整资格；Lone pair 修复闭包与 uncircled Plus/Minus 闭包已独立通过。当前 45 场景 registry 保留六元环 Bond 融合、Element、正电荷及 Lone pair 附着的首次 test/oracle 失败，新增 implicit-hydrogen Automatic/Hide 场景待证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
@@ -186,7 +189,7 @@ Lone pair oracle 修复批次 `impact-3636734-atom-lone-pair-oracle-fix-producti
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
 1. 🟡 **当前缺陷族与 oracle 收口**：41/41 单候选 qualification 与 Lone pair 独立修复闭包已完成；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
-2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、Chain/环连接、Element/原子标签、Circle plus/minus、Radical cation/Radical anion、Electron 与 Lone pair symbol→atom 精确语义批次已完成；当前只跑 uncircled Plus/Minus→atom，再推进氢值域、Template Library、反应连接与属性。
+2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、Chain/环连接、Element/原子标签及全部八种 Charge/Electron symbol→atom 精确语义批次已完成；当前只跑 implicit-hydrogen Automatic/Hide、历史与显式零覆盖，再推进其余氢值域、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
 5. **文档与外部边界**：多标签、所有格式、恢复、系统剪贴板、Office、文件关联。
@@ -198,7 +201,7 @@ Lone pair oracle 修复批次 `impact-3636734-atom-lone-pair-oracle-fix-producti
 
 本清单不是一次性说明：
 
-- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 44 个场景 ID，漏项直接失败。
+- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 45 个场景 ID，漏项直接失败。
 - 每完成一个对象族或发现新的公开缺口，必须同时更新第 3 节状态和“明确剩余”，不能只在长架构文档末尾追加段落。
 - 每产生新候选或 qualification，必须更新页首候选哈希、通过/缺失/失败数和最新证据。
 - 每个本地测试提交必须让本文反映该提交后的真实状态；不得把“场景通过”写成“功能族完成”。

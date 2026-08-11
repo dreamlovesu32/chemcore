@@ -198,6 +198,7 @@ export class ProductionBlackBoxDriver {
       "editor.selection.transform-partial",
       "editor.history.undo-redo",
       "editor.atom.element",
+      "editor.atom.implicit-hydrogens",
       "document.save-as",
       "document.open",
       "document.close-discard",

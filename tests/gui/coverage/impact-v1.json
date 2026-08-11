@@ -25,6 +25,7 @@
     { "id": "source.scenario.core.ring.endpoint-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-endpoint-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.ring.vertex-bond-continuation-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-vertex-bond-continuation-persistence-production.json"] },
     { "id": "source.scenario.core.atom.element-label-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-element-label-persistence-production.json"] },
+    { "id": "source.scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-implicit-hydrogen-visibility-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-charge-symbol-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.atom.negative-charge-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-negative-charge-symbol-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.atom.radical-cation-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-radical-cation-symbol-attachment-persistence-production.json"] },
@@ -68,6 +69,7 @@
     { "id": "component.document-io", "kind": "component" },
     { "id": "capability.editor.bond.draw", "kind": "capability" },
     { "id": "capability.editor.atom.element-label", "kind": "capability" },
+    { "id": "capability.editor.atom.implicit-hydrogen-visibility", "kind": "capability" },
     { "id": "capability.editor.atom.charge-symbol-attachment", "kind": "capability" },
     { "id": "capability.editor.ring.insert", "kind": "capability" },
     { "id": "capability.editor.chain.draw", "kind": "capability" },
@@ -114,6 +116,7 @@
     { "id": "oracle.ui-state", "kind": "oracle" },
     { "id": "scenario.core.bond.draw-single", "kind": "scenario" },
     { "id": "scenario.core.atom.element-label-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.negative-charge-symbol-attachment-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.radical-cation-symbol-attachment-persistence.production", "kind": "scenario" },
@@ -170,6 +173,7 @@
     { "from": "source.runtime-dependencies", "to": "component.gui-runner", "reason": "Dependency lockfile and runtime package changes can affect platform execution." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single", "reason": "Runner changes invalidate scenario execution evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.element-label-persistence.production", "reason": "Runner, guarded palette targeting, native save, and exact document-node oracle changes invalidate element-label evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "Runner, nested context-menu targeting, guarded history input, native save, and exact hydrogen-override oracle changes invalidate hydrogen-visibility evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom-link oracle changes invalidate charge-attachment evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.negative-charge-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom-link oracle changes invalidate negative charge-attachment evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.radical-cation-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom radical/link oracle changes invalidate radical-cation evidence." },
@@ -497,6 +501,14 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.element-label-persistence.production", "reason": "The physical driver opens the periodic palette, applies nitrogen at the measured endpoint, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.element-label-persistence.production", "reason": "The unique rendered node identity kills missing-label and wrong-target mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.element-label-persistence.production", "reason": "Exact node element, atomic number, charge, label fields, and topology kill semantic persistence mutants." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.atom.implicit-hydrogen-visibility", "reason": "Atom context styles, implicit-hydrogen override mutation, label regeneration, and history form one public editor capability." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "The hydrogen target is terminal nitrogen created through the public Element palette." }
+    ,{ "from": "capability.editor.atom.implicit-hydrogen-visibility", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "The production cell selects Automatic and Hide through the public menu and proves checked state, history, rendering, and persistence." }
+    ,{ "from": "capability.editor.bond.draw", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "The target atom must originate from a guarded public Single bond gesture." }
+    ,{ "from": "source.scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "Changing the hydrogen-visibility scenario invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "The physical driver draws a bond, applies nitrogen, uses the nested atom context menu, exercises undo/redo, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "Exact NH2 and N transitions plus menu checked state kill missing-command, stale-render, and wrong-history mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "Exact zero hydrogen count and explicit zero override kill automatic-value, missing-override, and wrong-value persistence mutants." }
     ,{ "from": "component.editor-interaction", "to": "capability.editor.atom.charge-symbol-attachment", "reason": "Charge-symbol placement, spatial atom linking, valence refresh, and label regeneration form one public editor capability." }
     ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "The charged target is terminal nitrogen created through the public Element palette." }
     ,{ "from": "capability.editor.atom.charge-symbol-attachment", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "The production cell attaches the default positive symbol to nitrogen and verifies ammonium semantics." }
