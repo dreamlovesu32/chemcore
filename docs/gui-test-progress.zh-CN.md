@@ -6,7 +6,7 @@
 
 当前产品候选：`b4465999da835e091ca6eef89a5c39a6584a7740f2848ac037d2dde8d7c9a5d2`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**44/45 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；Lone pair 修复闭包与 uncircled Plus/Minus 闭包均已在源码等价候选上独立通过，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷及 Lone pair 的 locator/oracle 首次失败证据永久保留。当前影响图只选择新增的 implicit-hydrogen Automatic/Hide、历史和显式零覆盖分支；完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**44/45 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；Lone pair 修复闭包与 uncircled Plus/Minus 闭包均已在源码等价候选上独立通过，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair 及 implicit-hydrogen 的 locator/oracle 首次失败证据永久保留。当前影响图只选择修复后的 implicit-hydrogen Automatic/Hide、历史和显式零覆盖分支；完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -172,6 +172,8 @@ Lone pair→Nitrogen 首批 `impact-0b349a2-atom-lone-pair-attachment-production
 Lone pair oracle 修复批次 `impact-3636734-atom-lone-pair-oracle-fix-production-1786456273648` 已通过：13/13 actions、6/6 oracles、0 diagnostics；报告 SHA-256 `c5a45a332e47cd6ad104105d9ec8024900e9c92b68229df1270f38559be53447`，manifest SHA-256 `348db5c451da8c1ff73ed71b022b27cf34ebb73d4677a0cec3cfade6b4e18332`，9 个证据对象共 7,673,085 bytes 全部独立复算一致。该报告来自源码闭包相同但 candidate SHA 不同的修复候选，故作为受影响闭包独立通过记录，不与既有 41/41 单候选 qualification 混合。
 
 Uncircled Plus/Minus→atom 批次 `impact-197b40a-atom-uncircled-charge-production-1786457150191` 已通过：两场景均完成 13/13 actions、6/6 oracles、0 diagnostics；Plus 报告/manifest SHA-256 分别为 `35d1d708325aa42d422a11b605c98d2e220774ddabe0f3b5c06a2fd6c2ac682a`、`8a2a2c826bd88d76ba8982d2f981f7b3860f845219d52fccac3255442fec6bc6`，Minus 分别为 `603e10ae179e4e104bb3432bad0587a2bc4984138bb9a70f055c7a3df97468c3`、`d059edb9e673a539db5efb896bfdfe96da33adad2d751b501b9236b57e9c1c48`；18 个证据对象共 15,380,642 bytes 全部独立复算一致。终态、heartbeat、checkpoint、提交 `197b40aec421c338f4cf9c2b9ee8871ef95ade78`、候选、源码闭包、profile 与 queue 哈希均匹配。
+
+Implicit-hydrogen 首批 `impact-4748430-atom-hydrogen-visibility-production-1786457831844` 在 6 个前置动作全部通过并渲染精确 `NH2` 后，于首次 atom 右键动作 fail closed。保留 DOM 证明 `[data-node-id="n_2"]` 是唯一可见文本 primitive，但场景错误使用只解析 scene `data-object-id` 的 `entity-id: n_2`，故归类为 test-locator failure，不是产品失败。失败报告 SHA-256 `f4eb41981a7840a7bce42eadef55a43fa8b1ce033530e7cfa141018e21c080b9`，manifest SHA-256 `14ec3201b72cce233d68f3a1963e2090153a2f10e9894acecab70488e7b4d859`，7 个 failure-retention 证据对象共 7,345,854 bytes 全部复算一致；失败发生在首个场景提交前，故不存在 checkpoint。通用 coverage audit 现拒绝以 `entity-id` 伪装 `n_*`/`b_*` primitive，并要求使用明确的 `data-node-id`/`data-bond-id` selector；对应 mutant 已加入门禁。
 
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 

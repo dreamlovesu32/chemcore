@@ -420,6 +420,15 @@ test("coverage audit binds every registered source and scenario", async () => {
   const wrongPaletteControlResult = await auditCoverage({ registry, scenarios: wrongPaletteControlScenarios, scenarioPaths });
   assert.equal(wrongPaletteControlResult.valid, false);
   assert.match(wrongPaletteControlResult.errors.join("\n"), /must target the stable Element quick-palette mode toggle/);
+
+  const wrongPrimitiveTargetScenarios = structuredClone(scenarios);
+  const hydrogenMenuAction = wrongPrimitiveTargetScenarios
+    .find((scenario) => scenario.id === "core.atom.implicit-hydrogen-visibility-history-persistence.production")
+    .actions.find((action) => action.id === "open-automatic-hydrogen-menu");
+  hydrogenMenuAction.target = { strategy: "entity-id", value: "n_2" };
+  const wrongPrimitiveTargetResult = await auditCoverage({ registry, scenarios: wrongPrimitiveTargetScenarios, scenarioPaths });
+  assert.equal(wrongPrimitiveTargetResult.valid, false);
+  assert.match(wrongPrimitiveTargetResult.errors.join("\n"), /entity-id resolves scene object ids only/);
 });
 
 test("the planar ring matrix kills missing and wrong-member-count tool mutants", async () => {
@@ -528,11 +537,15 @@ test("the element-label matrix kills wrong-palette, wrong-target, and node-seman
 test("the implicit-hydrogen matrix kills wrong-menu-value, missing-history, and automatic-zero mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-implicit-hydrogen-visibility-history-persistence-production.json"));
   const initialMenu = scenario.actions.find((action) => action.id === "open-automatic-hydrogen-menu");
+  const hiddenMenu = scenario.actions.find((action) => action.id === "open-hidden-hydrogen-menu");
+  const restoredMenu = scenario.actions.find((action) => action.id === "open-restored-automatic-menu");
   const hide = scenario.actions.find((action) => action.id === "hide-implicit-hydrogens");
   const restore = scenario.actions.find((action) => action.id === "restore-automatic-hydrogens");
   const undo = scenario.actions.find((action) => action.id === "undo-second-hide");
   const redo = scenario.actions.find((action) => action.id === "redo-second-hide");
-  assert.equal(initialMenu.target.strategy, "entity-id");
+  assert.deepEqual(initialMenu.target, { strategy: "selector", value: '[data-node-id="n_2"]' });
+  assert.deepEqual(hiddenMenu.target, initialMenu.target);
+  assert.deepEqual(restoredMenu.target, initialMenu.target);
   assert.match(initialMenu.completion.selector, /data-canvas-context-value="auto"/);
   assert.equal(hide.target.name, "Hide");
   assert.equal(hide.completion.text, "N");

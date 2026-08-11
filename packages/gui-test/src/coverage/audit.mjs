@@ -57,6 +57,9 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
           errors.push(`Scenario ${scenario.id} action ${action.id} must target the stable Element quick-palette mode toggle.`);
         }
       }
+      if (action.target?.strategy === "entity-id" && /^(?:n|b)_\d+$/.test(action.target.value)) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must target a chemical node or bond with its data-node-id or data-bond-id selector; entity-id resolves scene object ids only.`);
+      }
     }
   }
   for (const entry of registry.entries.filter((candidate) => candidate.status === "gap")) {
