@@ -15,6 +15,8 @@ export const productionBlackBoxCapabilities = Object.freeze([
   "editor.bond.query-order",
   "editor.bond.topology",
   "editor.bond.reaction-participation",
+  "editor.bond.absolute-stereo",
+  "editor.bond.visibility",
   "editor.ring.insert",
   "editor.chain.draw",
   "editor.arrow.draw",

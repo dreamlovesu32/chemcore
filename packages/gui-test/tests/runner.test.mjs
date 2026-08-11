@@ -79,6 +79,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+    "scenario.core.bond.absolute-stereo-value-matrix.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
     "scenario.core.bond.query-order-value-matrix.production",
@@ -144,6 +145,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+      "scenario.core.bond.absolute-stereo-value-matrix.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
       "scenario.core.bond.query-order-value-matrix.production",
@@ -209,6 +211,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+    "scenario.core.bond.absolute-stereo-value-matrix.production",
     "scenario.core.bond.draw-single.production",
     "scenario.core.bond.query-order-value-matrix.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
@@ -262,6 +265,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+    "scenario.core.bond.absolute-stereo-value-matrix.production",
     "scenario.core.bond.query-order-value-matrix.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
@@ -310,6 +314,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+      "scenario.core.bond.absolute-stereo-value-matrix.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
       "scenario.core.bond.query-order-value-matrix.production",
@@ -356,6 +361,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "draw-single-bond.json"),
     join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-absolute-stereo-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-query-order-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-topology-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"),
@@ -407,7 +413,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 49);
+  assert.equal(result.summary.scenarios, 50);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -700,6 +706,32 @@ test("the bond topology matrix kills skipped-value, stale-annotation, wrong-enum
   assert.equal(clear.completion.value, 0);
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-ring-or-chain-topology-semantics").expected, [
     { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, topology: "ring-or-chain" },
+  ]);
+});
+
+test("the absolute bond stereo matrix kills skipped-value, hidden-display, stale-annotation, wrong-enum, and stale-persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-absolute-stereo-value-matrix-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.bond.absolute-stereo"));
+  assert.ok(scenario.capabilities.includes("editor.bond.visibility"));
+  assert.equal(scenario.actions.find((action) => action.id === "set-show-stereo").target.name, "Show");
+
+  const appliedValues = scenario.actions
+    .filter((action) => ["set-e", "set-z", "set-none", "set-unspecified", "set-final-z"].includes(action.id))
+    .map((action) => action.target.name);
+  assert.deepEqual(appliedValues, ["E", "Z", "None", "Unspecified", "Z"]);
+
+  const verifiedValues = scenario.actions
+    .filter((action) => action.id.startsWith("open-") && action.completion.selector?.includes("absolute-stereo:"))
+    .map((action) => action.completion.selector.match(/absolute-stereo:([a-z]+)/)?.[1]);
+  assert.deepEqual(verifiedValues, ["unspecified", "e", "z", "none", "unspecified", "z"]);
+
+  assert.equal(scenario.actions.find((action) => action.id === "set-e").completion.text, "(E)");
+  assert.equal(scenario.actions.find((action) => action.id === "set-z").completion.text, "(Z)");
+  assert.equal(scenario.actions.find((action) => action.id === "set-final-z").completion.text, "(Z)");
+  assert.equal(scenario.actions.find((action) => action.id === "set-none").completion.value, 0);
+  assert.equal(scenario.actions.find((action) => action.id === "set-unspecified").completion.value, 0);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-z-show-stereo-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, absoluteStereo: "z", showStereo: true },
   ]);
 });
 

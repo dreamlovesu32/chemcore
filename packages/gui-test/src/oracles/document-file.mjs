@@ -91,6 +91,8 @@ export function evaluateDocumentBondProperties(bytes, expected) {
       queryOrders: bond?.properties?.queryOrders ?? bond?.properties?.query_orders ?? [],
       topology: bond?.properties?.topology ?? "unspecified",
       reactionParticipation: bond?.properties?.reactionParticipation ?? bond?.properties?.reaction_participation ?? null,
+      absoluteStereo: bond?.properties?.absoluteStereo ?? bond?.properties?.absolute_stereo ?? "unspecified",
+      showStereo: bond?.properties?.showStereo ?? bond?.properties?.show_stereo ?? null,
     };
   });
   const passed = observed.every((actual, index) => actual.found

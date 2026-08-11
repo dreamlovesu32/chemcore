@@ -35,7 +35,7 @@ test("document counts reject collapsing disconnected GUI fragments into one mole
   assert.equal(evaluateDocumentReports(disconnectedReports, { ...exact, molecules: 1, objects: 1 }).passed, false);
 });
 
-test("saved-document bond oracle kills order, line-style, weight, and stereo mutants", () => {
+test("saved-document bond oracle kills order, line-style, stereo, query, topology, reaction, and display-property mutants", () => {
   const bytes = Buffer.from(JSON.stringify({
     resources: {
       mol: {
@@ -45,7 +45,7 @@ test("saved-document bond oracle kills order, line-style, weight, and stereo mut
             { id: "b_double", order: 2, lineStyles: { main: "solid", left: "solid", right: "solid" }, lineWeights: { main: "normal" } },
             { id: "b_hash", order: 1, lineStyles: { main: "hash", left: "solid", right: "solid" }, lineWeights: { main: "normal" } },
             { id: "b_wedge", order: 1, lineStyles: { main: "solid", left: "solid", right: "solid" }, lineWeights: { main: "normal" }, stereo: { kind: "solid-wedge", wideEnd: "end" } },
-            { id: "b_reaction", order: 1, properties: { queryOrders: ["double", "aromatic"], topology: "ring-or-chain", reactionParticipation: "make-and-change" } },
+            { id: "b_reaction", order: 1, properties: { queryOrders: ["double", "aromatic"], topology: "ring-or-chain", reactionParticipation: "make-and-change", absoluteStereo: "z", showStereo: true } },
           ],
         },
       },
@@ -55,7 +55,7 @@ test("saved-document bond oracle kills order, line-style, weight, and stereo mut
     { id: "b_double", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
     { id: "b_hash", order: 1, mainLineStyle: "hash", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
     { id: "b_wedge", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "solid-wedge", wideEnd: "end" },
-    { id: "b_reaction", order: 1, queryOrders: ["double", "aromatic"], topology: "ring-or-chain", reactionParticipation: "make-and-change" },
+    { id: "b_reaction", order: 1, queryOrders: ["double", "aromatic"], topology: "ring-or-chain", reactionParticipation: "make-and-change", absoluteStereo: "z", showStereo: true },
   ];
   assert.equal(evaluateDocumentBondProperties(bytes, expected).passed, true);
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[0], order: 1 }]).passed, false);
@@ -66,6 +66,8 @@ test("saved-document bond oracle kills order, line-style, weight, and stereo mut
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[3], queryOrders: ["aromatic", "double"] }]).passed, false);
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[3], topology: "chain" }]).passed, false);
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[3], reactionParticipation: "unspecified" }]).passed, false);
+  assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[3], absoluteStereo: "e" }]).passed, false);
+  assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[3], showStereo: false }]).passed, false);
 });
 
 test("saved-document node oracle kills element, charge, implicit-hydrogen-label, and source-label mutants", () => {
