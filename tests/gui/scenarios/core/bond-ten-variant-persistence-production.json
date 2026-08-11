@@ -42,7 +42,7 @@
   ],
   "oracles": [
     { "id": "ten-distinct-bonds-rendered", "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 10 },
-    { "id": "saved-document-has-ten-bonds", "kind": "document-counts", "expected": { "nodes": 20, "bonds": 10, "molecules": 1, "objects": 1 } },
+    { "id": "saved-document-has-ten-disconnected-molecules", "kind": "document-counts", "expected": { "nodes": 20, "bonds": 10, "molecules": 10, "objects": 10 } },
     { "id": "saved-bond-variant-semantics", "kind": "document-bond-properties", "expected": [
       { "id": "b_3", "order": 2, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
       { "id": "b_6", "order": 3, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },

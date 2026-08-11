@@ -20,6 +20,21 @@ test("independent document oracle requires valid CCJS and exact chemical counts"
   assert.equal(evaluateDocumentReports({ ...validReports, inspect: { summary: { ...validReports.inspect.summary, format: { name: "chemsema", version: "0.1" } } } }, expected).passed, false);
 });
 
+test("document counts reject collapsing disconnected GUI fragments into one molecule", () => {
+  const disconnectedReports = {
+    inspect: {
+      summary: {
+        format: { name: "chemsema", version: "0.2" },
+        counts: { nodes: 20, bonds: 10, molecules: 10, objects: 10 },
+      },
+    },
+    validation: { schema: "chemsema.validation-report.v1", ok: true, issues: [] },
+  };
+  const exact = { nodes: 20, bonds: 10, molecules: 10, objects: 10 };
+  assert.equal(evaluateDocumentReports(disconnectedReports, exact).passed, true);
+  assert.equal(evaluateDocumentReports(disconnectedReports, { ...exact, molecules: 1, objects: 1 }).passed, false);
+});
+
 test("saved-document bond oracle kills order, line-style, weight, and stereo mutants", () => {
   const bytes = Buffer.from(JSON.stringify({
     resources: {
