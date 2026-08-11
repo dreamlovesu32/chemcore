@@ -88,6 +88,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-period-five-transition-free-placement.production",
     "scenario.core.atom.periodic-period-four-transition-free-placement.production",
     "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+    "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
     "scenario.core.atom.periodic-period-six-transition-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
@@ -177,6 +178,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-period-five-transition-free-placement.production",
       "scenario.core.atom.periodic-period-four-transition-free-placement.production",
       "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+      "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
       "scenario.core.atom.periodic-period-six-transition-free-placement.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
@@ -266,6 +268,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-period-five-transition-free-placement.production",
     "scenario.core.atom.periodic-period-four-transition-free-placement.production",
     "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+    "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
     "scenario.core.atom.periodic-period-six-transition-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
@@ -343,6 +346,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-period-five-transition-free-placement.production",
     "scenario.core.atom.periodic-period-four-transition-free-placement.production",
     "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+    "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
     "scenario.core.atom.periodic-period-six-transition-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
@@ -415,6 +419,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-period-five-transition-free-placement.production",
       "scenario.core.atom.periodic-period-four-transition-free-placement.production",
       "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+      "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
       "scenario.core.atom.periodic-period-six-transition-free-placement.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
@@ -516,6 +521,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-periodic-period-five-transition-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-period-four-transition-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-period-seven-main-group-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-period-seven-transition-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-period-six-transition-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-representative-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-implicit-hydrogen-visibility-history-persistence-production.json"),
@@ -551,7 +557,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 45);
-  assert.equal(result.summary.scenarios, 73);
+  assert.equal(result.summary.scenarios, 74);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -819,6 +825,25 @@ test("the remaining actinide cell kills endpoint-only, row-order, implicit-hydro
     expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })),
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-remaining-actinide-counts").expected, { nodes: 11, bonds: 0, molecules: 11, objects: 11 });
+});
+
+test("the period-seven transition cell kills prior-period reuse, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-period-seven-transition-free-placement-production.json"));
+  const expectedValues = [
+    ["rutherfordium", "Rf", 104, "n_1"], ["dubnium", "Db", 105, "n_2"], ["seaborgium", "Sg", 106, "n_3"],
+    ["bohrium", "Bh", 107, "n_4"], ["hassium", "Hs", 108, "n_5"], ["meitnerium", "Mt", 109, "n_6"],
+    ["darmstadtium", "Ds", 110, "n_7"], ["roentgenium", "Rg", 111, "n_8"], ["copernicium", "Cn", 112, "n_9"],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-period-seven-transition-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-period-seven-transition-counts").expected, { nodes: 9, bonds: 0, molecules: 9, objects: 9 });
 });
 
 test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
