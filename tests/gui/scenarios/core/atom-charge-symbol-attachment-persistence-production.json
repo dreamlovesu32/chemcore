@@ -31,7 +31,7 @@
       { "id": "n_2", "element": "N", "atomicNumber": 7, "charge": 1, "numHydrogens": 3, "labelText": "NH3", "labelSourceText": "NH3" }
     ] },
     { "id": "saved-positive-symbol-attachment-semantics", "kind": "document-symbol-properties", "expected": [
-      { "id": "obj_symbol_1", "kind": "circle-plus", "payloadFill": "#000000", "styleFill": "#000000", "styleKind": "symbol", "symbolStyle": "default", "chemicalRole": "charge", "chargeDelta": 1, "radicalDelta": 0, "attachedAtomId": "n_2", "attachmentSource": "auto" }
+      { "id": "obj_symbol_4", "kind": "circle-plus", "payloadFill": "#000000", "symbolStyle": "default", "chemicalRole": "charge", "chargeDelta": 1, "radicalDelta": 0, "attachedAtomId": "n_2", "attachmentSource": "auto" }
     ] },
     { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
   ],

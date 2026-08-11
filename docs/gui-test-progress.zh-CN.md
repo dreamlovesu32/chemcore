@@ -6,7 +6,7 @@
 
 当前产品候选：`7714f687f6e74bd1df479c4bd1db61cf45b5a808755e6979eb3a4a25b957a03a`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**36/37 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。Element/原子标签第三批次通过且重建的不可变 36/36 qualification 已通过；六元环 Bond 融合及 Element 的 locator/oracle 首次失败证据永久保留。影响图下一项是不同能力的正电荷 symbol→atom 自动附着：新场景要求 +1 formal charge、三个隐式氢、`NH3` 标签、symbol chemistry delta 与持久化 atom/link 身份全部一致，当前只启动这一新增功能闭包。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**36/37 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。Element/原子标签第三批次通过且重建的不可变 36/36 qualification 已通过；六元环 Bond 融合及 Element 的 locator/oracle 首次失败证据永久保留。正电荷 symbol→atom 首批运行的 12/12 真实动作、拓扑及 `N/+1/H3/NH3` 产品语义均正确，唯一失败是 oracle 错把全局共享序号生成的 `obj_symbol_4` 预期为每类从一开始的 `obj_symbol_1`，并错误要求默认 symbol 物化独立 style；通用 Symbol oracle/schema mutation 覆盖修复后只重启这一受影响闭包。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；Element/原子标签与重建的 36/36 qualification 已通过。六元环 Bond 融合及 Element locator/oracle 首次失败证据保留；当前只运行新增正电荷 symbol→atom 附着场景，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；Element/原子标签与重建的 36/36 qualification 已通过。六元环 Bond 融合、Element 及正电荷附着的首次 test/oracle 失败证据均保留；当前只重启 Symbol ID/style oracle 修复后的正电荷附着场景，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -146,6 +146,8 @@ Element/原子标签首次批次 `impact-a49f068-atom-element-label-production-1
 定位器修复后的第二批次 `impact-3e9c87f-atom-element-label-production-1786451730134` 完成 10/10 actions：公开周期表准确选择 Nitrogen、端点渲染唯一标签、原生保存与 2 节点/1 键/单分子拓扑均通过；Node oracle 随后因预期裸 `N` 而拒绝实际正确的 `N`、atomic number 7、charge 0、`NH2` display/source label，故归类为 oracle-specification failure，不是产品失败。失败报告 SHA-256 `043b082a67834e97956b245a2017e4990cea0c0c06bb1344654870d30a13c5fb`，manifest SHA-256 `18796adf97d3e0d78634eb902c9435f49f7a9dfe43210dae3bada83a65c01277`，9 个 failure-retention 证据对象共 7,537,106 bytes 全部复算一致。Node oracle 回归现以 `NH2` 为真实端点价态语义并杀死裸 `N`、`NH`、错误 source label、元素、原子序数及电荷 mutants。
 
 Element/原子标签第三批次 `impact-90caebb-atom-element-label-production-1786451997211` 已通过：10/10 actions、4/4 oracles、0 diagnostics；报告 SHA-256 `c9ff3edd0a0864f1cd2726f7c931afa84469d1fdcec8d306e9c58da407ebaae9`，manifest SHA-256 `32c37e5810ca4d8d7b684efe982fa65129ffd1053eb4379dfd39f7fb6784fb92`，9 个证据对象共 7,521,315 bytes 全部复算一致。36 份当前报告已合并为不可变 qualification `9a7268a6-4054-4773-a09a-e26310046a65`：36/36 passed、0 failed、0 missing、0 diagnostics，292 个证据对象共 287,251,349 bytes，qualification SHA-256 为 `e9ddf68e427122b879e593107a97ae186e9288ac4ab547770bf5ef61076be034`。
+
+正电荷 symbol→atom 首批 `impact-66be831-atom-charge-attachment-production-1786452833181` 完成 12/12 actions：默认 circle-plus 真实附着后，保存文件精确得到 2 节点、1 键、单分子、2 对象，Nitrogen 为 charge `+1`、`numHydrogens=3`、display/source label `NH3`，无产品 diagnostics。失败仅来自 Symbol oracle specification：对象使用引擎全局共享序号 `obj_symbol_4` 而非错误预期的 per-kind `obj_symbol_1`，且未编辑颜色的默认 symbol 只在 payload 保存黑色，不应强制存在独立 `styleRef`。失败报告 SHA-256 `5e291a290963f1707d14e7b215e7332f3a8f0366aa58e017e4730b0f9c9d9fa4`，manifest SHA-256 `f184fa6580ca09616f546cb063ddc71c9992f4fe7f76c24cbe476d590b317aac`，9 个 failure-retention 证据对象共 7,659,629 bytes 全部复算一致。通用 schema 现把 style surface 改为按需断言，并以错误对象 ID、错误 atom ID、零 charge delta、错误 link provenance 与陈旧氢数 mutants 证明门禁可杀死这一类错误。
 
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 

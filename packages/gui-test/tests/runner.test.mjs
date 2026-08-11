@@ -485,7 +485,7 @@ test("the atom charge attachment matrix kills detached-symbol, stale-charge, and
     { id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 3, labelText: "NH3", labelSourceText: "NH3" },
   ]);
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-positive-symbol-attachment-semantics").expected, [
-    { id: "obj_symbol_1", kind: "circle-plus", payloadFill: "#000000", styleFill: "#000000", styleKind: "symbol", symbolStyle: "default", chemicalRole: "charge", chargeDelta: 1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
+    { id: "obj_symbol_4", kind: "circle-plus", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "charge", chargeDelta: 1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
   ]);
 });
 

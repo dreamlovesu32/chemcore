@@ -254,6 +254,7 @@ test("saved-document symbol oracle checks exact kind and both persisted color su
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], kind: "plus" }]).passed, false);
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], payloadFill: "#000000" }]).passed, false);
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], styleFill: "#000000" }]).passed, false);
+  assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], id: "obj_symbol_4" }]).passed, false);
 });
 
 test("saved-document atom and symbol oracles kill detached charge and stale-hydrogen mutants", () => {
@@ -264,15 +265,16 @@ test("saved-document atom and symbol oracles kill detached charge and stale-hydr
       label: { text: "NH3", sourceText: "NH3" },
     }] } } },
     entities: { scene: [{
-      id: "obj_symbol_1", type: "symbol", styleRef: "style_obj_symbol_1",
+      id: "obj_symbol_4", type: "symbol",
       payload: { kind: "circle-plus", fill: "#000000", symbolStyle: "default", chemicalRole: "charge", chargeDelta: 1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
     }] },
   }));
   const nodeExpected = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 3, labelText: "NH3", labelSourceText: "NH3" }];
-  const symbolExpected = [{ id: "obj_symbol_1", kind: "circle-plus", payloadFill: "#000000", styleFill: "#000000", styleKind: "symbol", symbolStyle: "default", chemicalRole: "charge", chargeDelta: 1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" }];
+  const symbolExpected = [{ id: "obj_symbol_4", kind: "circle-plus", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "charge", chargeDelta: 1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" }];
   assert.equal(evaluateDocumentNodeProperties(bytes, nodeExpected).passed, true);
   assert.equal(evaluateDocumentSymbolProperties(bytes, symbolExpected).passed, true);
   assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...nodeExpected[0], numHydrogens: 2 }]).passed, false);
+  assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...symbolExpected[0], id: "obj_symbol_1" }]).passed, false);
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...symbolExpected[0], attachedAtomId: "n_1" }]).passed, false);
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...symbolExpected[0], chargeDelta: 0 }]).passed, false);
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...symbolExpected[0], attachmentSource: "explicit" }]).passed, false);

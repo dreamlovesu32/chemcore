@@ -486,7 +486,8 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["id", "kind", "payloadFill", "styleFill", "styleKind", "symbolStyle"],
+                "required": ["id", "kind"],
+                "minProperties": 3,
                 "properties": {
                   "id": { "$ref": "#/$defs/id" },
                   "kind": { "enum": ["circle-plus", "plus", "radical-cation", "lone-pair", "circle-minus", "minus", "radical-anion", "electron"] },
