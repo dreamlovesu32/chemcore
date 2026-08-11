@@ -60,6 +60,22 @@ test("production driver advertises every capability required by registered produ
   }
 });
 
+test("an exact bond identity selector resolves one logical target across multiple rendered primitives", async () => {
+  const primitives = [
+    { tag: "line", visible: true, disabled: false, rect: [100, 200, 140, 201] },
+    { tag: "line", visible: true, disabled: false, rect: [100, 204, 140, 205] },
+  ];
+  const driver = new ProductionBlackBoxDriver({ coordinator: {
+    async cdpBridge() { return { scopeCount: null, matches: primitives }; },
+  } });
+  const exact = { strategy: "selector", value: 'line[data-bond-id="b_3"]' };
+  assert.deepEqual((await driver.resolve(exact)).match, primitives[0]);
+  await assert.rejects(
+    driver.resolve({ strategy: "selector", value: "line.mol-bond-stroked" }),
+    /resolved to 2 visible actionable elements/,
+  );
+});
+
 test("production black-box driver maps semantic CDP targets to guarded OS input", async () => {
   let bonds = 0;
   let stopCount = 0;

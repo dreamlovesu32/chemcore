@@ -72,6 +72,17 @@ export const productionBlackBoxCapabilities = Object.freeze([
   "desktop.production",
 ]);
 
+const exactBondIdentitySelector = /\[\s*data-bond-id\s*=\s*(?:"[^"]+"|'[^']+'|[A-Za-z0-9_.:-]+)\s*\]/;
+
+function canonicalActionableMatches(target, matches) {
+  if (target.strategy === "selector" && exactBondIdentitySelector.test(target.value) && matches.length > 1) {
+    // A logical bond can render as multiple SVG lines or polygons. An exact
+    // bond identity still names one semantic target; other locators stay strict.
+    return [matches[0]];
+  }
+  return matches;
+}
+
 async function retry(operation, { timeoutMs = 90000, intervalMs = 1000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   let lastError;
@@ -239,7 +250,10 @@ export class ProductionBlackBoxDriver {
     if (target.scope && value.scopeCount !== 1) {
       throw new Error(`Target scope resolved to ${value.scopeCount} elements.`);
     }
-    const matches = value.matches.filter((match) => match.visible && !match.disabled);
+    const matches = canonicalActionableMatches(
+      target,
+      value.matches.filter((match) => match.visible && !match.disabled),
+    );
     if (matches.length !== 1) {
       throw new Error(`Target resolved to ${matches.length} visible actionable elements.`);
     }
