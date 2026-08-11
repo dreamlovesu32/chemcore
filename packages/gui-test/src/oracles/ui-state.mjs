@@ -85,7 +85,8 @@ export function evaluateUiState(observed, expectation) {
   if (expectation.geometry) {
     const tolerance = expectation.geometry.tolerancePx;
     let passed = false;
-    if (expectation.geometry.relation === "contains-reference") passed = unionContains(observed.unionRect, observed.reference?.unionRect, tolerance);
+    if (expectation.geometry.relation === "matches-reference") passed = unionContains(observed.unionRect, observed.reference?.unionRect, tolerance) && unionContains(observed.reference?.unionRect, observed.unionRect, tolerance);
+    else if (expectation.geometry.relation === "contains-reference") passed = unionContains(observed.unionRect, observed.reference?.unionRect, tolerance);
     else if (expectation.geometry.relation === "inside-reference") passed = unionContains(observed.reference?.unionRect, observed.unionRect, tolerance);
     else passed = overlaps(observed.unionRect, observed.reference?.unionRect, tolerance);
     if (!passed) failures.push(`geometry relation ${expectation.geometry.relation} failed with ${tolerance}px tolerance.`);

@@ -142,17 +142,21 @@ test("saved-document orbital oracle checks exact properties and template-compati
         orbitalColor: "#000000",
         axisStart: [30, 40],
         axisEnd: [30, 70],
+        bbox: [7.5, 17.5, 45, 75],
+        angle: 90,
       },
     }] },
   };
   const bytes = Buffer.from(JSON.stringify(document));
-  const expected = [{ id: "obj_shape_orbital_1", kind: "orbital", template: "dz2", orbitalStyle: "filled", phase: "plus", color: "#000000", geometryValid: true, fill: "#000000", stroke: null, strokeWidth: 1, dashArray: [], shaded: false }];
+  const expected = [{ id: "obj_shape_orbital_1", kind: "orbital", template: "dz2", orbitalStyle: "filled", phase: "plus", color: "#000000", geometryValid: true, axisLength: 30, bboxSize: [45, 75], angle: 90, fill: "#000000", stroke: null, strokeWidth: 1, dashArray: [], shaded: false }];
   assert.equal(evaluateDocumentOrbitalProperties(bytes, expected).passed, true);
   assert.equal(evaluateDocumentOrbitalProperties(bytes, [{ ...expected[0], phase: "minus" }]).passed, false);
   const zeroAxis = Buffer.from(JSON.stringify({ ...document, entities: { scene: [{ ...document.entities.scene[0], payload: { ...document.entities.scene[0].payload, axisEnd: [30, 40] } }] } }));
   assert.equal(evaluateDocumentOrbitalProperties(zeroAxis, expected).passed, false);
   const staleEllipseGeometry = Buffer.from(JSON.stringify({ ...document, entities: { scene: [{ ...document.entities.scene[0], payload: { ...document.entities.scene[0].payload, center: [30, 40] } }] } }));
   assert.equal(evaluateDocumentOrbitalProperties(staleEllipseGeometry, expected).passed, false);
+  const wrongVisualEnvelope = Buffer.from(JSON.stringify({ ...document, entities: { scene: [{ ...document.entities.scene[0], payload: { ...document.entities.scene[0].payload, bbox: [7.5, 17.5, 44, 75] } }] } }));
+  assert.equal(evaluateDocumentOrbitalProperties(wrongVisualEnvelope, expected).passed, false);
 });
 
 test("saved-document chromatography oracle checks TLC and gel marks plus internal colors", () => {

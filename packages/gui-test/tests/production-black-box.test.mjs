@@ -8,6 +8,7 @@ import { ProductionBlackBoxDriver, summarizePerformanceTrace } from "../src/driv
 import { guiTestsDir } from "../src/protocol/paths.mjs";
 import { readValidatedDocument } from "../src/protocol/validate.mjs";
 import { runScenario } from "../src/runner/run-scenario.mjs";
+import { selectionRectWithMinimumSize } from "../../../viewer/editor_overlay.js";
 
 function foreground() {
   return {
@@ -28,7 +29,19 @@ test("canvas focus and selection controls have explicit accessible frontend geom
   assert.match(app, /viewerContainer\.focus\(\{ preventScroll: true \}\)/);
   assert.match(styles, /\.viewer-container:focus-visible\s*\{[^}]*outline: 2px solid var\(--active\)/s);
   assert.match(overlay, /SELECTION_RESIZE_HANDLE_SCREEN_PX = 6/);
+  assert.match(overlay, /SELECTION_BOND_BOX_MIN_SCREEN_PX = 12/);
   assert.match(overlay, /SELECTION_ROTATE_HANDLE_RADIUS_SCREEN_PX = 4/);
+});
+
+test("bond selection boxes retain a centered minimum interactive size", () => {
+  assert.deepEqual(
+    selectionRectWithMinimumSize({ kind: "rect", role: "selection-bond", x: 10, y: 20, width: 2, height: 0 }, 12),
+    { kind: "rect", role: "selection-bond", x: 5, y: 14, width: 12, height: 12 },
+  );
+  assert.deepEqual(
+    selectionRectWithMinimumSize({ kind: "rect", role: "selection-bond", x: 10, y: 20, width: 30, height: 4 }, 12),
+    { kind: "rect", role: "selection-bond", x: 10, y: 16, width: 30, height: 12 },
+  );
 });
 
 test("production black-box driver maps semantic CDP targets to guarded OS input", async () => {
@@ -363,4 +376,6 @@ test("UI state oracle evaluates focus hover disabled styles geometry and DPI wit
   assert.equal(result.passed, true, result.failures.join("\n"));
   assert.equal(evaluateUiState({ ...result.observed, hoverCount: 0 }, expectation).passed, false);
   assert.equal(evaluateUiState({ ...result.observed, truncated: true }, expectation).passed, false);
+  assert.equal(evaluateUiState(result.observed, { ...expectation, geometry: { relation: "matches-reference", tolerancePx: 2 } }).passed, true);
+  assert.equal(evaluateUiState({ ...result.observed, unionRect: [0, 0, 30, 30] }, { ...expectation, geometry: { relation: "matches-reference", tolerancePx: 2 } }).passed, false);
 });

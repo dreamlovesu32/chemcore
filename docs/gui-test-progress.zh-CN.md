@@ -43,7 +43,7 @@
 | ✅ | 内容寻址候选 | 可执行文件与源码闭包哈希绑定，源码或二进制漂移时拒绝运行 |
 | ✅ | 原生 Windows 对话框 | 保存/打开使用真实 UIA 与键盘输入，保存文件经 SHA-256 回传 |
 | ✅ | 独立文件 oracle | 已支持化学计数及 Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 精确属性 |
-| 🟡 | 独立前端状态 oracle | 已用当前候选实机通过焦点归属、键盘焦点环、`:hover`、禁用态、受限计算样式、选择覆盖层/对象几何、控制点像素尺寸、实际 viewport 与 `devicePixelRatio`；尚缺完整键盘 `:focus-visible` 顺序、全部光标/主题/DPI/窗口尺寸矩阵 |
+| 🟡 | 独立前端状态 oracle | 已用当前候选实机通过焦点归属、键盘焦点环、`:hover`、禁用态、受限计算样式、选择覆盖层/对象几何、控制点像素尺寸、实际 viewport 与 `devicePixelRatio`；已增加待新候选实机验证的字体变化后文本紧边界和键选择框 12 CSS px 最小可操作尺寸断言；尚缺完整键盘 `:focus-visible` 顺序、全部光标/主题/DPI/窗口尺寸矩阵 |
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
@@ -140,14 +140,14 @@
 
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
-1. 🟡 **物理节点第一阶段收口**：启动独立 24 小时/至少 1,000 次物理 GUI soak；完成 NSIS 安装/文件关联、supervisor/子进程重启 checkpoint 与终态事件唤醒验收、PR/CI；保持已登记 27/27 资格。
+1. 🟡 **当前缺陷族与 oracle 收口**：验证字体变化后文本几何重算、键选择框的屏幕像素下限、轨道模板迁移的精确几何，并补齐轨道/括号归一化前的语义检查点；完成终态事件唤醒验收。
 2. **化学绘制主干**：11 种键、原子/标签/电荷、环、Chain、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
 5. **文档与外部边界**：多标签、所有格式、恢复、系统剪贴板、Office、文件关联。
 6. **Complex/Large/Xlarge**：先从空白构建，再验证打开后继续编辑；建立硬性能和资源阈值。
 7. **环境、故障、模型与 mutation**：补齐非正常路径和主动杀错能力。
-8. **24 小时 soak → 最终安装包 → 连续 1,000 次展示**：三项均为不可折扣的最终门禁。
+8. **功能矩阵闭合后再做长稳**：复杂/large/xlarge 与功能矩阵闭合后，依次完成 24 小时混合 soak、最终安装包和连续 1,000 次正式展示；不得用重复稳定性运行挤占功能覆盖。
 
 ## 6. 强制更新规则
 

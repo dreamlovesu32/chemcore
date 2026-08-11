@@ -2205,6 +2205,9 @@ fn apply_text_object_style(object: &mut SceneObject, command: &str, value: &str)
             });
         }
     }
+    if changed {
+        super::text_edit::refresh_auto_sized_text_object_box(object);
+    }
     changed
 }
 
@@ -2585,4 +2588,81 @@ fn faded_color(color: &str) -> String {
     };
     let blend = |channel: u8| ((channel as f64 * 0.45) + 255.0 * 0.55).round() as u8;
     format!("#{:02x}{:02x}{:02x}", blend(red), blend(green), blend(blue))
+}
+
+#[cfg(test)]
+mod text_style_geometry_tests {
+    use super::*;
+
+    fn text_object(authored_bounding_box: Option<bool>) -> SceneObject {
+        let mut extra = BTreeMap::new();
+        extra.insert("text".to_string(), json!("iiiiiiii"));
+        extra.insert("align".to_string(), json!("left"));
+        extra.insert("preserveLines".to_string(), json!(true));
+        extra.insert("fontFamily".to_string(), json!("Arial"));
+        extra.insert("fontSize".to_string(), json!(12.0));
+        extra.insert("lineHeight".to_string(), json!(12.0));
+        extra.insert("box".to_string(), json!([0.0, 0.0, 100.0, 12.0]));
+        extra.insert(
+            "runs".to_string(),
+            json!([{
+                "text": "iiiiiiii",
+                "fontFamily": "Arial",
+                "fontSize": 12.0,
+                "fontWeight": 400,
+                "fontStyle": "normal"
+            }]),
+        );
+        SceneObject {
+            id: "text_1".to_string(),
+            object_type: "text".to_string(),
+            name: "text".to_string(),
+            visible: true,
+            locked: false,
+            z_index: 1,
+            transform: crate::Transform::default(),
+            style_ref: None,
+            link_policy: Default::default(),
+            meta: authored_bounding_box
+                .map(|value| json!({"import": {"cdxml": {"authoredBoundingBox": value}}}))
+                .unwrap_or(JsonValue::Null),
+            payload: ObjectPayload {
+                bbox: Some([0.0, 0.0, 100.0, 12.0]),
+                extra,
+                ..ObjectPayload::default()
+            },
+            children: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn metric_text_styles_reframe_native_auto_sized_boxes() {
+        let mut object = text_object(None);
+        assert!(apply_text_object_style(
+            &mut object,
+            "font-family",
+            "Times New Roman"
+        ));
+        let box_value = object.payload.extra["box"]
+            .as_array()
+            .expect("box remains an array");
+        let width = box_value[2].as_f64().expect("box width");
+        assert!(
+            width < 100.0,
+            "native auto-sized text must drop stale width"
+        );
+        assert_eq!(object.payload.bbox, Some([0.0, 0.0, width, 12.0]));
+    }
+
+    #[test]
+    fn metric_text_styles_preserve_explicit_imported_boxes() {
+        let mut object = text_object(Some(true));
+        assert!(apply_text_object_style(
+            &mut object,
+            "font-family",
+            "Times New Roman"
+        ));
+        assert_eq!(object.payload.extra["box"], json!([0.0, 0.0, 100.0, 12.0]));
+        assert_eq!(object.payload.bbox, Some([0.0, 0.0, 100.0, 12.0]));
+    }
 }

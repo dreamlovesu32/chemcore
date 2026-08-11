@@ -203,6 +203,10 @@ export function evaluateDocumentOrbitalProperties(bytes, expected) {
     const style = styles[object?.styleRef] || {};
     const axisStart = payload.axisStart;
     const axisEnd = payload.axisEnd;
+    const bbox = Array.isArray(payload.bbox) ? payload.bbox : null;
+    const axisLength = finitePoint(axisStart) && finitePoint(axisEnd)
+      ? Math.hypot(axisEnd[0] - axisStart[0], axisEnd[1] - axisStart[1])
+      : null;
     const geometryValid = finitePoint(axisStart)
       && finitePoint(axisEnd)
       && Math.hypot(axisEnd[0] - axisStart[0], axisEnd[1] - axisStart[1]) > 0
@@ -218,6 +222,9 @@ export function evaluateDocumentOrbitalProperties(bytes, expected) {
       phase: payload.orbitalPhase ?? null,
       color: payload.orbitalColor ?? null,
       geometryValid,
+      axisLength,
+      bboxSize: bbox?.length === 4 ? [bbox[2], bbox[3]] : null,
+      angle: payload.angle ?? null,
       fill: style.fill ?? null,
       stroke: style.stroke ?? null,
       strokeWidth: style.strokeWidth ?? null,

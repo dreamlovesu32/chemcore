@@ -264,7 +264,7 @@
           "additionalProperties": false,
           "required": ["relation", "tolerancePx"],
           "properties": {
-            "relation": { "enum": ["contains-reference", "inside-reference", "overlaps-reference"] },
+            "relation": { "enum": ["matches-reference", "contains-reference", "inside-reference", "overlaps-reference"] },
             "tolerancePx": { "type": "number", "minimum": 0, "maximum": 256 }
           }
         },
@@ -399,6 +399,9 @@
                   "phase": { "enum": ["plus", "minus"] },
                   "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
                   "geometryValid": { "const": true },
+                  "axisLength": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 },
+                  "bboxSize": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 } },
+                  "angle": { "type": "number", "minimum": -360, "maximum": 360 },
                   "fill": { "type": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
                   "stroke": { "type": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
                   "strokeWidth": { "type": "number", "minimum": 0, "maximum": 1000 },
