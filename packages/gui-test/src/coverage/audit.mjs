@@ -6,6 +6,17 @@ import { productionBlackBoxCapabilities } from "../drivers/production-black-box.
 
 const productionCapabilitySet = new Set(productionBlackBoxCapabilities);
 
+function clearsSelectionViaBlankPage(action) {
+  return action?.type === "click"
+    && action.button === "left"
+    && action.target?.strategy === "world-geometry"
+    && action.target.value === "page-background"
+    && action.completion?.kind === "dom-count"
+    && action.completion.selector === '[data-layer="editor-overlay"] > *'
+    && action.completion.operator === "eq"
+    && action.completion.value === 0;
+}
+
 export async function auditCoverage({ registry, scenarios, scenarioPaths = [] }) {
   const errors = [];
   const warnings = [];
@@ -41,7 +52,8 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
     if (missingCapabilities.length > 0) {
       errors.push(`Scenario ${scenario.id} requires capabilities not advertised by production-black-box: ${missingCapabilities.join(", ")}.`);
     }
-    for (const action of scenario.actions) {
+    let bondPropertyMenuOpened = false;
+    for (const [actionIndex, action] of scenario.actions.entries()) {
       if (!candidateActionBudgetIsValid(action.budgetMs, action.completion?.timeoutMs)) {
         errors.push(`Scenario ${scenario.id} action ${action.id} must reserve ${candidateActionTransportReserveMs} ms for production input transport.`);
       }
@@ -66,6 +78,17 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
       }
       if (action.target?.strategy === "entity-id" && /^(?:n|b)_\d+$/.test(action.target.value)) {
         errors.push(`Scenario ${scenario.id} action ${action.id} must target a chemical node or bond with its data-node-id or data-bond-id selector; entity-id resolves scene object ids only.`);
+      }
+      const opensBondPropertyMenu = action.type === "click"
+        && action.button === "right"
+        && action.target?.strategy === "selector"
+        && action.target.value.includes("[data-bond-id=")
+        && action.completion?.selector?.includes('[data-canvas-context-command="bond-property"]');
+      if (opensBondPropertyMenu) {
+        if (!bondPropertyMenuOpened && !clearsSelectionViaBlankPage(scenario.actions[actionIndex - 1])) {
+          errors.push(`Scenario ${scenario.id} action ${action.id} must immediately clear stale selection on page-background before opening its first bond-specific context menu.`);
+        }
+        bondPropertyMenuOpened = true;
       }
     }
   }

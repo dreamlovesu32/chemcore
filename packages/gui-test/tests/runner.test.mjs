@@ -445,6 +445,15 @@ test("coverage audit binds every registered source and scenario", async () => {
   const unadvertisedCapabilityResult = await auditCoverage({ registry, scenarios: unadvertisedCapabilityScenarios, scenarioPaths });
   assert.equal(unadvertisedCapabilityResult.valid, false);
   assert.match(unadvertisedCapabilityResult.errors.join("\n"), /requires capabilities not advertised by production-black-box: editor\.bond\.unadvertised-mutant/);
+
+  const staleBondSelectionScenarios = structuredClone(scenarios);
+  const staleBondSelectionScenario = staleBondSelectionScenarios
+    .find((scenario) => scenario.id === "core.bond.reaction-participation-history-persistence.production");
+  staleBondSelectionScenario.actions = staleBondSelectionScenario.actions
+    .filter((action) => action.id !== "clear-created-molecule-selection");
+  const staleBondSelectionResult = await auditCoverage({ registry, scenarios: staleBondSelectionScenarios, scenarioPaths });
+  assert.equal(staleBondSelectionResult.valid, false);
+  assert.match(staleBondSelectionResult.errors.join("\n"), /must immediately clear stale selection on page-background before opening its first bond-specific context menu/);
 });
 
 test("the planar ring matrix kills missing and wrong-member-count tool mutants", async () => {
@@ -579,11 +588,15 @@ test("the implicit-hydrogen matrix kills wrong-menu-value, missing-history, and 
 test("the bond reaction matrix kills wrong-enum, missing-annotation, and missing-history mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"));
   const initialMenu = scenario.actions.find((action) => action.id === "open-initial-bond-reaction-menu");
+  const clearSelection = scenario.actions.find((action) => action.id === "clear-created-molecule-selection");
   const apply = scenario.actions.find((action) => action.id === "set-make-and-change");
   const changedMenu = scenario.actions.find((action) => action.id === "open-changed-bond-reaction-menu");
   const undo = scenario.actions.find((action) => action.id === "undo-reaction-participation");
   const redo = scenario.actions.find((action) => action.id === "redo-reaction-participation");
   assert.deepEqual(initialMenu.target, { strategy: "selector", value: 'line[data-bond-id="b_3"]' });
+  assert.equal(scenario.actions.indexOf(clearSelection), scenario.actions.indexOf(initialMenu) - 1);
+  assert.deepEqual(clearSelection.target, { strategy: "world-geometry", value: "page-background" });
+  assert.equal(clearSelection.completion.selector, '[data-layer="editor-overlay"] > *');
   assert.match(initialMenu.completion.selector, /reaction-participation:unspecified/);
   assert.equal(apply.target.name, "Make and Change");
   assert.equal(apply.completion.text, "Rxn");
