@@ -99,6 +99,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-value-matrix.production",
+    "scenario.core.atom.stereo-value-history-persistence.production",
     "scenario.core.bond.absolute-stereo-value-matrix.production",
     "scenario.core.bond.bold-center-click-style-cycle.production",
     "scenario.core.bond.center-click-cycle.production",
@@ -194,6 +195,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-value-matrix.production",
+      "scenario.core.atom.stereo-value-history-persistence.production",
       "scenario.core.bond.absolute-stereo-value-matrix.production",
       "scenario.core.bond.bold-center-click-style-cycle.production",
       "scenario.core.bond.center-click-cycle.production",
@@ -289,6 +291,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-value-matrix.production",
+    "scenario.core.atom.stereo-value-history-persistence.production",
     "scenario.core.bond.absolute-stereo-value-matrix.production",
     "scenario.core.bond.bold-center-click-style-cycle.production",
     "scenario.core.bond.center-click-cycle.production",
@@ -372,6 +375,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-value-matrix.production",
+    "scenario.core.atom.stereo-value-history-persistence.production",
     "scenario.core.bond.absolute-stereo-value-matrix.production",
     "scenario.core.bond.bold-center-click-style-cycle.production",
     "scenario.core.bond.center-click-cycle.production",
@@ -450,6 +454,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-value-matrix.production",
+      "scenario.core.atom.stereo-value-history-persistence.production",
       "scenario.core.bond.absolute-stereo-value-matrix.production",
       "scenario.core.bond.bold-center-click-style-cycle.production",
       "scenario.core.bond.center-click-cycle.production",
@@ -538,6 +543,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-isotopic-abundance-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-radical-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-number-visibility-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-stereo-value-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
@@ -586,8 +592,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 49);
-  assert.equal(result.summary.scenarios, 79);
+  assert.equal(result.summary.entries, 50);
+  assert.equal(result.summary.scenarios, 80);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -994,6 +1000,27 @@ test("the atom-number cell kills disconnected-dialog, inverted-visibility, stale
     [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomNumber: "17", showAtomNumber: true, labelText: "CH4", labelSourceText: "CH4" }],
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-numbered-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-stereo matrix kills missing values, wrong case, accidental cancel commits, broken history, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-stereo-value-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.stereochemistry"));
+  for (const [value, annotation] of [["R", "(R)"], ["S", "(S)"], ["r", "(r)"], ["s", "(s)"]]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`stereo:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated checked state for ${value}`);
+    assert.ok(scenario.actions.some((action) => action.completion?.text === annotation), `missing exact annotation for ${value}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "type-custom-stereo-rs").replaceExisting, true);
+  assert.equal(scenario.actions.find((action) => action.id === "type-cancelled-stereo").replaceExisting, true);
+  assert.equal(scenario.actions.find((action) => action.id === "cancel-custom-stereo").key, "Escape");
+  assert.equal(scenario.actions.find((action) => action.id === "undo-custom-rs").completion.text, "(s)");
+  assert.equal(scenario.actions.find((action) => action.id === "redo-custom-rs").completion.text, "(RS)");
+  assert.equal(scenario.actions.find((action) => action.id === "hide-stereo").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "show-stereo").completion.text, "(R)");
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-stereo-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomStereo: "R", showAtomStereo: true, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-stereo-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
 });
 
 test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {

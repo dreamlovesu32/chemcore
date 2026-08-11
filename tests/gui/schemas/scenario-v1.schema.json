@@ -332,6 +332,8 @@
                   "atomRadical": { "enum": ["none", "singlet", "doublet", "triplet"] },
                   "atomNumber": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "showAtomNumber": { "type": "boolean" },
+                  "atomStereo": { "type": "string", "minLength": 1, "maxLength": 128 },
+                  "showAtomStereo": { "type": "boolean" },
                   "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }
                 }

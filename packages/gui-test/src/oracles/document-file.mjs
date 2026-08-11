@@ -141,6 +141,8 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       atomRadical: node?.atomProperties?.radical ?? "none",
       atomNumber: node?.atomProperties?.atomNumber ?? node?.atom_properties?.atom_number ?? null,
       showAtomNumber: node?.atomProperties?.showAtomNumber ?? node?.atom_properties?.show_atom_number ?? null,
+      atomStereo: node?.atomProperties?.cipStereo ?? node?.atom_properties?.cip_stereo ?? null,
+      showAtomStereo: node?.atomProperties?.showAtomStereo ?? node?.atom_properties?.show_atom_stereo ?? null,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };
