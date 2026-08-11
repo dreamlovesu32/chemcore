@@ -2262,6 +2262,7 @@ body.native-frame-shell .document-tab-close svg {
 
 .canvas-context-submenu {
   position: absolute;
+  z-index: 1;
   left: calc(100% - 2px);
   top: -4px;
   display: none;

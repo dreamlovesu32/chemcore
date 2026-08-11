@@ -37,6 +37,11 @@ test("canvas focus and selection controls have explicit accessible frontend geom
   assert.match(overlay, /SELECTION_ROTATE_HANDLE_RADIUS_SCREEN_PX = 4/);
 });
 
+test("nested context submenus paint above overlapping ancestor-menu siblings", async () => {
+  const styles = await readFile(new URL("../../../viewer/styles.css", import.meta.url), "utf8");
+  assert.match(styles, /\.canvas-context-submenu\s*\{[^}]*position: absolute;[^}]*z-index: 1;/s);
+});
+
 test("bond selection boxes retain a centered minimum interactive size", () => {
   assert.deepEqual(
     selectionRectWithMinimumSize({ kind: "rect", role: "selection-bond", x: 10, y: 20, width: 2, height: 0 }, 12),

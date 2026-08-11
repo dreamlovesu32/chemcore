@@ -282,6 +282,8 @@ Explicit Carbon 批次 `impact-ae85839-atom-periodic-carbon-production-178648165
 
 Isotope 首次批次 `impact-d424bd4-atom-isotope-values-production-1786482299044` 的失败证据永久保留：报告与 manifest SHA-256 为 `825480bcbd6c2cf22cd5d668d8ee7192ba9556b59a390c7ce7e6210fe8bb914f`、`7b6911cc67d59bf56c838b5b8759c840ab83a8b924db812694628e2860ac3fb7`，7 个证据对象共 7,574,026 bytes 全部独立复算一致。失败分类为 test locator：设置 isotope 2 后同一逻辑原子按设计渲染为 `CH4` 与 isotope 前缀两个共享 `data-node-id` 的 SVG text primitive，原始严格 selector 把它们误判为两个目标。production driver 的通用规则现将精确 `data-node-id` 与既有 `data-bond-id` 一样聚合成单个逻辑化学目标，同时继续让非身份 selector 对多匹配 fail closed；对应 kill-the-mutant regression 已加入。
 
+Isotope 第二次批次 `impact-3b04fda-atom-isotope-logical-target-fix-production-1786482620432` 的失败证据同样永久保留：报告与 manifest SHA-256 为 `3fb431051e6c24290598a5e17365d2bdcfd2411175bca91233b21f8c679cb177`、`e0e8154e15fc11fdf85a7c2e8d9e03a3a5d9cfb70314efe0a153c9d3858f6ee1`，7 个证据对象共 8,677,652 bytes 全部独立复算一致。前一 locator 修复已使真实路径通过 23 个 action；新失败分类为 product CSS stacking：向左打开的第三级 Isotope submenu 与根菜单后续的 Atom Query 项重叠，缺少独立 stacking level 导致真实 isotope 15 点击被后绘制的根菜单项截获。所有 `.canvas-context-submenu` 现建立明确 `z-index: 1` stacking context，使嵌套菜单始终位于祖先菜单后续兄弟项之上；CSS mutant regression 会阻止该规则被删除。
+
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
