@@ -30,6 +30,7 @@
     { "id": "source.scenario.core.atom.radical-cation-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-radical-cation-symbol-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.atom.radical-anion-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-radical-anion-symbol-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.atom.electron-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-electron-symbol-attachment-persistence-production.json"] },
+    { "id": "source.scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-lone-pair-symbol-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.chain.drag-count-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-drag-count-persistence-production.json"] },
     { "id": "source.scenario.core.chain.endpoint-attachment-continuation.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-endpoint-attachment-continuation-production.json"] },
     { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
@@ -116,6 +117,7 @@
     { "id": "scenario.core.atom.radical-cation-symbol-attachment-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.radical-anion-symbol-attachment-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.electron-symbol-attachment-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.bond.draw-single.production", "kind": "scenario" },
     { "id": "scenario.core.bond.ten-variant-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.six-planar-persistence.production", "kind": "scenario" },
@@ -169,6 +171,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.radical-cation-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom radical/link oracle changes invalidate radical-cation evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.radical-anion-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom radical/link oracle changes invalidate radical-anion evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.electron-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom radical/link oracle changes invalidate single-electron evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom/link oracle changes invalidate lone-pair evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single.production", "reason": "Runner changes invalidate production desktop scenario evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.ten-variant-persistence.production", "reason": "Runner, guarded bond-tool input, native save, and exact document-oracle changes invalidate the production variant matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.history.undo-redo-bond.production", "reason": "Runner changes invalidate production keyboard scenario evidence." },
@@ -524,6 +527,13 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.electron-symbol-attachment-persistence.production", "reason": "The physical driver draws the bond, applies nitrogen, selects Electron, attaches it at the measured endpoint, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.electron-symbol-attachment-persistence.production", "reason": "Distinct node and symbol identities kill missing-label and missing-symbol mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.electron-symbol-attachment-persistence.production", "reason": "Exact neutral charge, radical count, one hydrogen, NH label, zero charge delta, radical delta 1, attached atom, and link provenance kill accidental-charge, stale-hydrogen, detached-symbol, and missing-radical mutants." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "reason": "The lone-pair target is terminal nitrogen created through the public Element palette." }
+    ,{ "from": "capability.editor.atom.charge-symbol-attachment", "to": "scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "reason": "The production cell attaches a lone pair to nitrogen and verifies neutral non-radical semantics with zero chemistry deltas." }
+    ,{ "from": "capability.editor.bond.draw", "to": "scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "reason": "The nitrogen target originates from a guarded public Single bond gesture." }
+    ,{ "from": "source.scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "to": "scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "reason": "Changing the lone-pair attachment scenario invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "reason": "The physical driver draws the bond, applies nitrogen, selects Lone pair, attaches it at the measured endpoint, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "reason": "Distinct node and symbol identities kill missing-label and missing-symbol mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.lone-pair-symbol-attachment-persistence.production", "reason": "Exact neutral charge, radical count zero, two hydrogens, NH2 label, zero charge/radical deltas, attached atom, and link provenance kill accidental-charge, radical, hydrogen-removal, detached-symbol, and missing-link mutants." }
     ,{ "from": "component.editor-interaction", "to": "capability.editor.chain.draw", "reason": "The shared editor interaction path owns public variable-length chain dragging and preview commitment." }
     ,{ "from": "capability.editor.chain.draw", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The production cell covers drag-derived chain length, zigzag commitment, and exact persistence." }
     ,{ "from": "source.scenario.core.chain.drag-count-persistence.production", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "Changing the chain production scenario invalidates its evidence." }

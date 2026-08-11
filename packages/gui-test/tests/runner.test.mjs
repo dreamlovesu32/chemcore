@@ -72,6 +72,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.electron-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
+    "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
@@ -129,6 +130,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.charge-symbol-attachment-persistence.production",
       "scenario.core.atom.electron-symbol-attachment-persistence.production",
       "scenario.core.atom.element-label-persistence.production",
+      "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
@@ -186,6 +188,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.electron-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
+    "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
@@ -231,6 +234,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.electron-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
+    "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
@@ -271,6 +275,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.charge-symbol-attachment-persistence.production",
       "scenario.core.atom.electron-symbol-attachment-persistence.production",
       "scenario.core.atom.element-label-persistence.production",
+      "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
@@ -323,6 +328,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "ring-vertex-bond-continuation-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-charge-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-electron-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-lone-pair-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-negative-charge-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-radical-cation-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-radical-anion-symbol-attachment-persistence-production.json"),
@@ -359,7 +365,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 42);
-  assert.equal(result.summary.scenarios, 41);
+  assert.equal(result.summary.scenarios, 42);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -572,6 +578,21 @@ test("the electron matrix kills accidental-charge, stale-hydrogen, missing-radic
   ]);
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-electron-symbol-attachment-semantics").expected, [
     { id: "obj_symbol_4", kind: "electron", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "radical", chargeDelta: 0, radicalDelta: 1, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the lone-pair matrix kills accidental charge, radical, hydrogen-removal, and detached-symbol mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-lone-pair-symbol-attachment-persistence-production.json"));
+  const choice = scenario.actions.find((action) => action.id === "choose-lone-pair");
+  const attachment = scenario.actions.find((action) => action.id === "attach-lone-pair-to-nitrogen");
+  assert.deepEqual(choice.target.scope, { role: "toolbar", name: "Secondary toolbar" });
+  assert.equal(choice.completion.selector, 'button[data-secondary-value="symbol-kind-lone-pair"].is-selected');
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-lone-pair-node-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 2, radicalCount: 0, labelText: "NH2", labelSourceText: "NH2" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-lone-pair-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "lone-pair", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "lone-pair", chargeDelta: 0, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
   ]);
 });
 
