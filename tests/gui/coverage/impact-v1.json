@@ -46,6 +46,7 @@
     { "id": "source.scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-fifteen-sixteen-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-group-seventeen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-seventeen-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-period-four-transition-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-period-four-transition-free-placement-production.json"] },
+    { "id": "source.scenario.core.atom.periodic-period-five-transition-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-period-five-transition-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-period-seven-main-group-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-period-seven-main-group-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-thirteen-fourteen-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-implicit-hydrogen-visibility-history-persistence-production.json"] },
@@ -150,6 +151,7 @@
     { "id": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-period-four-transition-free-placement.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.periodic-period-five-transition-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-period-seven-main-group-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "scenario" },
@@ -230,6 +232,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 15/16 column matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the remaining Group 17 matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-period-four-transition-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the remaining period-four transition matrix." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-period-five-transition-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the period-five transition matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-period-seven-main-group-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the remaining period-seven main-group matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 13/14 column matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "Runner, nested context-menu targeting, guarded history input, native save, and exact hydrogen-override oracle changes invalidate hydrogen-visibility evidence." },
@@ -785,5 +788,10 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-period-four-transition-free-placement.production", "reason": "The physical driver selects each remaining period-four transition value, places it on blank canvas, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-period-four-transition-free-placement.production", "reason": "Eight exact standalone identities kill dropped placement, duplicate-object, and bonded-only mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-period-four-transition-free-placement.production", "reason": "Zero bonds, eight normalized molecule objects, exact Sc/Ti/V/Cr/Mn/Co/Ni/Zn persistence, and zero-hydrogen labels kill row-order swaps, main-group valence leakage, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.periodic-period-five-transition-free-placement.production", "reason": "The production cell covers the untested period-five transition values Y/Zr/Nb/Mo/Tc/Ru/Rh/Pd/Ag/Cd without reusing a passed element value." }
+    ,{ "from": "source.scenario.core.atom.periodic-period-five-transition-free-placement.production", "to": "scenario.core.atom.periodic-period-five-transition-free-placement.production", "reason": "Changing the period-five transition free-placement matrix invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-period-five-transition-free-placement.production", "reason": "The physical driver selects each period-five transition value, places it on blank canvas, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-period-five-transition-free-placement.production", "reason": "Ten exact standalone identities kill dropped placement, duplicate-object, and bonded-only mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-period-five-transition-free-placement.production", "reason": "Zero bonds, ten normalized molecule objects, exact Y/Zr/Nb/Mo/Tc/Ru/Rh/Pd/Ag/Cd persistence, and zero-hydrogen labels kill row-order swaps, main-group valence leakage, collapsed-object, and accidental-bond mutants." }
   ]
 }
