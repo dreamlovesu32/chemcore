@@ -46,6 +46,7 @@
     { "id": "source.scenario.core.atom.periodic-actinide-early-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-actinide-early-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-actinide-remaining-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-actinide-remaining-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-alkali-alkaline-free-placement-production.json"] },
+    { "id": "source.scenario.core.atom.periodic-carbon-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-carbon-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-fifteen-sixteen-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-group-seventeen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-seventeen-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-period-four-transition-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-period-four-transition-free-placement-production.json"] },
@@ -156,6 +157,7 @@
     { "id": "scenario.core.atom.periodic-actinide-early-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-actinide-remaining-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.periodic-carbon-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-period-four-transition-free-placement.production", "kind": "scenario" },
@@ -242,6 +244,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-actinide-early-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the early-actinide matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-actinide-remaining-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the remaining-actinide matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 1/2 column matrix." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-carbon-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact Carbon methane oracles invalidate the explicit Carbon closure." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 15/16 column matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the remaining Group 17 matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-period-four-transition-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the remaining period-four transition matrix." },
@@ -833,5 +836,10 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-period-seven-transition-free-placement.production", "reason": "The physical driver selects each Rf through Cn value, places it on blank canvas, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-period-seven-transition-free-placement.production", "reason": "Nine exact standalone identities kill dropped placement, duplicate-object, and endpoint-only mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-period-seven-transition-free-placement.production", "reason": "Zero bonds, nine normalized molecule objects, exact Rf/Db/Sg/Bh/Hs/Mt/Ds/Rg/Cn persistence, and zero-hydrogen labels kill period truncation, ordering, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.periodic-carbon-free-placement.production", "reason": "The production cell explicitly selects the final uncovered public periodic value Carbon without replaying independently covered Nitrogen or Oxygen." }
+    ,{ "from": "source.scenario.core.atom.periodic-carbon-free-placement.production", "to": "scenario.core.atom.periodic-carbon-free-placement.production", "reason": "Changing the Carbon free-placement closure invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-carbon-free-placement.production", "reason": "The physical driver selects Carbon, places it on blank canvas, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-carbon-free-placement.production", "reason": "The exact standalone identity kills hidden-node, dropped-placement, duplicate-object, and bonded-only mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-carbon-free-placement.production", "reason": "One normalized molecule object, zero bonds, atomic number 6, and exact CH4 persistence kill default-tool shortcut, selector-mapping, zero-hydrogen, collapsed-object, and accidental-bond mutants." }
   ]
 }

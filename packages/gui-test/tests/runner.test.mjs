@@ -79,6 +79,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-actinide-early-free-placement.production",
     "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
     "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+    "scenario.core.atom.periodic-carbon-free-placement.production",
     "scenario.core.atom.periodic-common-value-matrix.production",
     "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
     "scenario.core.atom.periodic-group-seventeen-free-placement.production",
@@ -169,6 +170,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-actinide-early-free-placement.production",
       "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
       "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+      "scenario.core.atom.periodic-carbon-free-placement.production",
       "scenario.core.atom.periodic-common-value-matrix.production",
       "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
       "scenario.core.atom.periodic-group-seventeen-free-placement.production",
@@ -259,6 +261,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-actinide-early-free-placement.production",
     "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
     "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+    "scenario.core.atom.periodic-carbon-free-placement.production",
     "scenario.core.atom.periodic-common-value-matrix.production",
     "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
     "scenario.core.atom.periodic-group-seventeen-free-placement.production",
@@ -337,6 +340,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-actinide-early-free-placement.production",
     "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
     "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+    "scenario.core.atom.periodic-carbon-free-placement.production",
     "scenario.core.atom.periodic-common-value-matrix.production",
     "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
     "scenario.core.atom.periodic-group-seventeen-free-placement.production",
@@ -410,6 +414,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-actinide-early-free-placement.production",
       "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
       "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+      "scenario.core.atom.periodic-carbon-free-placement.production",
       "scenario.core.atom.periodic-common-value-matrix.production",
       "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
       "scenario.core.atom.periodic-group-seventeen-free-placement.production",
@@ -512,6 +517,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-carbon-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-common-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-group-fifteen-sixteen-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-group-seventeen-free-placement-production.json"),
@@ -557,7 +563,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 45);
-  assert.equal(result.summary.scenarios, 74);
+  assert.equal(result.summary.scenarios, 75);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -844,6 +850,21 @@ test("the period-seven transition cell kills prior-period reuse, row-order, impl
     expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })),
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-period-seven-transition-counts").expected, { nodes: 9, bonds: 0, molecules: 9, objects: 9 });
+});
+
+test("the explicit Carbon cell kills default-tool, missing-selector, hidden-node, zero-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-carbon-free-placement-production.json"));
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.equal(
+    scenario.actions.find((action) => action.id === "choose-carbon").target.value,
+    '.periodic-element-button[data-element-symbol="C"][data-element-atomic-number="6"]',
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+  assert.equal(scenario.oracles.find((oracle) => oracle.id === "one-carbon-atom-rendered").value, 1);
 });
 
 test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
