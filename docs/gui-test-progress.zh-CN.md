@@ -2,11 +2,11 @@
 
 最后更新：2026-08-11  
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**37**
+登记场景：**38**
 
 当前产品候选：`7714f687f6e74bd1df479c4bd1db61cf45b5a808755e6979eb3a4a25b957a03a`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**36/37 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。Element/原子标签第三批次通过且重建的不可变 36/36 qualification 已通过；六元环 Bond 融合及 Element 的 locator/oracle 首次失败证据永久保留。正电荷 symbol→atom 首批运行的 12/12 真实动作、拓扑及 `N/+1/H3/NH3` 产品语义均正确，唯一失败是 oracle 错把全局共享序号生成的 `obj_symbol_4` 预期为每类从一开始的 `obj_symbol_1`，并错误要求默认 symbol 物化独立 style；通用 Symbol oracle/schema mutation 覆盖修复后只重启这一受影响闭包。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**37/38 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。正电荷 symbol→atom 修复批次已通过，重建的不可变 37/37 qualification 也已通过；六元环 Bond 融合、Element 及正电荷附着的 locator/oracle 首次失败证据永久保留。影响图下一项只扩展相反的负电荷化学分支：以公开 Circle minus 附着 terminal Oxygen，要求精确持久化 `O/-1/H0`、symbol chemistry delta 与 atom/link 身份；不重复已通过的正电荷场景。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；Element/原子标签与重建的 36/36 qualification 已通过。六元环 Bond 融合、Element 及正电荷附着的首次 test/oracle 失败证据均保留；当前只重启 Symbol ID/style oracle 修复后的正电荷附着场景，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；正电荷附着与重建的 37/37 qualification 已通过。六元环 Bond 融合、Element 及正电荷附着的首次 test/oracle 失败证据均保留；当前只运行影响图新增的负电荷 Oxygen 附着场景，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -56,11 +56,11 @@
 
 | 状态 | 功能族 | 已有真实覆盖 | 明确剩余 |
 |---|---|---|---|
-| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、四键 Chain、Chain 端点续画、环融合/端点附着/顶点续画及 Nitrogen Element/`NH2` 标签已取得真实 OS 输入与精确持久化证据；正电荷附着场景已登记 | 正电荷附着场景待实机证据；其他元素、负电荷/自由基/电子/孤对与氢值域、模板、端点反转、双键位置循环、立体化学、反应语义、全部属性与格式 |
+| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、四键 Chain、Chain 端点续画、环融合/端点附着/顶点续画、Nitrogen Element/`NH2` 标签及正电荷 `N/+1/H3/NH3` 附着已取得真实 OS 输入与精确持久化证据；负电荷 Oxygen 场景已登记 | 负电荷 `O/-1/H0` 附着待实机证据；其他元素、自由基/电子/孤对与氢值域、模板、端点反转、双键位置循环、立体化学、反应语义、全部属性与格式 |
 | 🟡 | Arrow | 多对象属性、锁定混合、属性持久化 | 全部直接绘制预设、所有 head/curve/no-go/color 值、组合/大文档 |
 | 🟡 | Text | 新建、既有编辑、多行、主要样式、行距、取消、历史、持久化 | 局部选区、全部字体/字号/对齐/行距边界、IME/composition、Formula、端点标签、锁定/组合/大文档 |
 | 🟡 | Shape | 四种 kind、五种代表样式、批量样式、历史、持久化 | 全颜色/Faded、控制点、缩放/旋转、锁定/组合/剪贴板、格式与大文档 |
-| 🟡 | Charge/Electron Symbol | 八种公开 symbol、批量颜色、历史、持久化；正电荷到 Nitrogen 端点的化学/Link 精确场景已登记 | 正电荷附着待实机证据；其余七种原子/标签附着、轨道式放置、重分配、变换、组合、格式与大文档 |
+| 🟡 | Charge/Electron Symbol | 八种公开 symbol、批量颜色、历史、持久化；正电荷到 Nitrogen 端点的化学/Link 精确场景已通过，负电荷到 Oxygen 端点场景已登记 | 负电荷附着待实机证据；其余六种原子/标签附着、轨道式放置、重分配、变换、组合、格式与大文档 |
 | 🟡 | Bracket | 三种成对括号、可见侧属性、层级、历史、持久化 | 标签、repeat Link、分子包含、控制柄、锁定/组合、格式与大文档 |
 | 🟡 | Table | 插入、2×2→3×3、对齐、边框、历史、持久化 | 全部增删位置、内容、清空/适应、全部对齐/边组合/颜色、锁定/剪贴板/格式/大文档 |
 | 🟡 | Orbital | 七种模板、双向几何迁移、批量模板/样式/相位、历史、持久化 | 全颜色、全部 style×phase、原子/标签附着、变换、组合、格式与大文档 |
@@ -89,9 +89,9 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 37 个场景
+## 4. 已登记的 38 个场景
 
-所有 37 个场景均已实现并进入 registry。当前不可变候选已取得前 36 个场景的完整 qualification；随后按影响图中的下一项化学绘制缺口新增正电荷 symbol→atom 附着 production 场景，因此当前 registry 为 36/37，新增场景待独立后台证据。这一 registry 闭包即使最终全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 38 个场景均已实现并进入 registry。当前不可变候选已取得前 37 个场景的完整 qualification；随后按影响图中同一化学能力的相反分支新增负电荷 symbol→Oxygen 附着 production 场景，因此当前 registry 为 37/38，新增场景待独立后台证据。这一 registry 闭包即使最终全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -104,7 +104,8 @@
 | ✅ | `core.ring.endpoint-attachment-persistence.production` | 在已绘制单键的精确端点插入六元环，要求共享一个节点并持久化为 7 节点、7 键、单分子；独立后台实机证据与文件 oracle 已通过 |
 | ✅ | `core.ring.vertex-bond-continuation-persistence.production` | 从已附着六元环的精确外侧顶点继续拖出单键，要求共享环顶点并持久化为 8 节点、8 键、单分子；独立后台实机证据与文件 oracle 已通过 |
 | ✅ | `core.atom.element-label-persistence.production` | 在 GUI 绘制的单键端点通过公开周期表选择 Nitrogen，要求渲染唯一原子标签并精确持久化元素、原子序数、中性电荷、默认价态 `NH2` 显示/源标签与拓扑；错误 rail scope 与错误裸 `N` oracle 证据均已保留，修复后的独立后台实机证据已通过 |
-| 🟡 | `core.atom.charge-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，以公开 Charge/Electron Symbol 工具附着默认正电荷；要求精确持久化 +1 formal charge、三个隐式氢、`NH3` 标签、symbol chemistry delta、目标 atom ID 与 auto-link 来源，当前待独立后台证据 |
+| ✅ | `core.atom.charge-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，以公开 Charge/Electron Symbol 工具附着默认正电荷；精确持久化 +1 formal charge、三个隐式氢、`NH3` 标签、symbol chemistry delta、目标 atom ID 与 auto-link 来源的修复批次已通过 |
+| 🟡 | `core.atom.negative-charge-symbol-attachment-persistence.production` | 从真实单键端点与 Oxygen Element 状态继续，在 Secondary toolbar 选择 Circle minus 并附着；要求精确持久化 -1 formal charge、零隐式氢、`O` 标签、symbol chemistry delta、目标 atom ID 与 auto-link 来源，当前待独立后台证据 |
 | ✅ | `core.chain.drag-count-persistence.production` | Chain 工具的真实 OS 可变长度拖拽、四键之字形提交、原生保存与精确连通拓扑 |
 | ✅ | `core.chain.endpoint-attachment-continuation.production` | 从已存在端点继续真实 OS Chain 拖拽，要求八键仍为单一九节点分子并精确持久化 |
 | ✅ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
@@ -149,6 +150,8 @@ Element/原子标签第三批次 `impact-90caebb-atom-element-label-production-1
 
 正电荷 symbol→atom 首批 `impact-66be831-atom-charge-attachment-production-1786452833181` 完成 12/12 actions：默认 circle-plus 真实附着后，保存文件精确得到 2 节点、1 键、单分子、2 对象，Nitrogen 为 charge `+1`、`numHydrogens=3`、display/source label `NH3`，无产品 diagnostics。失败仅来自 Symbol oracle specification：对象使用引擎全局共享序号 `obj_symbol_4` 而非错误预期的 per-kind `obj_symbol_1`，且未编辑颜色的默认 symbol 只在 payload 保存黑色，不应强制存在独立 `styleRef`。失败报告 SHA-256 `5e291a290963f1707d14e7b215e7332f3a8f0366aa58e017e4730b0f9c9d9fa4`，manifest SHA-256 `f184fa6580ca09616f546cb063ddc71c9992f4fe7f76c24cbe476d590b317aac`，9 个 failure-retention 证据对象共 7,659,629 bytes 全部复算一致。通用 schema 现把 style surface 改为按需断言，并以错误对象 ID、错误 atom ID、零 charge delta、错误 link provenance 与陈旧氢数 mutants 证明门禁可杀死这一类错误。
 
+正电荷修复批次 `impact-32f305c-atom-charge-attachment-production-1786453236300` 已通过：12/12 actions、6/6 oracles、0 diagnostics；报告 SHA-256 `a4c2a2f9057c851ad0af8a4ee6abb7d4800a621d3b0d0b29ad7ee6e63715dbf3`，manifest SHA-256 `a013a466a35a6e7d5642624ab6379273eb4f449c85374eb0c97b98299fc2ce86`，9 个证据对象共 7,639,053 bytes 全部复算一致。37 份当前报告已合并为不可变 qualification `67f74340-b0fc-4ec9-bfbb-908154d33495`：37/37 passed、0 failed、0 missing、0 diagnostics，301 个证据对象共 294,890,402 bytes，qualification SHA-256 为 `b0b3d2ff58a4a6b910d055b4564664d080be4be4b21ca5d8a039ed117e215589`。
+
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
@@ -157,7 +160,7 @@ Element/原子标签第三批次 `impact-90caebb-atom-element-label-production-1
 - 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前新增 Bond 语义 mutation 回归，audit 28 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 36 场景已有单候选完整资格；当前 37 场景 registry 保留六元环 Bond 融合及 Element 的首次 test/oracle 失败，Element/原子标签已通过，新增正电荷 symbol→atom 附着场景待证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 37 场景已有单候选完整资格；当前 38 场景 registry 保留六元环 Bond 融合、Element 及正电荷附着的首次 test/oracle 失败，正电荷 symbol→atom 已通过，新增负电荷 symbol→Oxygen 附着场景待证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
@@ -165,7 +168,7 @@ Element/原子标签第三批次 `impact-90caebb-atom-element-label-production-1
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
 1. 🟡 **当前缺陷族与 oracle 收口**：27/27 qualification 已完成；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
-2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、可变长度 Chain、Chain 端点续画、六元环 Bond 融合、端点附着、环顶点续画及 Element/原子标签精确语义批次已完成；当前只跑正电荷 symbol→atom 附着，再推进其余电荷/氢、Template Library、反应连接与属性。
+2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、可变长度 Chain、Chain 端点续画、六元环 Bond 融合、端点附着、环顶点续画、Element/原子标签及正电荷 symbol→atom 精确语义批次已完成；当前只跑负电荷 symbol→Oxygen 附着，再推进自由基/电子/孤对、氢值域、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
 5. **文档与外部边界**：多标签、所有格式、恢复、系统剪贴板、Office、文件关联。
@@ -177,7 +180,7 @@ Element/原子标签第三批次 `impact-90caebb-atom-element-label-production-1
 
 本清单不是一次性说明：
 
-- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 37 个场景 ID，漏项直接失败。
+- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 38 个场景 ID，漏项直接失败。
 - 每完成一个对象族或发现新的公开缺口，必须同时更新第 3 节状态和“明确剩余”，不能只在长架构文档末尾追加段落。
 - 每产生新候选或 qualification，必须更新页首候选哈希、通过/缺失/失败数和最新证据。
 - 每个本地测试提交必须让本文反映该提交后的真实状态；不得把“场景通过”写成“功能族完成”。
