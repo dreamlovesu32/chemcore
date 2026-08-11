@@ -35,11 +35,29 @@ function processAlive(processId) {
   try { process.kill(processId, 0); return true; } catch { return false; }
 }
 
+export async function renameAtomicWithRetry(source, destination, { renameFile = rename, wait = delay, attempts = 12 } = {}) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await renameFile(source, destination);
+      return;
+    } catch (error) {
+      const transient = ["EPERM", "EACCES", "EBUSY"].includes(error?.code);
+      if (!transient || attempt + 1 >= attempts) throw error;
+      await wait(Math.min(250, 25 * (2 ** attempt)));
+    }
+  }
+}
+
 async function atomicJson(path, value) {
   await mkdir(dirname(path), { recursive: true });
   const temporary = `${path}.${randomUUID().replaceAll("-", "")}.tmp`;
   await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-  await rename(temporary, path);
+  try {
+    await renameAtomicWithRetry(temporary, path);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
 }
 
 function boundedStateRoot(path) {

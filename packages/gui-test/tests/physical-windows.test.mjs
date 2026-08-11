@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createWorkerCoordinator } from "../src/workers/create.mjs";
-import { validatePhysicalQueue } from "../src/workers/physical-daemon.mjs";
+import { renameAtomicWithRetry, validatePhysicalQueue } from "../src/workers/physical-daemon.mjs";
 import { HyperVCoordinator } from "../src/workers/hyperv.mjs";
 import { PhysicalWindowsCoordinator } from "../src/workers/physical-windows.mjs";
 
@@ -97,4 +97,24 @@ test("physical daemon records leases heartbeats checkpoints resource floors and 
   assert.match(source, /Free physical memory fell below/);
   assert.match(source, /evidenceManifestSha256/);
   assert.match(source, /refuses to bind a candidate to a dirty worktree/);
+});
+
+test("physical daemon retries only transient Windows atomic replace contention", async () => {
+  let calls = 0;
+  await renameAtomicWithRetry("source.tmp", "state.json", {
+    attempts: 4,
+    wait: async () => {},
+    renameFile: async () => {
+      calls += 1;
+      if (calls < 3) throw Object.assign(new Error("temporarily locked"), { code: "EPERM" });
+    },
+  });
+  assert.equal(calls, 3);
+  await assert.rejects(
+    renameAtomicWithRetry("source.tmp", "state.json", {
+      wait: async () => {},
+      renameFile: async () => { throw Object.assign(new Error("bad path"), { code: "ENOENT" }); },
+    }),
+    /bad path/,
+  );
 });
