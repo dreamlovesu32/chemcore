@@ -873,6 +873,6 @@
     ,{ "from": "source.scenario.core.atom.radical-value-matrix.production", "to": "scenario.core.atom.radical-value-matrix.production", "reason": "Changing the atom-radical value matrix invalidates only its evidence." }
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.radical-value-matrix.production", "reason": "The physical driver uses real right-click menus, nested menu items, Escape, and native Save As." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.radical-value-matrix.production", "reason": "Regenerated checked states for all four values kill missing, swapped, and stale-menu mutants." }
-    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.radical-value-matrix.production", "reason": "Exact Triplet enum, atomic number 6, CH4 label, zero bonds, and one molecule object kill lost metadata, defaulting, wrong-enum, label-rewrite, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.radical-value-matrix.production", "reason": "Exact Triplet enum, atomic number 6, radical-aware CH2 formula, zero bonds, and one molecule object kill lost metadata, defaulting, wrong-enum, stale-formula, collapsed-object, and accidental-bond mutants." }
   ]
 }
