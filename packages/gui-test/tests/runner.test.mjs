@@ -76,6 +76,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
     "scenario.core.atom.periodic-common-value-matrix.production",
     "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
@@ -154,6 +155,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
       "scenario.core.atom.periodic-common-value-matrix.production",
       "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
@@ -232,6 +234,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
     "scenario.core.atom.periodic-common-value-matrix.production",
     "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
@@ -298,6 +301,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
     "scenario.core.atom.periodic-common-value-matrix.production",
     "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
@@ -359,6 +363,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
       "scenario.core.atom.periodic-common-value-matrix.production",
       "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
@@ -449,6 +454,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-radical-cation-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-radical-anion-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-element-label-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-common-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-noble-lanthanide-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-representative-value-matrix-production.json"),
@@ -485,7 +491,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 62);
+  assert.equal(result.summary.scenarios, 63);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -756,6 +762,43 @@ test("the noble and lanthanide free-placement matrix kills bonded-only, collapse
     expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, labelText: element, labelSourceText: element })),
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-free-atom-counts").expected, {
+    nodes: 8,
+    bonds: 0,
+    molecules: 8,
+    objects: 8,
+  });
+});
+
+test("the alkali and alkaline-earth free-placement matrix kills adjacent-column, vertical-row, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"));
+  const expectedValues = [
+    ["lithium", "Li", 3, "n_1", 0.15, 0.34],
+    ["beryllium", "Be", 4, "n_2", 0.37, 0.34],
+    ["potassium", "K", 19, "n_3", 0.59, 0.34],
+    ["calcium", "Ca", 20, "n_4", 0.81, 0.34],
+    ["rubidium", "Rb", 37, "n_5", 0.15, 0.64],
+    ["strontium", "Sr", 38, "n_6", 0.37, 0.64],
+    ["cesium", "Cs", 55, "n_7", 0.59, 0.64],
+    ["barium", "Ba", 56, "n_8", 0.81, 0.64],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).completion.selector),
+    expectedValues.map(([, , , nodeId]) => `[data-node-id="${nodeId}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-group-one-two-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, labelText: element, labelSourceText: element })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-group-one-two-counts").expected, {
     nodes: 8,
     bonds: 0,
     molecules: 8,

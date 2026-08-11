@@ -42,6 +42,7 @@
     { "id": "source.scenario.core.atom.periodic-representative-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-representative-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-common-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-common-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-noble-lanthanide-free-placement-production.json"] },
+    { "id": "source.scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-alkali-alkaline-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-implicit-hydrogen-visibility-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-charge-symbol-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.atom.negative-charge-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-negative-charge-symbol-attachment-persistence-production.json"] },
@@ -140,6 +141,7 @@
     { "id": "scenario.core.atom.periodic-representative-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-common-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.negative-charge-symbol-attachment-persistence.production", "kind": "scenario" },
@@ -214,6 +216,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the representative periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the common-value periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the noble/lanthanide matrix." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 1/2 column matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "Runner, nested context-menu targeting, guarded history input, native save, and exact hydrogen-override oracle changes invalidate hydrogen-visibility evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom-link oracle changes invalidate charge-attachment evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.negative-charge-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom-link oracle changes invalidate negative charge-attachment evidence." },
@@ -737,5 +740,10 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "The physical driver opens the public palette, selects each new value, places it on blank canvas, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Eight exact standalone node identities kill dropped placement, duplicate-object, and bonded-only mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Zero bonds, eight independently normalized molecule objects, and exact He/Ne/Ar/Kr/Xe/Rn/La/Lu persistence kill mapping, row-truncation, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "reason": "The production cell covers the untested Group 1 and Group 2 column values Li/Be, K/Ca, Rb/Sr, and Cs/Ba without reusing a passed element value." }
+    ,{ "from": "source.scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "to": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "reason": "Changing the alkali/alkaline-earth free-placement matrix invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "reason": "The physical driver opens the public palette, selects each new Group 1/2 value, places it on blank canvas, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "reason": "Eight exact standalone node identities kill dropped placement, duplicate-object, and bonded-only mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "reason": "Zero bonds, eight independently normalized molecule objects, and exact Li/Be/K/Ca/Rb/Sr/Cs/Ba persistence kill adjacent-column swaps, vertical-row truncation, collapsed-object, and accidental-bond mutants." }
   ]
 }
