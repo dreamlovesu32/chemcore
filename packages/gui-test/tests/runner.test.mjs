@@ -300,8 +300,13 @@ test("coverage audit binds every registered source and scenario", async () => {
 
 test("the planar ring matrix kills missing and wrong-member-count tool mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"));
+  const activation = scenario.actions.find((action) => action.id === "activate-rings-tool");
   const choices = scenario.actions.filter((action) => action.id.startsWith("choose-ring-"));
   const insertions = scenario.actions.filter((action) => action.id.startsWith("insert-ring-"));
+  assert.deepEqual(activation.target, {
+    strategy: "selector",
+    value: 'button[data-tool="templates"][data-tool-rail="main"]',
+  }, "runtime-renamed primary tools must use stable semantic identity");
   assert.deepEqual(choices.map((action) => action.id), ["choose-ring-3", "choose-ring-4", "choose-ring-5", "choose-ring-6", "choose-ring-7", "choose-ring-8"]);
   assert.deepEqual(insertions.map((action) => action.completion.value), [3, 7, 12, 18, 25, 33]);
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
