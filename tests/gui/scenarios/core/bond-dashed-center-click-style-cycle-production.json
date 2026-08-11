@@ -1,0 +1,48 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.bond.dashed-center-click-style-cycle.production",
+  "title": "Cycle a right double bond through every Dashed-bond center-click line-style state",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Repeated center clicks with the active Dashed bond tool could skip the both-dashed or centered state, dash the wrong line, recreate the logical bond, or persist stale placement and line-style semantics.",
+  "capabilities": ["gui.public-input", "editor.bond.draw", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 56,
+  "actions": [
+    { "id": "activate-single-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"bond\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-single-cycle-target", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.34, "y": 0.46 }, "to": { "x": 0.42, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "setup-single-to-left-double", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_3\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "setup-left-double-to-center", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_3\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "setup-center-to-right-double", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_3\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-dashed-bond", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Dashed bond", "scope": { "role": "toolbar", "name": "Secondary toolbar" } }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-dashed\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "cycle-right-solid-to-right-outer-dashed", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_3\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "cycle-right-outer-dashed-to-both-dashed", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_3\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "cycle-right-both-dashed-to-centered-both-dashed", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_3\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "cycle-centered-both-dashed-to-left-outer-dashed", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_3\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "one-dashed-style-cycle-logical-bond-rendered", "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1 },
+    { "id": "saved-dashed-style-cycle-counts", "kind": "document-counts", "expected": { "nodes": 2, "bonds": 1, "molecules": 1, "objects": 1 } },
+    { "id": "saved-left-outer-dashed-after-full-style-cycle", "kind": "document-bond-properties", "expected": [
+      { "id": "b_3", "order": 2, "mainLineStyle": "solid", "leftLineStyle": "dashed", "rightLineStyle": "solid", "mainLineWeight": "normal", "doublePlacement": "left", "stereoKind": null, "wideEnd": null }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.bond.center-click-cycle", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "atom", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "single-bond", "double-left", "double-center", "double-right", "dashed-right-outer", "dashed-right-both", "dashed-center-both", "dashed-left-outer", "saved-document"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["bond.order", "bond.double.placement", "bond.line-styles", "bond.identity"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

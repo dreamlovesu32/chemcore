@@ -81,6 +81,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.absolute-stereo-value-matrix.production",
     "scenario.core.bond.center-click-cycle.production",
+    "scenario.core.bond.dashed-center-click-style-cycle.production",
     "scenario.core.bond.dashed-double-center-click-cycle.production",
     "scenario.core.bond.double-placement-value-matrix.production",
     "scenario.core.bond.draw-single",
@@ -152,6 +153,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.bond.absolute-stereo-value-matrix.production",
       "scenario.core.bond.center-click-cycle.production",
+      "scenario.core.bond.dashed-center-click-style-cycle.production",
       "scenario.core.bond.dashed-double-center-click-cycle.production",
       "scenario.core.bond.double-placement-value-matrix.production",
       "scenario.core.bond.draw-single",
@@ -223,6 +225,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.absolute-stereo-value-matrix.production",
     "scenario.core.bond.center-click-cycle.production",
+    "scenario.core.bond.dashed-center-click-style-cycle.production",
     "scenario.core.bond.dashed-double-center-click-cycle.production",
     "scenario.core.bond.double-placement-value-matrix.production",
     "scenario.core.bond.draw-single.production",
@@ -282,6 +285,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.absolute-stereo-value-matrix.production",
     "scenario.core.bond.center-click-cycle.production",
+    "scenario.core.bond.dashed-center-click-style-cycle.production",
     "scenario.core.bond.dashed-double-center-click-cycle.production",
     "scenario.core.bond.double-placement-value-matrix.production",
     "scenario.core.bond.query-order-value-matrix.production",
@@ -336,6 +340,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.bond.absolute-stereo-value-matrix.production",
       "scenario.core.bond.center-click-cycle.production",
+      "scenario.core.bond.dashed-center-click-style-cycle.production",
       "scenario.core.bond.dashed-double-center-click-cycle.production",
       "scenario.core.bond.double-placement-value-matrix.production",
       "scenario.core.bond.draw-single",
@@ -388,6 +393,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-absolute-stereo-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-center-click-cycle-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-dashed-center-click-style-cycle-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-dashed-double-center-click-cycle-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-double-placement-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-wedge-endpoint-reversal-production.json"),
@@ -443,7 +449,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 55);
+  assert.equal(result.summary.scenarios, 56);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -863,6 +869,31 @@ test("the directly drawn Dashed-solid-double cycle kills wrong-default, prematur
   assert.ok(logicalBondActions.every((action) => action.completion.value === 1));
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-right-dashed-double-after-full-cycle").expected, [
     { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "dashed", mainLineWeight: "normal", doublePlacement: "right", stereoKind: null, wideEnd: null },
+  ]);
+});
+
+test("the Dashed-bond style cycle kills skipped-main-dash, skipped-centered-both-dashed, wrong-exit-side, and duplicate mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-dashed-center-click-style-cycle-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.center-click-cycle"));
+  const setupActions = scenario.actions.filter((action) => action.id.startsWith("setup-"));
+  const cycleActions = scenario.actions.filter((action) => action.id.startsWith("cycle-"));
+  assert.deepEqual(setupActions.map((action) => action.id), [
+    "setup-single-to-left-double",
+    "setup-left-double-to-center",
+    "setup-center-to-right-double",
+  ]);
+  assert.deepEqual(cycleActions.map((action) => action.id), [
+    "cycle-right-solid-to-right-outer-dashed",
+    "cycle-right-outer-dashed-to-both-dashed",
+    "cycle-right-both-dashed-to-centered-both-dashed",
+    "cycle-centered-both-dashed-to-left-outer-dashed",
+  ]);
+  const logicalClicks = [...setupActions, ...cycleActions];
+  assert.ok(logicalClicks.every((action) => action.target.value === '[data-role="document-bond"][data-bond-id="b_3"]'));
+  assert.ok(logicalClicks.every((action) => action.completion.kind === "dom-distinct-count"));
+  assert.ok(logicalClicks.every((action) => action.completion.attribute === "data-bond-id" && action.completion.value === 1));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-left-outer-dashed-after-full-style-cycle").expected, [
+    { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "dashed", rightLineStyle: "solid", mainLineWeight: "normal", doublePlacement: "left", stereoKind: null, wideEnd: null },
   ]);
 });
 
