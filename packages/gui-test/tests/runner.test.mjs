@@ -81,6 +81,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
     "scenario.core.atom.periodic-group-seventeen-free-placement.production",
     "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+    "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
     "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
     "scenario.core.atom.periodic-period-five-transition-free-placement.production",
     "scenario.core.atom.periodic-period-four-transition-free-placement.production",
@@ -167,6 +168,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
       "scenario.core.atom.periodic-group-seventeen-free-placement.production",
       "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+      "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
       "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
       "scenario.core.atom.periodic-period-five-transition-free-placement.production",
       "scenario.core.atom.periodic-period-four-transition-free-placement.production",
@@ -253,6 +255,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
     "scenario.core.atom.periodic-group-seventeen-free-placement.production",
     "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+    "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
     "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
     "scenario.core.atom.periodic-period-five-transition-free-placement.production",
     "scenario.core.atom.periodic-period-four-transition-free-placement.production",
@@ -327,6 +330,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
     "scenario.core.atom.periodic-group-seventeen-free-placement.production",
     "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+    "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
     "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
     "scenario.core.atom.periodic-period-five-transition-free-placement.production",
     "scenario.core.atom.periodic-period-four-transition-free-placement.production",
@@ -396,6 +400,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
       "scenario.core.atom.periodic-group-seventeen-free-placement.production",
       "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+      "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
       "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
       "scenario.core.atom.periodic-period-five-transition-free-placement.production",
       "scenario.core.atom.periodic-period-four-transition-free-placement.production",
@@ -494,6 +499,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-periodic-group-fifteen-sixteen-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-group-seventeen-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-group-thirteen-fourteen-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-lanthanide-interior-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-noble-lanthanide-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-period-five-transition-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-period-four-transition-free-placement-production.json"),
@@ -533,7 +539,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 70);
+  assert.equal(result.summary.scenarios, 71);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -772,6 +778,25 @@ test("the common periodic matrix kills untested-value swaps, wrong endpoints, an
     molecules: 8,
     objects: 8,
   });
+});
+
+test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-lanthanide-interior-free-placement-production.json"));
+  const expectedValues = [
+    ["cerium", "Ce", 58, "n_1", 0.1, 0.24], ["praseodymium", "Pr", 59, "n_2", 0.3, 0.24],
+    ["neodymium", "Nd", 60, "n_3", 0.5, 0.24], ["promethium", "Pm", 61, "n_4", 0.7, 0.24],
+    ["samarium", "Sm", 62, "n_5", 0.9, 0.24], ["europium", "Eu", 63, "n_6", 0.1, 0.49],
+    ["gadolinium", "Gd", 64, "n_7", 0.3, 0.49], ["terbium", "Tb", 65, "n_8", 0.5, 0.49],
+    ["dysprosium", "Dy", 66, "n_9", 0.7, 0.49], ["holmium", "Ho", 67, "n_10", 0.9, 0.49],
+    ["erbium", "Er", 68, "n_11", 0.3, 0.74], ["thulium", "Tm", 69, "n_12", 0.5, 0.74],
+    ["ytterbium", "Yb", 70, "n_13", 0.7, 0.74],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.equal(scenario.actions.some((action) => /data-element-symbol="(?:La|Lu)"/.test(action.target?.value || "")), false);
+  assert.deepEqual(expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value), expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`));
+  assert.deepEqual(expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at), expectedValues.map(([, , , , x, y]) => ({ x, y })));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-interior-lanthanide-semantics").expected, expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-interior-lanthanide-counts").expected, { nodes: 13, bonds: 0, molecules: 13, objects: 13 });
 });
 
 test("the noble and lanthanide free-placement matrix kills bonded-only, collapsed-object, row-truncation, and accidental-bond mutants", async () => {
