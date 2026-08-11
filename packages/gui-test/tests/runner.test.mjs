@@ -82,6 +82,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
+    "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
@@ -144,6 +145,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
       "scenario.core.bond.reaction-participation-history-persistence.production",
+      "scenario.core.bond.reaction-participation-value-matrix.production",
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
@@ -205,6 +207,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.draw-single.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
+    "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
@@ -254,6 +257,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
+    "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
@@ -301,6 +305,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
       "scenario.core.bond.reaction-participation-history-persistence.production",
+      "scenario.core.bond.reaction-participation-value-matrix.production",
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
@@ -342,6 +347,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-chair-benzene-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-bond-fusion-persistence-production.json"),
@@ -389,7 +395,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 46);
+  assert.equal(result.summary.scenarios, 47);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -607,6 +613,50 @@ test("the bond reaction matrix kills wrong-enum, missing-annotation, and missing
   assert.equal(redo.completion.text, "Rxn");
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-make-and-change-bond-semantics").expected, [
     { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, reactionParticipation: "make-and-change" },
+  ]);
+});
+
+test("the bond reaction value matrix kills skipped-value, wrong-display, and stale-persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-value-matrix-production.json"));
+  const appliedValues = scenario.actions
+    .filter((action) => action.id.startsWith("set-"))
+    .map((action) => action.target.name);
+  assert.deepEqual(appliedValues, [
+    "Reaction Center",
+    "Unspecified",
+    "Make or Break",
+    "Change Type",
+    "Not Reaction Center",
+    "No Change",
+    "Unmapped",
+  ]);
+
+  const verifiedValues = scenario.actions
+    .filter((action) => action.id.startsWith("open-") && action.id.endsWith("-menu"))
+    .map((action) => action.completion.selector.match(/reaction-participation:([a-z-]+)/)?.[1]);
+  assert.deepEqual(verifiedValues, [
+    "unspecified",
+    "reaction-center",
+    "unspecified",
+    "make-or-break",
+    "change-type",
+    "not-reaction-center",
+    "no-change",
+    "unmapped",
+  ]);
+
+  for (const id of ["set-reaction-center", "set-make-or-break", "set-change-type"]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.completion.selector, 'text[data-bond-id="b_3"]');
+    assert.equal(action.completion.text, "Rxn");
+  }
+  for (const id of ["set-explicit-unspecified", "set-not-reaction-center"]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.completion.selector, 'text[data-bond-id="b_3"]');
+    assert.equal(action.completion.value, 0);
+  }
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-unmapped-bond-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, reactionParticipation: "unmapped" },
   ]);
 });
 

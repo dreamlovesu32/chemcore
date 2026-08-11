@@ -2,11 +2,11 @@
 
 最后更新：2026-08-11  
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**46**
+登记场景：**47**
 
-当前产品候选：`b4465999da835e091ca6eef89a5c39a6584a7740f2848ac037d2dde8d7c9a5d2`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
+当前产品候选：`351f7faef8aeb3c463f81a7492b286680194e744838444ac94a7db043597d1be`（源码闭包 `a8c745ccb2bb94fe92f864ff5673569afa15aa305a51962f682812ab8183f215`）
 
-当前源码闭包已登记场景资格：**45/46 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；Lone pair、uncircled Plus/Minus 与 implicit-hydrogen 修复闭包均已在各自源码等价候选上独立通过，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair 及 implicit-hydrogen 的 locator/oracle 首次失败证据永久保留。当前影响图选择新增的 Bond Reaction Participation、`Rxn` 注释、历史与精确持久化分支；完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**46/47 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；Lone pair、uncircled Plus/Minus、implicit-hydrogen 与 Bond Reaction Participation 修复闭包均已在各自源码等价候选上独立通过，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen 与 Bond Reaction Participation 的首次失败证据永久保留。当前影响图选择 Reaction Participation 其余七个显式选择值、checked 状态、`Rxn` 显隐分支与精确持久化矩阵；完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；41/41 qualification、Lone pair、uncircled Plus/Minus 及 implicit-hydrogen 修复闭包均已通过。首次 test/oracle 失败证据均保留；当前启动 Bond Reaction Participation 精确影响批次，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；41/41 qualification 及后续独立修复闭包均已通过。首次 test/oracle/product 失败证据均保留；当前启动 Reaction Participation 剩余值域精确影响批次，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -56,7 +56,7 @@
 
 | 状态 | 功能族 | 已有真实覆盖 | 明确剩余 |
 |---|---|---|---|
-| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen Element/`NH2` 标签、全部八种 Charge/Electron symbol→atom 及 implicit-hydrogen Automatic/Hide 已取得真实 OS 输入与精确持久化证据；Bond Reaction Participation 场景已登记 | 新增反应属性场景待实机证据；其他元素、其余氢值域、端点反转、双键位置循环、立体化学、其余反应/查询属性与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
+| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen Element/`NH2` 标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen Automatic/Hide 及 Bond Reaction Participation 历史场景已取得真实 OS 输入与精确持久化证据 | Reaction Participation 剩余七个显式选择值待实机证据；其他元素、其余氢值域、端点反转、双键位置循环、立体化学、查询属性与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
 | 🟡 | Arrow | 多对象属性、锁定混合、属性持久化 | 全部直接绘制预设、所有 head/curve/no-go/color 值、组合/大文档 |
 | 🟡 | Text | 新建、既有编辑、多行、主要样式、行距、取消、历史、持久化 | 局部选区、全部字体/字号/对齐/行距边界、IME/composition、Formula、端点标签、锁定/组合/大文档 |
 | 🟡 | Shape | 四种 kind、五种代表样式、批量样式、历史、持久化 | 全颜色/Faded、控制点、缩放/旋转、锁定/组合/剪贴板、格式与大文档 |
@@ -89,16 +89,17 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 46 个场景
+## 4. 已登记的 47 个场景
 
-所有 46 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，Lone pair、uncircled Plus/Minus 与 implicit-hydrogen 修复闭包在各自源码等价候选上独立通过，因此当前 registry 为 45/46 reusable passed；影响图接着选择新增 Bond Reaction Participation、`Rxn` 注释、历史与精确持久化分支。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 47 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复闭包均保留自身候选身份，因此当前 registry 为 46/47 reusable passed；影响图接着选择 Reaction Participation 其余七个显式选择值、checked 状态、`Rxn` 显隐与最终 Unmapped 持久化分支。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
 | ✅ | `core.bond.draw-single` | 浏览器公开输入绘制单键基线 |
 | ✅ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
 | ✅ | `core.bond.ten-variant-persistence.production` | 十种非单键工具的真实 OS 输入、精确 CCJS 阶数/线型/粗细/楔键语义 |
-| 🟡 | `core.bond.reaction-participation-history-persistence.production` | 真实绘制单键，经公开 `Bond Query & Reaction > Reaction Participation` 菜单选择 Make and Change，检查选中态与 `Rxn` 注释、撤销/重做，并要求精确保存 `reactionParticipation=make-and-change`；当前待独立后台证据 |
+| ✅ | `core.bond.reaction-participation-history-persistence.production` | 真实绘制单键，经公开 `Bond Query & Reaction > Reaction Participation` 菜单选择 Make and Change，检查选中态与 `Rxn` 注释、撤销/重做，并精确保存 `reactionParticipation=make-and-change`；产品增量 identity 修复后的独立后台闭包已通过 |
+| 🟡 | `core.bond.reaction-participation-value-matrix.production` | 从真实单键逐一显式选择 Reaction Center、Unspecified、Make or Break、Change Type、Not Reaction Center、No Change 与 Unmapped，检查每个 checked 状态及 `Rxn` 显隐，最终精确保存 `reactionParticipation=unmapped`；当前待独立后台证据 |
 | ✅ | `core.ring.six-planar-persistence.production` | 六种公开平面环的真实 OS 点击、累计拓扑、原生保存与精确节点/键/分子计数 |
 | ✅ | `core.ring.chair-benzene-persistence.production` | 双 Chair 与 Benzene 的真实 OS 点击、精确分量计数及交替芳香键级持久化 |
 | ✅ | `core.ring.bond-fusion-persistence.production` | 先真实绘制单键，再于键中点插入六元环，要求共享键去重并持久化为单一六节点环；首次 test-locator 失败证据保留，修复后的精确闭包已通过 |
@@ -186,15 +187,17 @@ Bond Reaction Participation locator 修复批次 `impact-9c63225-bond-reaction-l
 
 Bond Reaction Participation selection 修复批次 `impact-0b6b65b-bond-reaction-selection-fix-production-1786461281534` 已完成前 10 个真实输入及属性提交，公开菜单、checked 状态和 `Rxn` annotation 均正确；第 11 步 Undo 已由产品提交并恢复文档状态，但增量 DOM 仍遗留 `Rxn`，导致精确 `dom-count=0` 完成条件超时。终态、heartbeat、报告、manifest SHA-256 分别为 `d426fa4fc0b149098d270e8d815d63b8d823f37f097b33b4ad76c2b03664968b`、`f21dbaeeb070cb7b8f1ecfefb218093aa58c4525b26b9ab35d23cce25c0d43f1`、`f825ba34ce3b45ff2565fabb53a868f4d3936f5957c72abd3c78cc4b76d3c1ca`、`c053010be992a707623202bae2fe8a6923a6bf34b7f77a9dc8d77861d215a3e5`；7 个 failure evidence 对象共 7,895,492 bytes，尺寸和 SHA-256 均独立复算一致。根因归类为产品增量渲染 identity 缺陷：bond line 携带 `bondId`，同一 bond 派生的 query/reaction/stereo Text 却没有，局部替换因此无法删除旧 annotation。通用引擎规则现要求所有 bond 派生 Text 保留 owner `bondId`；set→undo→redo 回归同时杀死遗漏 identity、Undo 遗留文本和 Redo 丢失 owner 三类 mutants。
 
+Bond Reaction Participation identity 修复批次 `impact-ef80d4e-bond-derived-identity-fix-production-1786462667377` 已通过：17/17 actions、4/4 oracles、0 diagnostics；终态、heartbeat、checkpoint、报告、manifest SHA-256 分别为 `bd43c5a07c41a2be69cc30f95928e3e5857342e7a99bc24b7eb533a695e90bc5`、`0afa6b379c7ec166ccc2db89ea21683a8d05b69c0ecfbe4eca75b19504bb09e7`、`32807568671b65c7ae4698252bfbe451f6c328ec2aac5ef18ad3812ddfe07dae`、`34958086d04682066a816ac6dc61b748a483c394254cfe73e024ca6d0ad1cebd`、`0daed40ac1a7049006f63856cf9ce85d26a4f5d080fc8342e67bad78c462e053`；9 个证据对象共 7,861,528 bytes 全部独立复算一致。终态提交 `ef80d4e0d1b12e08570f53908f73c89c7ee61e85`、候选 `351f7faef8aeb3c463f81a7492b286680194e744838444ac94a7db043597d1be`、源码闭包 `a8c745ccb2bb94fe92f864ff5673569afa15aa305a51962f682812ab8183f215`、profile 与 queue 哈希均匹配；Make and Change、`Rxn`、Undo 删除、Redo 恢复及保存语义完成真实产品闭环。
+
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 46 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 47 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 41 场景已有单候选完整资格；Lone pair、uncircled Plus/Minus 与 implicit-hydrogen 修复闭包已独立通过。当前 46 场景 registry 保留全部首次 test/oracle 失败，新增 Bond Reaction Participation 场景待证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 41 场景已有单候选完整资格；后续独立修复闭包均保留候选身份并已通过。当前 47 场景 registry 保留全部首次 test/oracle/product 失败，新增 Reaction Participation 值域矩阵待证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
@@ -202,7 +205,7 @@ Bond Reaction Participation selection 修复批次 `impact-0b6b65b-bond-reaction
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
 1. 🟡 **当前缺陷族与 oracle 收口**：41/41 单候选 qualification 与 Lone pair 独立修复闭包已完成；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
-2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、Chain/环连接、Element/原子标签、全部八种 Charge/Electron symbol→atom 及 implicit-hydrogen 精确语义批次已完成；Template Library 因缺少本机生成且不入库的授权 catalog/CDXML 暂不可执行，当前推进 Bond Reaction Participation，再继续其余反应连接与属性。
+2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、Chain/环连接、Element/原子标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen 及 Bond Reaction Participation 历史批次已完成；Template Library 因缺少本机生成且不入库的授权 catalog/CDXML 暂不可执行，当前推进 Reaction Participation 剩余值域，再继续查询、立体与显示属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
 5. **文档与外部边界**：多标签、所有格式、恢复、系统剪贴板、Office、文件关联。
@@ -214,7 +217,7 @@ Bond Reaction Participation selection 修复批次 `impact-0b6b65b-bond-reaction
 
 本清单不是一次性说明：
 
-- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 46 个场景 ID，漏项直接失败。
+- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 47 个场景 ID，漏项直接失败。
 - 每完成一个对象族或发现新的公开缺口，必须同时更新第 3 节状态和“明确剩余”，不能只在长架构文档末尾追加段落。
 - 每产生新候选或 qualification，必须更新页首候选哈希、通过/缺失/失败数和最新证据。
 - 每个本地测试提交必须让本文反映该提交后的真实状态；不得把“场景通过”写成“功能族完成”。
