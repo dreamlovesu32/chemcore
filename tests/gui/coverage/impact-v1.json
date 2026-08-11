@@ -43,6 +43,7 @@
     { "id": "source.scenario.core.atom.periodic-common-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-common-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-noble-lanthanide-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-lanthanide-interior-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-lanthanide-interior-free-placement-production.json"] },
+    { "id": "source.scenario.core.atom.periodic-actinide-early-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-actinide-early-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-alkali-alkaline-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-fifteen-sixteen-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-group-seventeen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-seventeen-free-placement-production.json"] },
@@ -150,6 +151,7 @@
     { "id": "scenario.core.atom.periodic-common-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-lanthanide-interior-free-placement.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.periodic-actinide-early-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "kind": "scenario" },
@@ -233,6 +235,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the common-value periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the noble/lanthanide matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-lanthanide-interior-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the interior lanthanide matrix." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-actinide-early-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the early-actinide matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 1/2 column matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 15/16 column matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the remaining Group 17 matrix." },
@@ -809,5 +812,10 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-lanthanide-interior-free-placement.production", "reason": "The physical driver selects each interior lanthanide, places it on blank canvas, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-lanthanide-interior-free-placement.production", "reason": "Thirteen exact standalone identities kill dropped placement, duplicate-object, and endpoint-only mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-lanthanide-interior-free-placement.production", "reason": "Zero bonds, thirteen normalized molecule objects, exact Ce/Pr/Nd/Pm/Sm/Eu/Gd/Tb/Dy/Ho/Er/Tm/Yb persistence, and zero-hydrogen labels kill row truncation, ordering, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.periodic-actinide-early-free-placement.production", "reason": "The production cell covers Ac/Th/Pa without repeating passed U." }
+    ,{ "from": "source.scenario.core.atom.periodic-actinide-early-free-placement.production", "to": "scenario.core.atom.periodic-actinide-early-free-placement.production", "reason": "Changing this matrix invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-actinide-early-free-placement.production", "reason": "The physical driver selects and places Ac/Th/Pa and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-actinide-early-free-placement.production", "reason": "Three identities kill uranium-only and dropped-placement mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-actinide-early-free-placement.production", "reason": "Exact zero-hydrogen Ac/Th/Pa persistence kills row-order, collapsed-object, and accidental-bond mutants." }
   ]
 }
