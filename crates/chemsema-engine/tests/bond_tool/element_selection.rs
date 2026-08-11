@@ -1341,6 +1341,164 @@ fn multi_shape_selection_exposes_public_batch_style_menu() {
 }
 
 #[test]
+fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
+    let mut engine = Engine::new();
+    for command in [
+        serde_json::json!({
+            "type": "add-orbital",
+            "template": "s",
+            "style": "hollow",
+            "phase": "plus",
+            "color": "#000000",
+            "center": { "x": 35.0, "y": 45.0 },
+            "end": { "x": 35.0, "y": 75.0 }
+        }),
+        serde_json::json!({
+            "type": "add-orbital",
+            "template": "dxy",
+            "style": "filled",
+            "phase": "minus",
+            "color": "#000000",
+            "center": { "x": 105.0, "y": 45.0 },
+            "end": { "x": 105.0, "y": 75.0 }
+        }),
+    ] {
+        let result: serde_json::Value = serde_json::from_str(
+            &engine
+                .execute_command_json(&command.to_string())
+                .expect("orbital command should execute"),
+        )
+        .expect("orbital command result should be JSON");
+        assert_eq!(result["changed"], true);
+    }
+    assert!(engine.select_all());
+
+    let menu: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_shape_orbital_1"}"#,
+        false,
+    ))
+    .expect("multi-orbital context menu should be valid JSON");
+    for label in ["Orbital Template", "Orbital Style", "Orbital Phase"] {
+        let submenu = menu
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some(label))
+            .and_then(|item| item.get("submenu"))
+            .and_then(serde_json::Value::as_array)
+            .unwrap_or_else(|| panic!("{label} should be public for homogeneous orbitals: {menu}"));
+        assert!(
+            submenu
+                .iter()
+                .all(|item| item.get("checked").and_then(serde_json::Value::as_bool) != Some(true)),
+            "mixed orbital values must not claim a uniform {label}: {menu}"
+        );
+    }
+    assert!(menu.as_array().is_some_and(|items| items.iter().all(|item| {
+        item.get("label").and_then(serde_json::Value::as_str) != Some("Shape Style")
+    })));
+
+    assert!(engine.apply_orbital_template_to_selection("dz2"));
+    let rendered_after_template = serde_json::to_string(&engine.render_list())
+        .expect("retargeted orbitals should render");
+    for id in ["obj_shape_orbital_1", "obj_shape_orbital_2"] {
+        assert!(
+            rendered_after_template.contains(id),
+            "template migration must retain visible geometry for {id}: {rendered_after_template}"
+        );
+    }
+    assert!(engine.apply_orbital_template_to_selection("oval"));
+    let rendered_after_ellipse = serde_json::to_string(&engine.render_list())
+        .expect("ellipse-retargeted orbitals should render");
+    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
+        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
+    }) {
+        assert!(rendered_after_ellipse.contains(&object.id));
+        assert!(object.payload.extra.get("center").is_some());
+        assert!(object.payload.extra.get("majorAxisEnd").is_some());
+        assert!(object.payload.extra.get("minorAxisEnd").is_some());
+        assert!(object.payload.extra.get("axisStart").is_none());
+        assert!(object.payload.extra.get("axisEnd").is_none());
+    }
+    assert!(engine.apply_orbital_template_to_selection("dz2"));
+    assert!(engine.apply_orbital_style_to_selection("filled"));
+    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
+        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
+    }) {
+        let style = engine
+            .state()
+            .document
+            .styles
+            .get(object.style_ref.as_deref().expect("filled orbital style reference"))
+            .expect("filled orbital style should exist");
+        assert_eq!(style["fill"], "#000000");
+        assert_eq!(style["stroke"], serde_json::Value::Null);
+    }
+    assert!(engine.apply_orbital_style_to_selection("shaded"));
+    assert!(engine.apply_orbital_phase_to_selection("minus"));
+    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
+        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
+    }) {
+        assert_eq!(object.payload.extra["orbitalTemplate"], "dz2");
+        assert_eq!(object.payload.extra["orbitalStyle"], "shaded");
+        assert_eq!(object.payload.extra["orbitalPhase"], "minus");
+        let style = engine
+            .state()
+            .document
+            .styles
+            .get(object.style_ref.as_deref().expect("orbital style reference"))
+            .expect("orbital style should exist");
+        assert_eq!(style["kind"], "shape");
+        assert_eq!(style["shaded"], true);
+    }
+
+    let uniform_menu: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_shape_orbital_1"}"#,
+        false,
+    ))
+    .expect("uniform orbital menu should be valid JSON");
+    for (label, value) in [
+        ("Orbital Template", "dz2"),
+        ("Orbital Style", "shaded"),
+        ("Orbital Phase", "minus"),
+    ] {
+        let checked = uniform_menu
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some(label))
+            .and_then(|item| item.get("submenu"))
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .find(|item| item.get("value").and_then(serde_json::Value::as_str) == Some(value))
+            .expect("uniform orbital value should remain public");
+        assert_eq!(checked["checked"], true);
+    }
+
+    assert!(engine.undo());
+    assert!(engine.state().selection.is_empty());
+    assert!(engine.select_all());
+    let phase_after_undo: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_shape_orbital_1"}"#,
+        false,
+    ))
+    .expect("undo orbital menu should be valid JSON");
+    let minus = phase_after_undo
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Orbital Phase"))
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("value").and_then(serde_json::Value::as_str) == Some("minus"))
+        .expect("minus phase should remain public after undo");
+    assert_ne!(minus["checked"], true, "undo must restore the mixed original phases");
+}
+
+#[test]
 fn editor_bracket_groups_expose_and_apply_visible_batch_properties() {
     fn bracket_group(id: &str, kind: &str, x: f64) -> serde_json::Value {
         serde_json::json!({

@@ -228,7 +228,7 @@
       "required": ["id", "kind"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties", "document-text-properties", "document-shape-properties", "document-symbol-properties", "document-bracket-properties", "document-table-properties"] },
+        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties", "document-text-properties", "document-shape-properties", "document-orbital-properties", "document-symbol-properties", "document-bracket-properties", "document-table-properties"] },
         "selector": { "type": "string" },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
@@ -317,6 +317,31 @@
                   "shaded": { "type": "boolean" },
                   "shadow": { "type": "boolean" },
                   "shadowSize": { "type": ["number", "null"], "minimum": 0, "maximum": 1000 }
+                }
+              }
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "kind", "template", "orbitalStyle", "phase", "color", "geometryValid", "fill", "stroke", "strokeWidth", "dashArray", "shaded"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/id" },
+                  "kind": { "const": "orbital" },
+                  "template": { "enum": ["s", "oval", "lobe", "p", "dxy", "hybrid", "dz2"] },
+                  "orbitalStyle": { "enum": ["hollow", "filled", "shaded"] },
+                  "phase": { "enum": ["plus", "minus"] },
+                  "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                  "geometryValid": { "const": true },
+                  "fill": { "type": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
+                  "stroke": { "type": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
+                  "strokeWidth": { "type": "number", "minimum": 0, "maximum": 1000 },
+                  "dashArray": { "type": "array", "maxItems": 16, "items": { "type": "number", "minimum": 0, "maximum": 1000 } },
+                  "shaded": { "type": "boolean" }
                 }
               }
             },
@@ -438,6 +463,10 @@
         },
         {
           "if": { "properties": { "kind": { "const": "document-shape-properties" } } },
+          "then": { "required": ["expected"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "document-orbital-properties" } } },
           "then": { "required": ["expected"] }
         },
         {

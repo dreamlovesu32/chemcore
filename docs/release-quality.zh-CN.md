@@ -11,7 +11,7 @@
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |
 | 桌面端 | Beta | Tauri build、文件关联配置、hybrid latency 回归、安装验证 |
-| GUI 测试平台 | 实施中/现有 23 个登记场景覆盖 production 鼠标、键盘、原生保存/打开、同类与异类多对象编辑、二层组合、箭头、扩展文本样式、四类 Shape、八类电荷/电子 Symbol、三类成对 Bracket 与原生 Table 结构/属性矩阵；当前 23 场景候选资格有意保持红灯，为通过 1、缺失 22 | 版本化 Schema/runner/资格 manifest、真实 Playwright 与隔离 Hyper-V production 路径、覆盖/支持显式排除的精确影响/资源门禁、内容寻址候选、受守卫 UIA/CDP 定位、真实点击/拖拽/文字/Enter/快捷键输入、相互独立且有界的产品完成与传输回执窗口、原生对话框保存与重开、独立保存 CCJS 化学、精确属性/run、层级索引及 Table 导引/单元格/边框 oracle、选择/剪贴板/历史/锁定/组合、trace 归因、先失败后通过仍阻断的汇总、受 root 约束的证据重哈希、完整有界 evidence bundle，以及 guest/host SHA-256 验证已运行；Table 单元通过 42/42 个真实动作与 3/3 个 oracle，精确证明 3×3 结构、对齐、四边历史和持久化；Table 内容/颜色/全部编辑位置、Bracket 标签/重复 Link、视频/崩溃 bundle、完整功能—对象—属性—值域与 `0/1/2/many` 矩阵、更深组合/异类单元、全部格式边界、复杂/large/xlarge 构建、环境覆盖、模型/故障/变异测试、耐久、连续 1,000 次展示资格和最终安装包资格仍待完成 |
+| GUI 测试平台 | 实施中/现有 24 个登记场景在既有 production 鼠标、键盘、原生保存/打开、多对象、组合、箭头、文本、Shape、Symbol、Bracket 与 Table 单元之外，新增全部七种公开轨道模板、批量模板/样式/相位、双向几何迁移、历史与精确持久化；当前 24 场景候选资格有意保持红灯，为通过 1、缺失 23 | 版本化 Schema/runner/资格 manifest、真实 Playwright 与隔离 Hyper-V production 路径、精确影响/资源门禁、内容寻址候选、受守卫 UIA/CDP 定位、真实输入、相互独立的产品与传输窗口、原生保存/重开、独立 CCJS 化学/属性/几何/层级/Table oracle、选择/剪贴板/历史/锁定/组合、trace 归因、先失败后通过仍阻断的汇总、受 root 约束的证据重哈希、有界 bundle 及 guest/host SHA-256 验证已运行；轨道单元通过 39/39 个真实动作与 3/3 个 oracle，证明七个对象全部保留并精确持久化迁移后的几何与样式；完整功能—对象—属性—值域与 `0/1/2/many` 矩阵、复杂/large/xlarge 构建、环境/模型/故障/变异覆盖、耐久、连续 1,000 次展示资格和最终安装包资格仍待完成 |
 | CLI one-shot 命令 | Usable | Rust 测试、`npm run verify`、稳定性报告、输出写入验证 |
 | CLI JSONL session | Experimental/usable | session 单测和大文件性能报告 |
 | Agent 精确截图 | Usable beta | PNG/SVG capture 测试、公开 fixture crop、README 示例图 |

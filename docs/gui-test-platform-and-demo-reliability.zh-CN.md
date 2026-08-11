@@ -920,6 +920,16 @@ Run `1195e2b8-0ac4-4ed8-8967-9856bd19c6e7` 在候选 `c86f57294f357c804c6f81216f
 
 `qualification-current-23-incomplete.json` 仍有意保持 `failed`：预期 23、通过 1、缺失 22、失败运行 0，重新验证 9 个 evidence 对象且无 evidence 诊断。非法行列边界、每一种插入/删除位置、单元格内容、Clear Contents、Size To Fit Contents、全部对齐值、none/custom 边集合、边框颜色、锁定、变换、剪贴板、多表格、CDXML/CDX 往返和复杂/large/xlarge 表格仍开放。
 
+### 轨道：全部公开模板、几何迁移、批量属性、历史与持久化
+
+登记闭包现已扩展为 24 个场景。`core.orbital.seven-template-properties-history.production` 通过受守卫的真实鼠标手势依次绘制 `s`、`oval`、`lobe`、`p`、`dxy`、`hybrid` 和 `dz2` 七种公开模板；全选七个对象，证明初始模板与相位为混合值，再通过公开菜单把全部对象批量改为 `dz2`，并严格要求七个不同对象仍全部可见。随后场景批量应用 Filled 与 Plus，证明模板、样式、相位三个菜单值统一；撤销恢复原始混合相位，重做恢复 Plus；最后经 Windows 原生对话框保存，并独立校验回传的 CCJS。
+
+测试发现并修复了两个真实产品缺陷。同类多轨道选择此前落入通用 Shape 分支，只显示 Shape Style，而不显示 Orbital Template、Orbital Style 和 Orbital Phase。更严重的是，旧实现只替换 `orbitalTemplate` 字符串：`s`/`oval` 使用中心、长轴端点和短轴端点，其他模板使用轴起点/终点，跨表示切换会使对象消失。引擎现在提供专用批量菜单，并在两个方向原子迁移几何，保留中心、方向与大小；无效或零长度几何不会发生部分修改。批量 Filled 的样式也与新绘制 Filled 轨道一致，即设置 fill 且 `stroke: null`。Rust 回归覆盖菜单、混合/统一状态、双向几何迁移、渲染保留、精确 Filled 样式与历史。
+
+Run `2b994b97-de4f-4a73-8ff9-9302c1e4812f` 在候选 `6351dec771567fc57118994aec5071221a8132a204c3724edb2893f00d2d9425` 上于 361,391 ms 内通过 39/39 个真实 OS 输入动作和 3/3 个最终 oracle，诊断为 0。Evidence key `04f4b0073e746810af55b717b9efa2ce4d25c8615a1d85b4debb090a806fd366` 保留 8 个 driver 制品。独立 oracle 要求七个精确轨道 ID、`dz2`/Filled/Plus/黑色 payload、有限且非零的轴几何、不存在陈旧椭圆字段，以及精确 Filled 样式。首轮失败 evidence `9d6f91266c6e349fc64a7a8bad9e1a31aea0533cff6b267c46b6e278950fe44a` 被完整保留：测试曾错误假定只有一个预设按钮高亮，而公开工具栏会同时高亮模板预设与匹配样式预设；修正后的断言明确要求两个，没有抹去首轮失败。8-vCPU、20-GiB VM 最终恢复为 `Off`，分配内存为 0。
+
+`qualification-current-24-incomplete.json` 仍有意保持 `failed`：预期 24、通过 1、缺失 23。颜色、每一种独立样式/相位组合、原子与标签附着、变换、锁定、组合、剪贴板、多轨道交互、CDXML/CDX 往返、复杂/large/xlarge 文档、环境/故障/模型/变异覆盖、耐久和连续 1,000 次展示资格仍是明确待办。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

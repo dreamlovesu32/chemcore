@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
 
 const validReports = {
   inspect: {
@@ -125,6 +125,34 @@ test("saved-document shape oracle checks exact kind and public style properties"
   assert.equal(evaluateDocumentShapeProperties(bytes, [{ ...expected[0], kind: "ellipse" }]).passed, false);
   assert.equal(evaluateDocumentShapeProperties(bytes, [{ ...expected[0], dashArray: [4] }]).passed, false);
   assert.equal(evaluateDocumentShapeProperties(bytes, [{ ...expected[0], shadow: false }]).passed, false);
+});
+
+test("saved-document orbital oracle checks exact properties and template-compatible geometry", () => {
+  const document = {
+    styles: { style_orbital_1: { kind: "shape", fill: "#000000", stroke: null, strokeWidth: 1, dashArray: [] } },
+    entities: { scene: [{
+      id: "obj_shape_orbital_1",
+      type: "shape",
+      styleRef: "style_orbital_1",
+      payload: {
+        kind: "orbital",
+        orbitalTemplate: "dz2",
+        orbitalStyle: "filled",
+        orbitalPhase: "plus",
+        orbitalColor: "#000000",
+        axisStart: [30, 40],
+        axisEnd: [30, 70],
+      },
+    }] },
+  };
+  const bytes = Buffer.from(JSON.stringify(document));
+  const expected = [{ id: "obj_shape_orbital_1", kind: "orbital", template: "dz2", orbitalStyle: "filled", phase: "plus", color: "#000000", geometryValid: true, fill: "#000000", stroke: null, strokeWidth: 1, dashArray: [], shaded: false }];
+  assert.equal(evaluateDocumentOrbitalProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentOrbitalProperties(bytes, [{ ...expected[0], phase: "minus" }]).passed, false);
+  const zeroAxis = Buffer.from(JSON.stringify({ ...document, entities: { scene: [{ ...document.entities.scene[0], payload: { ...document.entities.scene[0].payload, axisEnd: [30, 40] } }] } }));
+  assert.equal(evaluateDocumentOrbitalProperties(zeroAxis, expected).passed, false);
+  const staleEllipseGeometry = Buffer.from(JSON.stringify({ ...document, entities: { scene: [{ ...document.entities.scene[0], payload: { ...document.entities.scene[0].payload, center: [30, 40] } }] } }));
+  assert.equal(evaluateDocumentOrbitalProperties(staleEllipseGeometry, expected).passed, false);
 });
 
 test("saved-document symbol oracle checks exact kind and both persisted color surfaces", () => {

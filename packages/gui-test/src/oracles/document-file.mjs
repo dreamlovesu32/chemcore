@@ -185,6 +185,53 @@ export function evaluateDocumentShapeProperties(bytes, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentOrbitalProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const scene = Array.isArray(document?.entities?.scene) ? document.entities.scene : [];
+  const styles = document?.styles && typeof document.styles === "object" ? document.styles : {};
+  const finitePoint = (value) => Array.isArray(value) && value.length === 2 && value.every(Number.isFinite);
+  const observed = expected.map((entry) => {
+    const object = scene.find((candidate) => candidate?.id === entry.id
+      && candidate?.type === "shape"
+      && candidate?.payload?.kind === "orbital");
+    const payload = object?.payload || {};
+    const style = styles[object?.styleRef] || {};
+    const axisStart = payload.axisStart;
+    const axisEnd = payload.axisEnd;
+    const geometryValid = finitePoint(axisStart)
+      && finitePoint(axisEnd)
+      && Math.hypot(axisEnd[0] - axisStart[0], axisEnd[1] - axisStart[1]) > 0
+      && !Object.hasOwn(payload, "center")
+      && !Object.hasOwn(payload, "majorAxisEnd")
+      && !Object.hasOwn(payload, "minorAxisEnd");
+    return {
+      id: entry.id,
+      found: !!object,
+      kind: payload.kind ?? null,
+      template: payload.orbitalTemplate ?? null,
+      orbitalStyle: payload.orbitalStyle ?? null,
+      phase: payload.orbitalPhase ?? null,
+      color: payload.orbitalColor ?? null,
+      geometryValid,
+      fill: style.fill ?? null,
+      stroke: style.stroke ?? null,
+      strokeWidth: style.strokeWidth ?? null,
+      dashArray: Array.isArray(style.dashArray) ? style.dashArray : null,
+      shaded: style.shaded === true,
+    };
+  });
+  const passed = observed.every((actual, index) => actual.found
+    && actual.geometryValid
+    && Object.entries(expected[index]).every(([name, value]) => name === "id"
+      || JSON.stringify(actual[name]) === JSON.stringify(value)));
+  return { passed, observed };
+}
+
 export function evaluateDocumentSymbolProperties(bytes, expected) {
   let document;
   try {

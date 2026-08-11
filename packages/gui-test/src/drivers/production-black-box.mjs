@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
-import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
 import { HyperVCoordinator } from "../workers/hyperv.mjs";
 
 const defaultProfilePath = join(guiTestsDir, "environments", "windows-gui-worker-current.json");
@@ -174,6 +174,8 @@ export class ProductionBlackBoxDriver {
       "editor.bracket.properties",
       "editor.table.draw",
       "editor.table.properties",
+      "editor.orbital.draw",
+      "editor.orbital.properties",
       "editor.selection.select-all",
       "editor.selection.region",
       "editor.selection.additive",
@@ -473,6 +475,10 @@ export class ProductionBlackBoxDriver {
     if (oracle.kind === "document-shape-properties") {
       const document = await this.ensureSavedDocument();
       return evaluateDocumentShapeProperties(document.transfer.bytes, oracle.expected);
+    }
+    if (oracle.kind === "document-orbital-properties") {
+      const document = await this.ensureSavedDocument();
+      return evaluateDocumentOrbitalProperties(document.transfer.bytes, oracle.expected);
     }
     if (oracle.kind === "document-symbol-properties") {
       const document = await this.ensureSavedDocument();

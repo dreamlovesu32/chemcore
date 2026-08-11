@@ -515,6 +515,13 @@ impl Engine {
                 self.text_alignment_menu(),
                 item("Line Spacing...", "text-line-spacing", ""),
             ]);
+        } else if self.selection_contains_only_orbitals() {
+            items.extend([
+                separator(),
+                self.orbital_template_menu(),
+                self.orbital_style_menu(),
+                self.orbital_phase_menu(),
+            ]);
         } else if selected_types.len() == 1 && selected_types.contains("shape") {
             items.extend([separator(), self.shape_style_menu()]);
         } else if self.selection_contains_only_bracket_targets() {
@@ -1844,6 +1851,15 @@ impl Engine {
     fn selection_contains_only_bracket_targets(&self) -> bool {
         let selected = self.selected_scene_objects();
         !selected.is_empty() && selected.into_iter().all(scene_object_is_bracket_target)
+    }
+
+    fn selection_contains_only_orbitals(&self) -> bool {
+        let selected = self.selected_scene_objects();
+        !selected.is_empty()
+            && selected.into_iter().all(|object| {
+                object.object_type == "shape"
+                    && payload_string(object, "kind").as_deref() == Some("orbital")
+            })
     }
 
     fn selected_uniform_line_style(&self) -> Option<String> {

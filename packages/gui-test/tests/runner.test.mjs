@@ -76,6 +76,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.group.locked-ancestor-transform.production",
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
+    "scenario.core.orbital.seven-template-properties-history.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
     "scenario.core.selection.locked-molecule-arrow-transform.production",
@@ -115,6 +116,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.group.locked-ancestor-transform.production",
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
+      "scenario.core.orbital.seven-template-properties-history.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
       "scenario.core.selection.locked-molecule-arrow-transform.production",
@@ -134,6 +136,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.orbital.seven-template-properties-history.production",
     "scenario.core.shape.multi-kind-style-history.production",
     "scenario.core.symbol.eight-kind-color-history.production",
     "scenario.core.table.structure-border-history.production",
@@ -151,6 +154,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.group.locked-ancestor-transform.production",
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
+    "scenario.core.orbital.seven-template-properties-history.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
     "scenario.core.selection.locked-molecule-arrow-transform.production",
@@ -172,6 +176,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.orbital.seven-template-properties-history.production",
     "scenario.core.shape.multi-kind-style-history.production",
     "scenario.core.symbol.eight-kind-color-history.production",
     "scenario.core.table.structure-border-history.production",
@@ -198,6 +203,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.group.locked-ancestor-transform.production",
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
+      "scenario.core.orbital.seven-template-properties-history.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
       "scenario.core.selection.locked-molecule-arrow-transform.production",
@@ -238,14 +244,15 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "symbol-eight-kind-color-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "bracket-three-kind-properties-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "table-structure-border-history-production.json"),
+    join(guiTestsDir, "scenarios", "core", "orbital-seven-template-properties-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 34);
-  assert.equal(result.summary.scenarios, 23);
+  assert.equal(result.summary.entries, 35);
+  assert.equal(result.summary.scenarios, 24);
   assert.equal(result.summary.gaps, 0);
 });
 

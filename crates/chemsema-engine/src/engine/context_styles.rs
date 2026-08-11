@@ -330,8 +330,7 @@ impl Engine {
         let mut changed = false;
         for object_id in ids {
             if let Some(object) = self.state.document.find_scene_object_mut(&object_id) {
-                changed |=
-                    set_payload_string(&mut object.payload.extra, "orbitalTemplate", template);
+                changed |= super::orbitals::retarget_orbital_template_geometry(object, template);
             }
         }
         if !changed {
@@ -2000,7 +1999,7 @@ fn orbital_style_json(style: &str, color: &str, stroke_width: f64) -> JsonValue 
         "filled" => json!({
             "kind": "shape",
             "fill": color,
-            "stroke": color,
+            "stroke": null,
             "strokeWidth": stroke_width,
             "dashArray": [],
         }),
