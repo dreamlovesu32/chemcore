@@ -298,6 +298,10 @@ fn send_mouse(flags: u32) -> Result<(), String> {
     Ok(())
 }
 
+fn uses_virtual_key_input(virtual_key: u16) -> bool {
+    virtual_key == VK_DELETE
+}
+
 fn send_key_event(virtual_key: u16, flags: u32) -> Result<(), String> {
     // Physical scan-code injection is stable across keyboard layouts and matches
     // the hardware path used by an actual keyboard more closely than a bare VK.
@@ -312,13 +316,18 @@ fn send_key_event(virtual_key: u16, flags: u32) -> Result<(), String> {
     } else {
         0
     };
+    // WebView2 on a physical Windows desktop does not consistently surface an
+    // injected extended Delete scan code as a DOM `Delete` key. Preserve the
+    // OS SendInput path, but retain VK_DELETE in wVk so the window receives the
+    // same logical key used by native menu accelerators and browser key events.
+    let use_virtual_key = uses_virtual_key_input(virtual_key);
     let input = INPUT {
         r#type: INPUT_KEYBOARD,
         Anonymous: INPUT_0 {
             ki: KEYBDINPUT {
-                wVk: 0,
-                wScan: (mapped & 0xff) as u16,
-                dwFlags: flags | KEYEVENTF_SCANCODE | extended,
+                wVk: if use_virtual_key { virtual_key } else { 0 },
+                wScan: if use_virtual_key { 0 } else { (mapped & 0xff) as u16 },
+                dwFlags: flags | extended | if use_virtual_key { 0 } else { KEYEVENTF_SCANCODE },
                 time: 0,
                 dwExtraInfo: 0,
             },
@@ -752,7 +761,7 @@ pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
 mod tests {
     use super::{
         parse_pointer_modifiers, parse_shortcut, retryable_window_snapshot_error,
-        validate_text_input, VK_CONTROL, VK_MENU, VK_SHIFT,
+        uses_virtual_key_input, validate_text_input, VK_CONTROL, VK_DELETE, VK_MENU, VK_SHIFT,
     };
 
     #[test]
@@ -772,6 +781,8 @@ mod tests {
         assert!(parse_shortcut("Alt+F4").is_err());
         assert!(parse_shortcut("Control+Alt+Delete").is_err());
         assert!(parse_shortcut("Meta+R").is_err());
+        assert!(uses_virtual_key_input(VK_DELETE));
+        assert!(!uses_virtual_key_input(b'A' as u16));
     }
 
     #[test]
