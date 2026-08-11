@@ -736,6 +736,6 @@
     ,{ "from": "source.scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Changing the noble/lanthanide free-placement matrix invalidates only its evidence." }
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "The physical driver opens the public palette, selects each new value, places it on blank canvas, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Eight exact standalone node identities kill dropped placement, duplicate-object, and bonded-only mutants." }
-    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Zero bonds, eight disconnected nodes in the one blank-document molecule object, and exact He/Ne/Ar/Kr/Xe/Rn/La/Lu persistence kill mapping, row-truncation, and accidental-bond mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Zero bonds, eight independently normalized molecule objects, and exact He/Ne/Ar/Kr/Xe/Rn/La/Lu persistence kill mapping, row-truncation, collapsed-object, and accidental-bond mutants." }
   ]
 }

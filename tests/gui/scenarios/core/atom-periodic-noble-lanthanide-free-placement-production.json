@@ -42,7 +42,7 @@
   ],
   "oracles": [
     { "id": "eight-free-atoms-rendered", "kind": "dom-distinct-count", "selector": "[data-node-id]", "attribute": "data-node-id", "operator": "eq", "value": 8 },
-    { "id": "saved-free-atom-counts", "kind": "document-counts", "expected": { "nodes": 8, "bonds": 0, "molecules": 1, "objects": 1 } },
+    { "id": "saved-free-atom-counts", "kind": "document-counts", "expected": { "nodes": 8, "bonds": 0, "molecules": 8, "objects": 8 } },
     { "id": "saved-noble-lanthanide-free-atom-semantics", "kind": "document-node-properties", "expected": [
       { "id": "n_1", "element": "He", "atomicNumber": 2, "charge": 0, "labelText": "He", "labelSourceText": "He" },
       { "id": "n_2", "element": "Ne", "atomicNumber": 10, "charge": 0, "labelText": "Ne", "labelSourceText": "Ne" },

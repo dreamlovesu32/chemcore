@@ -726,7 +726,7 @@ test("the common periodic matrix kills untested-value swaps, wrong endpoints, an
   });
 });
 
-test("the noble and lanthanide free-placement matrix kills bonded-only, row-truncation, and accidental-bond mutants", async () => {
+test("the noble and lanthanide free-placement matrix kills bonded-only, collapsed-object, row-truncation, and accidental-bond mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-noble-lanthanide-free-placement-production.json"));
   const expectedValues = [
     ["helium", "He", 2, "n_1", 0.15, 0.34],
@@ -758,8 +758,8 @@ test("the noble and lanthanide free-placement matrix kills bonded-only, row-trun
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-free-atom-counts").expected, {
     nodes: 8,
     bonds: 0,
-    molecules: 1,
-    objects: 1,
+    molecules: 8,
+    objects: 8,
   });
 });
 
