@@ -355,6 +355,7 @@
                     "uniqueItems": true,
                     "items": { "enum": ["single", "aromatic", "double", "triple"] }
                   },
+                  "topology": { "enum": ["unspecified", "ring", "chain", "ring-or-chain"] },
                   "reactionParticipation": { "enum": ["unspecified", "reaction-center", "make-or-break", "change-type", "make-and-change", "not-reaction-center", "no-change", "unmapped"] }
                 }
               }

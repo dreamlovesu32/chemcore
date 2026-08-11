@@ -85,6 +85,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
+    "scenario.core.bond.topology-value-matrix.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
     "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -149,6 +150,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.reaction-participation-history-persistence.production",
       "scenario.core.bond.reaction-participation-value-matrix.production",
       "scenario.core.bond.ten-variant-persistence.production",
+      "scenario.core.bond.topology-value-matrix.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
       "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -212,6 +214,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
+    "scenario.core.bond.topology-value-matrix.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
     "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -263,6 +266,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
+    "scenario.core.bond.topology-value-matrix.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
     "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -312,6 +316,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.reaction-participation-history-persistence.production",
       "scenario.core.bond.reaction-participation-value-matrix.production",
       "scenario.core.bond.ten-variant-persistence.production",
+      "scenario.core.bond.topology-value-matrix.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
       "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -352,6 +357,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-query-order-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-topology-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"),
@@ -401,7 +407,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 48);
+  assert.equal(result.summary.scenarios, 49);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -663,6 +669,37 @@ test("the bond query-order matrix kills skipped-value, stale-annotation, wrong-o
   assert.equal(clear.completion.value, 0);
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-double-aromatic-query-order-semantics").expected, [
     { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, queryOrders: ["double", "aromatic"] },
+  ]);
+});
+
+test("the bond topology matrix kills skipped-value, stale-annotation, wrong-enum, and stale-persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-topology-value-matrix-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.bond.topology"));
+  const appliedValues = scenario.actions
+    .filter((action) => action.id.startsWith("set-"))
+    .map((action) => action.target.name);
+  assert.deepEqual(appliedValues, ["Ring", "Chain", "Ring or Chain", "Unspecified", "Ring or Chain"]);
+
+  const verifiedValues = scenario.actions
+    .filter((action) => action.id.startsWith("open-") && action.id.endsWith("-menu"))
+    .map((action) => action.completion.selector.match(/topology:([a-z-]+)/)?.[1]);
+  assert.deepEqual(verifiedValues, ["unspecified", "ring", "chain", "ring-or-chain", "unspecified", "ring-or-chain"]);
+
+  for (const [id, text] of [
+    ["set-ring", "Rng"],
+    ["set-chain", "Chn"],
+    ["set-ring-or-chain", "R/C"],
+    ["set-final-ring-or-chain", "R/C"],
+  ]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.completion.selector, 'text[data-bond-id="b_3"]');
+    assert.equal(action.completion.text, text);
+  }
+  const clear = scenario.actions.find((action) => action.id === "set-cleared-unspecified");
+  assert.equal(clear.completion.selector, 'text[data-bond-id="b_3"]');
+  assert.equal(clear.completion.value, 0);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-ring-or-chain-topology-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, topology: "ring-or-chain" },
   ]);
 });
 

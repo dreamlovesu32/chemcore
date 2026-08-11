@@ -13,6 +13,7 @@ export const productionBlackBoxCapabilities = Object.freeze([
   "gui.public-input",
   "editor.bond.draw",
   "editor.bond.query-order",
+  "editor.bond.topology",
   "editor.bond.reaction-participation",
   "editor.ring.insert",
   "editor.chain.draw",

@@ -89,6 +89,7 @@ export function evaluateDocumentBondProperties(bytes, expected) {
       stereoKind: bond?.stereo?.kind ?? null,
       wideEnd: bond?.stereo?.wideEnd ?? bond?.stereo?.wide_end ?? null,
       queryOrders: bond?.properties?.queryOrders ?? bond?.properties?.query_orders ?? [],
+      topology: bond?.properties?.topology ?? "unspecified",
       reactionParticipation: bond?.properties?.reactionParticipation ?? bond?.properties?.reaction_participation ?? null,
     };
   });
