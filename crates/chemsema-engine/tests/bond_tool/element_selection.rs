@@ -51,6 +51,54 @@ fn element_tool_places_selected_element_with_chemdraw_hydrogens() {
 }
 
 #[test]
+fn radical_updates_generated_carbon_formula_hydrogens_and_label() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "C".to_string(),
+        element_atomic_number: 6,
+        ..ToolState::default()
+    });
+    click(&mut engine, 40.0, 50.0);
+    engine.select_at_point(Point::new(40.0, 50.0), false);
+
+    for (radical, hydrogens, formula) in [
+        ("singlet", 2, "CH2"),
+        ("doublet", 3, "CH3"),
+        ("triplet", 2, "CH2"),
+        ("none", 4, "CH4"),
+    ] {
+        assert!(engine.set_atom_property_for_selection("radical", Some(radical)));
+        let fragment = engine
+            .state()
+            .document
+            .editable_fragment()
+            .expect("blank document has an editable fragment")
+            .fragment;
+        let node = &fragment.nodes[0];
+        assert_eq!(node.num_hydrogens, hydrogens, "{radical}");
+        assert_eq!(
+            node.label.as_ref().and_then(|label| label.source_text.as_deref()),
+            Some(formula),
+            "{radical}"
+        );
+        assert_eq!(
+            node.label
+                .as_ref()
+                .and_then(|label| label.meta.pointer("/implicitHydrogenLabel/userEdited"))
+                .and_then(serde_json::Value::as_bool),
+            Some(false),
+            "{radical}"
+        );
+        assert!(
+            node.meta.get("labelRecognition").is_none(),
+            "{radical} formula should remain chemically valid: {:?}",
+            node.meta
+        );
+    }
+}
+
+#[test]
 fn element_tool_replaces_focused_endpoint_without_adding_node() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());

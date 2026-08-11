@@ -42,7 +42,7 @@
     { "id": "one-radical-carbon-rendered", "kind": "dom-distinct-count", "selector": "[data-node-id]", "attribute": "data-node-id", "operator": "eq", "value": 1 },
     { "id": "saved-radical-carbon-counts", "kind": "document-counts", "expected": { "nodes": 1, "bonds": 0, "molecules": 1, "objects": 1 } },
     { "id": "saved-radical-carbon-semantics", "kind": "document-node-properties", "expected": [
-      { "id": "n_1", "element": "C", "atomicNumber": 6, "charge": 0, "numHydrogens": 4, "atomRadical": "triplet", "labelText": "CH4", "labelSourceText": "CH4" }
+      { "id": "n_1", "element": "C", "atomicNumber": 6, "charge": 0, "numHydrogens": 2, "atomRadical": "triplet", "labelText": "CH2", "labelSourceText": "CH2" }
     ] },
     { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
   ],

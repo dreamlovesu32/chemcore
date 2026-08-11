@@ -941,7 +941,7 @@ test("the atom radical matrix kills missing values, swapped mappings, stale chec
   assert.equal(scenario.actions.filter((action) => action.target?.name === "Radical").length, 3);
   assert.deepEqual(
     scenario.oracles.find((oracle) => oracle.id === "saved-radical-carbon-semantics").expected,
-    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomRadical: "triplet", labelText: "CH4", labelSourceText: "CH4" }],
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, atomRadical: "triplet", labelText: "CH2", labelSourceText: "CH2" }],
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
 });

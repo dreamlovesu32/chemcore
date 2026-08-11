@@ -1518,6 +1518,13 @@ pub(super) fn label_recognition_meta_for_node_text(
     if let Some(meta) = metal_containing_chemical_text_label_meta(trimmed) {
         return Some(meta);
     }
+    if label_text_matches_node_element(trimmed, node) {
+        return if element_hydrogen_label_is_valid_for_node(trimmed, fragment, node) {
+            None
+        } else {
+            Some(crate::invalid_abbreviation_meta(trimmed))
+        };
+    }
     if label_prefers_abbreviation_over_element(trimmed, connection_count) {
         return crate::recognized_abbreviation_meta_for_connection_count(trimmed, connection_count);
     }
@@ -1652,15 +1659,13 @@ pub(super) fn element_hydrogen_label_is_valid_for_node(
             && node.atomic_number == 6
             && element_valence_is_valid_for_node(fragment, node);
     }
-    if parse_element_hydrogen_label(trimmed).is_none_or(|parsed| parsed.element != node.element)
-        && trimmed != node.element
-    {
+    if !label_text_matches_node_element(trimmed, node) {
         return false;
     }
     if !element_valence_is_valid_for_node(fragment, node) {
         return false;
     }
-    let expected_hydrogens = implicit_hydrogen_count(fragment, node.id.as_str());
+    let expected_hydrogens = formula_hydrogen_count_for_node(fragment, node.id.as_str());
     trimmed == implicit_hydrogen_label_text_for_count(&node.element, expected_hydrogens)
 }
 
@@ -1742,9 +1747,7 @@ pub(super) fn set_label_implicit_hydrogen_label_meta(
 }
 
 pub(crate) fn mark_shortcut_implicit_hydrogen_label(node: &mut crate::Node, label: &str) {
-    if element_label_replacement(label)
-        .is_some_and(|replacement| matches!(replacement, NodeLabelReplacement::Element { .. }))
-    {
+    if label.trim() == implicit_hydrogen_label_text_for_count(&node.element, node.num_hydrogens) {
         let meta = implicit_hydrogen_label_meta_value("shortcut", false);
         set_node_implicit_hydrogen_label_meta(node, Some(meta.clone()));
         if let Some(label) = node.label.as_mut() {
@@ -1989,7 +1992,8 @@ fn refresh_element_valence_recognition_for_node(
     if trimmed.is_empty() {
         return;
     }
-    let is_element_label = parse_element_hydrogen_label(trimmed)
+    let is_element_label = label_text_matches_node_element(trimmed, &fragment.nodes[node_index])
+        || parse_element_hydrogen_label(trimmed)
         .and_then(|parsed| element_label_replacement(parsed.element).map(|_| parsed))
         .is_some()
         || element_label_replacement(trimmed).is_some();
@@ -2631,10 +2635,19 @@ pub(crate) fn refresh_implicit_hydrogens(fragment: &mut crate::MoleculeFragment)
         .nodes
         .iter()
         .map(|node| {
-            (
-                node.id.clone(),
-                implicit_hydrogen_count(fragment, node.id.as_str()),
-            )
+            let tracks_generated_formula = node.label.as_ref().is_some_and(|label| {
+                implicit_hydrogen_label_meta(label)
+                    .is_some_and(|meta| !implicit_hydrogen_label_user_edited(meta))
+                    || ["carbonDisplayLabel", "carbonValenceLabel"]
+                        .iter()
+                        .any(|key| label.meta.pointer(&format!("/{key}/source")).is_some())
+            });
+            let num_hydrogens = if tracks_generated_formula {
+                formula_hydrogen_count_for_node(fragment, node.id.as_str())
+            } else {
+                implicit_hydrogen_count(fragment, node.id.as_str())
+            };
+            (node.id.clone(), num_hydrogens)
         })
         .collect();
     for (node_id, num_hydrogens) in next_counts {
@@ -2816,6 +2829,12 @@ pub(crate) fn formula_hydrogen_count_for_node(
     if let Some(value) = crate::node_effective_num_hydrogens_override(node) {
         return value;
     }
+    if let Some(value) = cdxml_explicit_num_hydrogens(node) {
+        return value;
+    }
+    if let Some(value) = smiles_semantic_num_hydrogens(node) {
+        return value;
+    }
     if node.atomic_number != 6 {
         return implicit_hydrogen_count(fragment, node_id);
     }
@@ -2963,7 +2982,10 @@ pub(super) fn label_text_matches_node_element(text: &str, node: &crate::Node) ->
         .then(|| trimmed.strip_suffix(&without_charge))
         .flatten()
         .unwrap_or(trimmed);
-    parse_element_hydrogen_label(formula).is_some_and(|parsed| parsed.element == node.element)
+    formula
+        .strip_prefix(&node.element)
+        .and_then(|rest| rest.strip_prefix('H'))
+        .is_some_and(|count| count.chars().all(|character| character.is_ascii_digit()))
 }
 
 pub(super) fn source_runs_for_attached_label(
