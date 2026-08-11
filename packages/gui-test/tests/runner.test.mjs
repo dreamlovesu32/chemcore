@@ -262,6 +262,14 @@ test("coverage audit binds every registered source and scenario", async () => {
   assert.equal(result.summary.entries, 36);
   assert.equal(result.summary.scenarios, 25);
   assert.equal(result.summary.gaps, 0);
+
+  const invalidScenarios = structuredClone(scenarios);
+  const invalidAction = invalidScenarios.find((scenario) => scenario.drivers.includes("production-black-box")).actions[0];
+  invalidAction.completion.timeoutMs = 20000;
+  invalidAction.budgetMs = 30000;
+  const invalidResult = await auditCoverage({ registry, scenarios: invalidScenarios, scenarioPaths });
+  assert.equal(invalidResult.valid, false);
+  assert.match(invalidResult.errors.join("\n"), /must reserve 15000 ms for production input transport/);
 });
 
 test("aggregate scheduler limits fail closed at 10 CPU units and 30 GiB", () => {

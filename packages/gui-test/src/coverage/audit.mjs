@@ -1,6 +1,7 @@
 import { access } from "node:fs/promises";
 import { relative } from "node:path";
 import { repositoryRoot } from "../protocol/paths.mjs";
+import { candidateActionBudgetIsValid, candidateActionTransportReserveMs } from "../workers/action-budget.mjs";
 
 export async function auditCoverage({ registry, scenarios, scenarioPaths = [] }) {
   const errors = [];
@@ -30,6 +31,13 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
   for (const scenarioId of scenarioIds) {
     if (!registeredScenarioIds.has(scenarioId)) {
       errors.push(`Scenario ${scenarioId} is not mapped by the coverage registry.`);
+    }
+  }
+  for (const scenario of scenarios.filter((candidate) => candidate.drivers.includes("production-black-box"))) {
+    for (const action of scenario.actions) {
+      if (!candidateActionBudgetIsValid(action.budgetMs, action.completion?.timeoutMs)) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must reserve ${candidateActionTransportReserveMs} ms for production input transport.`);
+      }
     }
   }
   for (const entry of registry.entries.filter((candidate) => candidate.status === "gap")) {

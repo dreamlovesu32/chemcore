@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertValidDocument } from "../protocol/validate.mjs";
 import { verifyDesktopCandidateManifest } from "../../../../scripts/candidate-source-identity.mjs";
+import { candidateActionBudgetIsValid, candidateActionTransportReserveMs, minimumCandidateActionBudgetMs } from "./action-budget.mjs";
 
 const scriptPath = join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), "scripts", "hyperv-coordinator.ps1");
 const repositoryRoot = dirname(dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))));
@@ -483,13 +484,11 @@ export class HyperVCoordinator {
   }
 
   async candidateAction(input, completion, budgetMs, actionId) {
-    const minimumTransactionBudgetMs = 30000;
-    const transportReserveMs = 15000;
-    if (!Number.isInteger(budgetMs) || budgetMs < minimumTransactionBudgetMs) {
-      throw new Error(`Candidate action end-to-end budget must be at least ${minimumTransactionBudgetMs} ms so host/guest transport cannot consume the product completion window.`);
+    if (!Number.isInteger(budgetMs) || budgetMs < minimumCandidateActionBudgetMs) {
+      throw new Error(`Candidate action end-to-end budget must be at least ${minimumCandidateActionBudgetMs} ms so host/guest transport cannot consume the product completion window.`);
     }
-    if (!Number.isInteger(budgetMs) || !Number.isInteger(completion?.timeoutMs) || completion.timeoutMs + transportReserveMs > budgetMs) {
-      throw new Error(`Candidate action completion timeout must leave ${transportReserveMs} ms inside the end-to-end action budget for target resolution and transport.`);
+    if (!candidateActionBudgetIsValid(budgetMs, completion?.timeoutMs)) {
+      throw new Error(`Candidate action completion timeout must leave ${candidateActionTransportReserveMs} ms inside the end-to-end action budget for target resolution and transport.`);
     }
     const request = { schema: "chemsema.gui.action-transaction.v1", actionId, input, completion, budgetMs };
     await assertValidDocument(request, "candidate action transaction request");

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { assertValidDocument } from "../protocol/validate.mjs";
 import { verifyDesktopCandidateManifest } from "../../../../scripts/candidate-source-identity.mjs";
 import { expandWindowsEnvironment } from "./hyperv.mjs";
+import { candidateActionBudgetIsValid } from "./action-budget.mjs";
 
 const repositoryRoot = dirname(dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))));
 const defaultAgentPath = join(repositoryRoot, "target", "release", "chemsema-gui-test-agent.exe");
@@ -465,7 +466,7 @@ export class PhysicalWindowsCoordinator {
   }
 
   async candidateAction(input, completion, budgetMs, actionId) {
-    if (!Number.isInteger(budgetMs) || budgetMs < 30000 || !Number.isInteger(completion?.timeoutMs) || completion.timeoutMs + 15000 > budgetMs) throw new Error("Candidate action budget does not preserve the required transport reserve.");
+    if (!candidateActionBudgetIsValid(budgetMs, completion?.timeoutMs)) throw new Error("Candidate action budget does not preserve the required transport reserve.");
     const request = { schema: "chemsema.gui.action-transaction.v1", actionId, input, completion, budgetMs };
     await assertValidDocument(request, "physical candidate action transaction request");
     const observe = (value) => this.cdpBridge(value);
