@@ -72,6 +72,13 @@ test("persistent CDP evidence hashing does not depend on PowerShell module auto-
   assert.doesNotMatch(source, /Get-FileHash/);
 });
 
+test("persistent CDP JSON parsing preserves keys that differ only by casing", async () => {
+  const source = await readFile(new URL("../scripts/guest-cdp.ps1", import.meta.url), "utf8");
+  assert.match(source, /System\.Web\.Script\.Serialization\.JavaScriptSerializer/);
+  assert.match(source, /CdpJsonSerializer\.DeserializeObject/);
+  assert.doesNotMatch(source, /GetString\(\$stream\.ToArray\(\)\) \| ConvertFrom-Json/);
+});
+
 test("physical CDP UI observations are bounded and style-allowlisted", async () => {
   const coordinator = new PhysicalWindowsCoordinator(physicalProfile, {
     environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },

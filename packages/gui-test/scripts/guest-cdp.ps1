@@ -13,6 +13,11 @@ $script:PersistentCdpSocket = $null
 $script:PersistentCdpTargetUrl = $null
 $script:TraceActive = $false
 
+Add-Type -AssemblyName System.Web.Extensions
+$script:CdpJsonSerializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+$script:CdpJsonSerializer.MaxJsonLength = [int]::MaxValue
+$script:CdpJsonSerializer.RecursionLimit = 256
+
 $MaximumArtifactBytes = 64 * 1024 * 1024
 $TraceCategories = 'devtools.timeline,disabled-by-default-devtools.timeline,blink.user_timing,v8.execute,loading,latencyInfo,renderer.scheduler'
 
@@ -46,7 +51,11 @@ function Receive-CdpMessage([Net.WebSockets.ClientWebSocket]$Socket, [Threading.
       }
       $stream.Write($buffer, 0, $received.Count)
     } while (-not $received.EndOfMessage)
-    return [Text.Encoding]::UTF8.GetString($stream.ToArray()) | ConvertFrom-Json
+    # CDP event payloads can legally contain object keys that differ only by
+    # casing. Windows PowerShell's ConvertFrom-Json treats those keys as
+    # duplicates, while JavaScriptSerializer preserves them in a
+    # case-sensitive Dictionary<string, object>.
+    return $script:CdpJsonSerializer.DeserializeObject([Text.Encoding]::UTF8.GetString($stream.ToArray()))
   } finally {
     $stream.Dispose()
   }
