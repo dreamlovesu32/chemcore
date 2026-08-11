@@ -4,6 +4,7 @@ import { gunzipSync } from "node:zlib";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
 import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
+import { evaluateUiState, uiStateRequest } from "../oracles/ui-state.mjs";
 import { createWorkerCoordinator } from "../workers/create.mjs";
 
 const defaultProfilePath = join(guiTestsDir, "environments", "windows-gui-worker-current.json");
@@ -199,6 +200,7 @@ export class ProductionBlackBoxDriver {
       "document.roundtrip",
       "document.new",
       "oracle.dom",
+      "oracle.ui-state",
       "oracle.diagnostics",
       "oracle.document-file",
       "desktop.production",
@@ -461,6 +463,10 @@ export class ProductionBlackBoxDriver {
   async observe(oracle) {
     if (oracle.kind === "dom-count") return this.coordinator.cdpBridge({ mode: "count", selector: oracle.selector });
     if (oracle.kind === "dom-distinct-count") return this.coordinator.cdpBridge({ mode: "distinct-count", selector: oracle.selector, attribute: oracle.attribute });
+    if (oracle.kind === "ui-state") {
+      const observed = await this.coordinator.cdpBridge(uiStateRequest({ selector: oracle.selector, referenceSelector: oracle.referenceSelector, ...oracle.uiExpected }));
+      return evaluateUiState(observed, oracle.uiExpected);
+    }
     if (oracle.kind === "no-unexpected-diagnostics") return [...this.diagnostics];
     if (oracle.kind === "document-counts") {
       const document = await this.ensureSavedDocument();

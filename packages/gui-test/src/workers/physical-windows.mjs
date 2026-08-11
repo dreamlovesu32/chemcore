@@ -412,9 +412,15 @@ export class PhysicalWindowsCoordinator {
   }
 
   validateCdpRequest(request) {
-    const modes = ["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "text", "text-state", "entity-rects-state", "trace-start", "trace-mark", "artifact-export"];
+    const modes = ["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "text", "text-state", "entity-rects-state", "ui-state", "trace-start", "trace-mark", "artifact-export"];
     if (!modes.includes(request?.mode)) throw new Error("CDP bridge requires a supported fixed mode.");
     if (["count", "count-state", "distinct-count", "distinct-count-state", "text", "text-state"].includes(request.mode) && (typeof request.selector !== "string" || !request.selector || request.selector.length > 2048)) throw new Error("CDP DOM observation requires a bounded selector.");
+    if (request.mode === "ui-state") {
+      const styles = ["backgroundColor", "borderColor", "boxShadow", "cursor", "display", "fill", "opacity", "outlineColor", "outlineStyle", "outlineWidth", "pointerEvents", "stroke", "strokeWidth", "visibility"];
+      if (typeof request.selector !== "string" || !request.selector || request.selector.length > 2048) throw new Error("CDP UI state observation requires a bounded selector.");
+      if (request.referenceSelector !== undefined && (typeof request.referenceSelector !== "string" || !request.referenceSelector || request.referenceSelector.length > 2048)) throw new Error("CDP UI state reference requires a bounded selector.");
+      if (request.styleProperties !== undefined && (!Array.isArray(request.styleProperties) || request.styleProperties.length > styles.length || new Set(request.styleProperties).size !== request.styleProperties.length || request.styleProperties.some((property) => !styles.includes(property)))) throw new Error("CDP UI state styles must be unique allowlisted properties.");
+    }
     if (request.mode.startsWith("distinct-count") && !["data-object-id", "data-node-id", "data-bond-id"].includes(request.attribute)) throw new Error("CDP distinct-count requires an allowlisted identity attribute.");
     if (request.mode === "artifact-export" && !/^[a-f0-9]{32}$/.test(request.artifactId || "")) throw new Error("CDP artifact export identity is invalid.");
     if (request.mode === "trace-mark" && !/^chemsema-action:[A-Za-z0-9._:-]{1,220}$/.test(request.name || "")) throw new Error("CDP trace mark is invalid.");

@@ -72,6 +72,20 @@ test("persistent CDP evidence hashing does not depend on PowerShell module auto-
   assert.doesNotMatch(source, /Get-FileHash/);
 });
 
+test("physical CDP UI observations are bounded and style-allowlisted", async () => {
+  const coordinator = new PhysicalWindowsCoordinator(physicalProfile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    candidateVerifier: () => null,
+  });
+  coordinator.validateCdpRequest({ mode: "ui-state", selector: "#viewer-container", referenceSelector: "[data-bond-id]", styleProperties: ["cursor", "outlineStyle"] });
+  assert.throws(() => coordinator.validateCdpRequest({ mode: "ui-state", selector: "#viewer", styleProperties: ["position"] }), /allowlisted/);
+  assert.throws(() => coordinator.validateCdpRequest({ mode: "ui-state", selector: "#viewer", referenceSelector: "" }), /reference/);
+  const source = await readFile(new URL("../scripts/guest-cdp.ps1", import.meta.url), "utf8");
+  assert.match(source, /hoverCount/);
+  assert.match(source, /focusWithinCount/);
+  assert.match(source, /devicePixelRatio/);
+});
+
 test("native input agent opts into physical pixel coordinates for mixed-DPI dialogs", async () => {
   const source = await readFile(new URL("../../../crates/chemsema-gui-test-agent/src/windows.rs", import.meta.url), "utf8");
   assert.match(source, /DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2/);

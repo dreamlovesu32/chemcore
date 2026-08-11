@@ -2,9 +2,11 @@
 
 最后更新：2026-08-11  
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**25**  
-当前候选：`11bb7b20b2988b9cb9db856bc3398000b0bdbedeeaa39a6a04babfef2199133c`
-当前候选完整资格：**2/25 有通过证据，23/25 缺失，整体为失败**
+登记场景：**27**
+
+当前产品候选：`02bc19c907eef593a9cc78550c77b04387a48343b4224d4da2995196cca7be0c`
+
+当前源码闭包完整资格：**0/27；新增前端 oracle 后必须重新生成同一提交的完整闭包，整体继续为失败**
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -41,10 +43,11 @@
 | ✅ | 内容寻址候选 | 可执行文件与源码闭包哈希绑定，源码或二进制漂移时拒绝运行 |
 | ✅ | 原生 Windows 对话框 | 保存/打开使用真实 UIA 与键盘输入，保存文件经 SHA-256 回传 |
 | ✅ | 独立文件 oracle | 已支持化学计数及 Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 精确属性 |
+| 🟡 | 独立前端状态 oracle | 已加入焦点归属、`:hover`、禁用态、受限计算样式、选择覆盖层/对象几何、控制点像素尺寸、实际 viewport 与 `devicePixelRatio`；尚缺键盘 `:focus-visible` 顺序、全部光标/主题/DPI/窗口尺寸矩阵 |
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 已实现单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；尚缺重启后续跑与独立短任务验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 已实现单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希，并完成 7 场景无人值守连续批次及 49 个证据对象复算；事件唤醒仍需完成 active-writer 退避验收和重启续跑 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -67,7 +70,7 @@
 | 🟡 | Selection/Group/Lock/Clipboard | `0/1/2/many`、区域/追加、混合、嵌套组、锁定部分适用、跨文档粘贴 | 重叠/隐藏/视口外、所有对象族、套索、排序/对齐/分布、跨 group、系统/Office 边界、大文档 |
 | 🟡 | 文档生命周期 | CCJS Save As/Open/继续编辑、dirty close | 多标签、覆盖/权限/磁盘满、autosave/journal/crash recovery、所有格式、large/xlarge |
 | ⬜ | Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry 等 | 有产品或格式代码，但无完整 production GUI 族 | 创建、命中、编辑、属性、历史、关系、保存和导入导出全部待登记 |
-| 🟡 | 无障碍与语义定位 | 主画布、主工具栏、二级 toolbar、菜单、原生输入已有稳定定位 | 全键盘导航、焦点顺序、屏幕阅读器语义、缩放/高对比度、多语言名称、全部 modal |
+| 🟡 | 前端交互、无障碍与语义定位 | 主画布、主工具栏、二级 toolbar、菜单、原生输入已有稳定定位；已登记焦点环、hover、disabled、选择框/控制点和 150% 缩放场景 | 键盘 `:focus-visible` 全顺序、全部光标/禁用组合、屏幕阅读器语义、高对比度、多语言名称、全部 modal |
 | ⬜ | Office 与外部边界 | 仅有既有 Office/CLI 诊断资产 | Word/PowerPoint 可编辑粘贴、回写、preview、剪贴板格式、失败恢复与最终安装包闭环 |
 
 ### C. 规模、可靠性与发布
@@ -78,7 +81,7 @@
 | ⬜ | Large 文档 | 数百对象或约 1,000 原子；从空白构建及打开后继续编辑两条路径 |
 | ⬜ | Xlarge 文档 | 初始 5,000 原子或等价渲染/交互复杂度；增量刷新、内存、handle、保存和恢复 |
 | 🟡 | 性能与资源 | 已有 trace/动作延迟/10 核 30 GiB 上限；尚缺按规模的正式延迟、内存和泄漏门槛 |
-| ⬜ | 环境矩阵 | DPI、分辨率、主题、区域、WebView2/Windows 版本、GPU/软件渲染、触摸/笔/IME |
+| 🟡 | 环境矩阵 | 已机器校验本机实际 150%（DPR 1.5）与 1280×900 CSS viewport；仍缺 100/125/175/200%、不同窗口尺寸/分辨率/多屏、主题、区域、WebView2/Windows 版本、GPU/软件渲染、触摸/笔/IME |
 | ⬜ | 故障注入 | 磁盘满、权限、剪贴板占用、服务中断、保存失败、崩溃、网络/Office 不可用 |
 | ⬜ | 状态模型探索 | 长随机动作序列与模型状态逐步比对，保存 seed 并自动复现 |
 | ⬜ | Mutation qualification | 主动植入代表性错误，证明测试能杀死已知错误类别 |
@@ -86,9 +89,9 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 25 个场景
+## 4. 已登记的 27 个场景
 
-所有 25 个场景均已实现并进入 registry；这只表示场景存在，不表示对应功能族已完整覆盖。当前物理机候选只有保存/重开场景具备本候选的通过证据，其余 24 个必须按影响闭包重新资格化，不能借用旧 Hyper-V 或旧物理候选的绿色结果。
+所有 27 个场景均已实现并进入 registry；这只表示场景存在，不表示对应功能族已完整覆盖。旧的 25 场景矩阵已经分批获得过物理证据，但输入代理和测试设施随后发生变化；新增两个前端场景也尚未实机验收，因此必须为当前提交重新生成影响闭包，不能用较早绿色结果冒充当前完整资格。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -117,23 +120,25 @@
 | ⬜ | `core.orbital.seven-template-properties-history.production` | 七种 Orbital、几何迁移、属性与持久化 |
 | ⬜ | `core.chromatography.tlc-gel-mark-color-history.production` | TLC/Gel、内部颜色、标记拖动、历史与持久化 |
 | ✅ | `core.document.save-open-roundtrip.production` | 原生保存、独立校验、重开与继续编辑 |
+| ⬜ | `core.frontend.focus-hover-disabled.production` | 真实点击后的焦点归属、焦点环、hover、disabled 样式与 150% DPI |
+| ⬜ | `core.frontend.selection-geometry.production` | 真实绘制/框选后的选择框、控制点、画布焦点/hover 与缩放几何 |
 
-当前物理候选单键通过：run `5ce59224-903e-4100-945d-3a1ba551af51`，2/2 动作、2/2 oracle、0 诊断，evidence key `f710b7a4581405d0efedf602c99d7e9f75cd9e55a131315c130d886cb627a2ea`。保存/重开通过：run `3bc715ef-1851-47f7-bd54-a3cf3cdd8541`，17/17 动作、3/3 oracle、0 诊断，evidence key `0b32fddce406dd9edd4f2604450fc9288eff707b104a2fc8ba76f59a05e89030`。证据包含最终截图、完整 DOM、状态、性能 trace/摘要、WebView 日志、保存的 CCJS 和独立检查报告。较早候选保留了 `Get-FileHash` 模块自动加载失败和 150% DPI 坐标空间不一致两次失败；前者改为 .NET SHA-256，后者改为 Per-Monitor-V2 DPI awareness，后续通过不删除原失败。当前尚未生成覆盖此物理候选全部 25 场景的 qualification，整体继续保持失败。
+当前物理产品候选的旧 25 场景已分批执行；最近批次 `physical-production-after-navigation-fix-20260811-1786430051466` 在后台连续通过 7/7，7 份报告与 49 个证据对象的大小和 SHA-256 已独立复算一致。过程中保留并修复了 action budget、Delete/方向键 SendInput、Windows 原子状态替换竞争等首次失败。由于源码闭包继续加入前端 oracle 和新场景，当前尚无覆盖 27 场景的单提交 qualification，整体继续保持失败。
 
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台 72/72（增加物理节点测试后为 80/80）、audit 25 场景/0 gap/0 warning、`CI=true npm run verify` 通过。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前目标为 83/83、audit 27 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- `core.bond.draw-single.production` 和 `core.document.save-open-roundtrip.production` 已在同一当前候选通过；其余 23 个场景没有当前候选证据。
-- 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、后台进程脱离本 Codex 任务的独立验收、每小时 Codex 检查、提交/PR/CI、重启续跑。
+- 旧 25 场景已有分批物理证据；新增前端两场景和当前提交完整影响闭包尚待运行。
+- 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、事件触发器 active-writer 退避验收、重启续跑、当前前端改动提交/PR/CI。
 
 ## 5. 下一阶段执行顺序
 
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
-1. 🟡 **物理节点第一阶段收口**：完成最终候选单键重跑、NSIS 安装/文件关联、干净提交与 PR/CI、后台独立验收、每小时检查和重启 checkpoint 续跑。
+1. 🟡 **物理节点第一阶段收口**：实跑前端焦点/选择几何场景，完成当前影响闭包、NSIS 安装/文件关联、事件触发唤醒验收、干净提交与 PR/CI、重启 checkpoint 续跑。
 2. **化学绘制主干**：11 种键、原子/标签/电荷、环、Chain、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
@@ -146,7 +151,7 @@
 
 本清单不是一次性说明：
 
-- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 25 个场景 ID，漏项直接失败。
+- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 27 个场景 ID，漏项直接失败。
 - 每完成一个对象族或发现新的公开缺口，必须同时更新第 3 节状态和“明确剩余”，不能只在长架构文档末尾追加段落。
 - 每产生新候选或 qualification，必须更新页首候选哈希、通过/缺失/失败数和最新证据。
 - 每个本地测试提交必须让本文反映该提交后的真实状态；不得把“场景通过”写成“功能族完成”。

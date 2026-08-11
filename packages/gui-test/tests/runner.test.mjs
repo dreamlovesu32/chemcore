@@ -75,6 +75,8 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.frontend.focus-hover-disabled.production",
+    "scenario.core.frontend.selection-geometry.production",
     "scenario.core.group.locked-ancestor-transform.production",
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
@@ -116,6 +118,8 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
+      "scenario.core.frontend.focus-hover-disabled.production",
+      "scenario.core.frontend.selection-geometry.production",
       "scenario.core.group.locked-ancestor-transform.production",
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
@@ -156,6 +160,8 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.frontend.focus-hover-disabled.production",
+    "scenario.core.frontend.selection-geometry.production",
     "scenario.core.group.locked-ancestor-transform.production",
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
@@ -190,6 +196,10 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
   ]);
+  assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/ui-state.mjs"]), [
+    "scenario.core.frontend.focus-hover-disabled.production",
+    "scenario.core.frontend.selection-geometry.production",
+  ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["scripts/test.mjs"]), []);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/qualification/evaluate.mjs"]), []);
   assert.deepEqual(planImpactedScenarios(graph, ["unknown/new-surface.js"]), {
@@ -207,6 +217,8 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
+      "scenario.core.frontend.focus-hover-disabled.production",
+      "scenario.core.frontend.selection-geometry.production",
       "scenario.core.group.locked-ancestor-transform.production",
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
@@ -255,12 +267,14 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "chromatography-tlc-gel-mark-color-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
+    join(guiTestsDir, "scenarios", "core", "frontend-focus-hover-disabled-production.json"),
+    join(guiTestsDir, "scenarios", "core", "frontend-selection-geometry-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 36);
-  assert.equal(result.summary.scenarios, 25);
+  assert.equal(result.summary.entries, 37);
+  assert.equal(result.summary.scenarios, 27);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);

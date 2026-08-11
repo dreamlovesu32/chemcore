@@ -222,14 +222,76 @@
         }
       ]
     },
+    "uiExpected": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "count": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "visibleCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "focusedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "focusWithinCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "hoverCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "disabledCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "styles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 14,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["property", "operator", "value"],
+            "properties": {
+              "property": { "enum": ["backgroundColor", "borderColor", "boxShadow", "cursor", "display", "fill", "opacity", "outlineColor", "outlineStyle", "outlineWidth", "pointerEvents", "stroke", "strokeWidth", "visibility"] },
+              "operator": { "enum": ["eq", "neq", "contains"] },
+              "value": { "type": "string", "maxLength": 256 }
+            }
+          }
+        },
+        "rect": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "minWidth": { "type": "number", "minimum": 0, "maximum": 100000 },
+            "maxWidth": { "type": "number", "minimum": 0, "maximum": 100000 },
+            "minHeight": { "type": "number", "minimum": 0, "maximum": 100000 },
+            "maxHeight": { "type": "number", "minimum": 0, "maximum": 100000 }
+          }
+        },
+        "geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["relation", "tolerancePx"],
+          "properties": {
+            "relation": { "enum": ["contains-reference", "inside-reference", "overlaps-reference"] },
+            "tolerancePx": { "type": "number", "minimum": 0, "maximum": 256 }
+          }
+        },
+        "viewport": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "devicePixelRatio": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
+            "minWidth": { "type": "integer", "minimum": 1, "maximum": 32768 },
+            "maxWidth": { "type": "integer", "minimum": 1, "maximum": 32768 },
+            "minHeight": { "type": "integer", "minimum": 1, "maximum": 32768 },
+            "maxHeight": { "type": "integer", "minimum": 1, "maximum": 32768 }
+          }
+        }
+      }
+    },
     "oracle": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "kind"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties", "document-text-properties", "document-shape-properties", "document-orbital-properties", "document-chromatography-properties", "document-symbol-properties", "document-bracket-properties", "document-table-properties"] },
-        "selector": { "type": "string" },
+        "kind": { "enum": ["dom-count", "dom-distinct-count", "ui-state", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties", "document-text-properties", "document-shape-properties", "document-orbital-properties", "document-chromatography-properties", "document-symbol-properties", "document-bracket-properties", "document-table-properties"] },
+        "selector": { "type": "string", "minLength": 1, "maxLength": 2048 },
+        "referenceSelector": { "type": "string", "minLength": 1, "maxLength": 2048 },
+        "uiExpected": { "$ref": "#/$defs/uiExpected" },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
         "value": { "type": "integer", "minimum": 0 },
@@ -475,6 +537,10 @@
         {
           "if": { "properties": { "kind": { "const": "dom-distinct-count" } } },
           "then": { "required": ["attribute"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "ui-state" } } },
+          "then": { "required": ["selector", "uiExpected"] }
         },
         {
           "if": { "properties": { "kind": { "const": "document-counts" } } },

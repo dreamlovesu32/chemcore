@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import test from "node:test";
+import { evaluateUiState, uiStateRequest } from "../src/oracles/ui-state.mjs";
 import { gzipSync } from "node:zlib";
 import { ProductionBlackBoxDriver, summarizePerformanceTrace } from "../src/drivers/production-black-box.mjs";
 import { guiTestsDir } from "../src/protocol/paths.mjs";
@@ -305,4 +306,46 @@ test("failed document inspection retains the transferred bytes and bounded diagn
   const diagnostic = payloads.find((artifact) => artifact.name === "saved-document-inspect-error.json");
   assert(diagnostic);
   assert.match(diagnostic.bytes.toString("utf8"), /chemical validation failed/);
+});
+test("UI state oracle evaluates focus hover disabled styles geometry and DPI without screenshots", () => {
+  const expectation = {
+    selector: ".selection-overlay",
+    referenceSelector: "[data-object-id]",
+    count: 1,
+    visibleCount: 1,
+    focusedCount: 1,
+    focusWithinCount: 1,
+    hoverCount: 1,
+    disabledCount: 0,
+    styles: [
+      { property: "cursor", operator: "eq", value: "pointer" },
+      { property: "boxShadow", operator: "neq", value: "none" },
+    ],
+    rect: { minWidth: 5, maxWidth: 20, minHeight: 5, maxHeight: 20 },
+    geometry: { relation: "contains-reference", tolerancePx: 2 },
+    viewport: { devicePixelRatio: 1.5, minWidth: 1000, minHeight: 700 },
+  };
+  assert.deepEqual(uiStateRequest(expectation), {
+    mode: "ui-state",
+    selector: ".selection-overlay",
+    referenceSelector: "[data-object-id]",
+    styleProperties: ["cursor", "boxShadow"],
+  });
+  const result = evaluateUiState({
+    count: 1,
+    visibleCount: 1,
+    focusedCount: 1,
+    focusWithinCount: 1,
+    hoverCount: 1,
+    disabledCount: 0,
+    rects: [[8, 8, 18, 18]],
+    unionRect: [8, 8, 18, 18],
+    styleValues: { cursor: ["pointer"], boxShadow: ["rgb(1, 2, 3) 0px 0px 2px"] },
+    reference: { unionRect: [10, 10, 16, 16], truncated: false },
+    viewport: { width: 1028, height: 779, devicePixelRatio: 1.5 },
+    truncated: false,
+  }, expectation);
+  assert.equal(result.passed, true, result.failures.join("\n"));
+  assert.equal(evaluateUiState({ ...result.observed, hoverCount: 0 }, expectation).passed, false);
+  assert.equal(evaluateUiState({ ...result.observed, truncated: true }, expectation).passed, false);
 });

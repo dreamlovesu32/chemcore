@@ -1,0 +1,67 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.frontend.selection-geometry.production",
+  "title": "Verify production selection overlay, resize handles, canvas focus, and scaled geometry through guarded OS input",
+  "risk": "critical",
+  "owner": "desktop-frontend",
+  "originatingDefect": null,
+  "capabilities": ["gui.public-input", "editor.bond.draw", "editor.selection.region", "oracle.ui-state", "frontend.focus", "frontend.selection-overlay", "frontend.dpi", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1280, "height": 900 }, "dpi": 144, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 1,
+  "actions": [
+    { "id": "activate-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-single-bond", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.43, "y": 0.50 }, "to": { "x": 0.53, "y": 0.50 }, "steps": 8, "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-bond-by-region", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.38, "y": 0.43 }, "to": { "x": 0.58, "y": 0.57 }, "steps": 10, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 }
+  ],
+  "oracles": [
+    {
+      "id": "selection-overlay-encloses-rendered-bond",
+      "kind": "ui-state",
+      "selector": "[data-layer=\"editor-overlay\"] .editor-selection-box, [data-layer=\"editor-overlay\"] .editor-selection-bond-box, [data-layer=\"editor-overlay\"] .editor-selection-node-box",
+      "referenceSelector": "[data-bond-id]",
+      "uiExpected": {
+        "styles": [
+          { "property": "fill", "operator": "eq", "value": "none" },
+          { "property": "stroke", "operator": "neq", "value": "none" },
+          { "property": "strokeWidth", "operator": "neq", "value": "0px" }
+        ],
+        "geometry": { "relation": "contains-reference", "tolerancePx": 5 },
+        "viewport": { "devicePixelRatio": 1.5, "minWidth": 1200, "maxWidth": 1360, "minHeight": 840, "maxHeight": 960 }
+      }
+    },
+    {
+      "id": "selection-resize-handles-have-scaled-screen-size",
+      "kind": "ui-state",
+      "selector": "[data-layer=\"editor-overlay\"] .editor-selection-resize-handle",
+      "uiExpected": {
+        "visibleCount": 8,
+        "styles": [
+          { "property": "fill", "operator": "neq", "value": "none" },
+          { "property": "stroke", "operator": "eq", "value": "none" }
+        ],
+        "rect": { "minWidth": 5, "maxWidth": 9, "minHeight": 5, "maxHeight": 9 }
+      }
+    },
+    {
+      "id": "canvas-retains-real-focus-and-hover",
+      "kind": "ui-state",
+      "selector": "#viewer-container",
+      "uiExpected": { "count": 1, "visibleCount": 1, "focusedCount": 1, "focusWithinCount": 1, "hoverCount": 1 }
+    },
+    { "id": "rendered-bond-remains", "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1 },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.selection.region", "frontend.focus", "frontend.selection-overlay", "frontend.dpi", "desktop.production"],
+    "objectTypes": ["bond", "molecule", "selection-overlay", "resize-handle"],
+    "cardinalities": ["1", "many"],
+    "states": ["selected", "focused", "hovered", "selection-box-visible", "resize-handles-visible", "dpi-150-percent"],
+    "inputModes": ["mouse"],
+    "properties": ["ui.selection-stroke", "ui.selection-fill", "ui.handle-size", "ui.device-pixel-ratio"],
+    "persistenceBoundaries": ["runtime"]
+  }
+}

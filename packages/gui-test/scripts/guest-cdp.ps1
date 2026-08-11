@@ -128,12 +128,25 @@ try {
   if ([string]::IsNullOrWhiteSpace($EncodedRequest)) { throw 'The CDP request is absent.' }
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($EncodedRequest))
   $request = $requestJson | ConvertFrom-Json
-  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state', 'entity-rects-state', 'trace-start', 'trace-mark', 'artifact-export')) {
+  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state', 'entity-rects-state', 'ui-state', 'trace-start', 'trace-mark', 'artifact-export')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
   }
   if ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state') -and
     ([string]::IsNullOrWhiteSpace([string]$request.selector) -or ([string]$request.selector).Length -gt 2048)) {
     throw 'DOM observation requires a selector of 1 to 2048 characters.'
+  }
+  if ($request.mode -eq 'ui-state') {
+    $allowedStyleProperties = @('backgroundColor', 'borderColor', 'boxShadow', 'cursor', 'display', 'fill', 'opacity', 'outlineColor', 'outlineStyle', 'outlineWidth', 'pointerEvents', 'stroke', 'strokeWidth', 'visibility')
+    if ([string]::IsNullOrWhiteSpace([string]$request.selector) -or ([string]$request.selector).Length -gt 2048) {
+      throw 'UI state observation requires a selector of 1 to 2048 characters.'
+    }
+    if ($null -ne $request.referenceSelector -and ([string]::IsNullOrWhiteSpace([string]$request.referenceSelector) -or ([string]$request.referenceSelector).Length -gt 2048)) {
+      throw 'UI state reference requires a selector of 1 to 2048 characters.'
+    }
+    $styleProperties = @($request.styleProperties)
+    if ($styleProperties.Count -gt $allowedStyleProperties.Count -or @($styleProperties | Select-Object -Unique).Count -ne $styleProperties.Count -or @($styleProperties | Where-Object { $_ -notin $allowedStyleProperties }).Count -gt 0) {
+      throw 'UI state styles must be unique allowlisted properties.'
+    }
   }
   if ($request.mode -eq 'artifact-export' -and [string]$request.artifactId -notmatch '^[a-f0-9]{32}$') {
     throw 'Artifact export requires a 32-character lowercase hexadecimal identity.'
@@ -346,6 +359,63 @@ try {
       rendered: { bonds: document.querySelectorAll('[data-bond-id]').length, nodes: document.querySelectorAll('[data-node-id]').length }
     }
   };
+})()
+"@
+    } elseif ($request.mode -eq 'ui-state') {
+      $uiRequest = [ordered]@{
+        selector = [string]$request.selector
+        referenceSelector = if ($null -ne $request.referenceSelector) { [string]$request.referenceSelector } else { $null }
+        styleProperties = @($request.styleProperties)
+      }
+      $uiRequestBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($uiRequest | ConvertTo-Json -Depth 4 -Compress)))
+      $expression = @"
+(() => {
+  const request = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('$uiRequestBase64'), c => c.charCodeAt(0))));
+  const visible = element => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return (rect.width > 0 || rect.height > 0) && style.display !== 'none' && style.visibility !== 'hidden';
+  };
+  const rectArray = rect => [rect.left, rect.top, rect.right, rect.bottom];
+  const union = rects => rects.length ? [
+    Math.min(...rects.map(rect => rect[0])),
+    Math.min(...rects.map(rect => rect[1])),
+    Math.max(...rects.map(rect => rect[2])),
+    Math.max(...rects.map(rect => rect[3]))
+  ] : null;
+  const observe = selector => {
+    if (!selector) return null;
+    const elements = [...document.querySelectorAll(selector)].slice(0, 128);
+    const visibleElements = elements.filter(visible);
+    const rects = visibleElements.slice(0, 32).map(element => rectArray(element.getBoundingClientRect()));
+    const styleValues = {};
+    for (const property of request.styleProperties) {
+      styleValues[property] = [...new Set(visibleElements.slice(0, 32).map(element => getComputedStyle(element)[property]))];
+    }
+    return {
+      count: elements.length,
+      truncated: document.querySelectorAll(selector).length > 128,
+      visibleCount: visibleElements.length,
+      focusedCount: elements.filter(element => element === document.activeElement).length,
+      focusWithinCount: elements.filter(element => element.contains(document.activeElement)).length,
+      hoverCount: elements.filter(element => element.matches(':hover')).length,
+      disabledCount: elements.filter(element => !!element.disabled || element.getAttribute('aria-disabled') === 'true').length,
+      rects,
+      unionRect: union(rects),
+      styleValues
+    };
+  };
+  const result = observe(request.selector);
+  result.reference = observe(request.referenceSelector);
+  result.viewport = { width: innerWidth, height: innerHeight, devicePixelRatio };
+  result.windowFocused = document.hasFocus();
+  result.activeElement = {
+    tag: document.activeElement?.tagName?.toLowerCase() || null,
+    id: document.activeElement?.id || null,
+    role: document.activeElement?.getAttribute?.('role') || null,
+    ariaLabel: document.activeElement?.getAttribute?.('aria-label') || null
+  };
+  return result;
 })()
 "@
     } elseif ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state')) {

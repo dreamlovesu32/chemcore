@@ -1,0 +1,92 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.frontend.focus-hover-disabled.production",
+  "title": "Verify production keyboard focus ring, hover paint, disabled control state, and 150 percent DPI through guarded OS input",
+  "risk": "critical",
+  "owner": "desktop-frontend",
+  "originatingDefect": null,
+  "capabilities": ["gui.public-input", "oracle.ui-state", "frontend.focus", "frontend.hover", "frontend.disabled-state", "frontend.dpi", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1280, "height": 900 }, "dpi": 144, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 1,
+  "actions": [
+    {
+      "id": "click-zoom-in-and-leave-pointer-hovered",
+      "type": "click",
+      "target": { "strategy": "role", "value": "button", "name": "Zoom in" },
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "tab-to-zoom-out-with-keyboard-focus-visible",
+      "type": "key",
+      "target": { "strategy": "automation-id", "value": "viewer-container" },
+      "key": "Tab",
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    }
+  ],
+  "oracles": [
+    {
+      "id": "zoom-in-retains-real-hover-paint",
+      "kind": "ui-state",
+      "selector": "button[data-command=\"zoom-in\"]",
+      "uiExpected": {
+        "count": 1,
+        "visibleCount": 1,
+        "focusedCount": 0,
+        "focusWithinCount": 0,
+        "hoverCount": 1,
+        "disabledCount": 0,
+        "styles": [
+          { "property": "backgroundColor", "operator": "neq", "value": "rgba(0, 0, 0, 0)" }
+        ],
+        "viewport": { "devicePixelRatio": 1.5, "minWidth": 1200, "maxWidth": 1360, "minHeight": 840, "maxHeight": 960 }
+      }
+    },
+    {
+      "id": "zoom-out-has-keyboard-focus-ring",
+      "kind": "ui-state",
+      "selector": "button[data-command=\"zoom-out\"]",
+      "uiExpected": {
+        "count": 1,
+        "visibleCount": 1,
+        "focusedCount": 1,
+        "focusWithinCount": 1,
+        "hoverCount": 0,
+        "disabledCount": 0,
+        "styles": [
+          { "property": "outlineStyle", "operator": "neq", "value": "none" },
+          { "property": "outlineWidth", "operator": "neq", "value": "0px" }
+        ]
+      }
+    },
+    {
+      "id": "delete-control-remains-visibly-disabled",
+      "kind": "ui-state",
+      "selector": "button[data-tool=\"delete\"]",
+      "uiExpected": {
+        "count": 1,
+        "visibleCount": 1,
+        "disabledCount": 1,
+        "styles": [
+          { "property": "cursor", "operator": "eq", "value": "default" },
+          { "property": "opacity", "operator": "eq", "value": "0.35" },
+          { "property": "backgroundColor", "operator": "eq", "value": "rgba(0, 0, 0, 0)" }
+        ]
+      }
+    },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["frontend.focus", "frontend.hover", "frontend.disabled-state", "frontend.dpi", "desktop.production"],
+    "objectTypes": ["ui-control"],
+    "cardinalities": ["1"],
+    "states": ["focused", "focus-ring-visible", "hovered", "disabled", "light-theme", "dpi-150-percent"],
+    "inputModes": ["mouse", "keyboard"],
+    "properties": ["ui.box-shadow", "ui.background", "ui.cursor", "ui.opacity", "ui.device-pixel-ratio"],
+    "persistenceBoundaries": ["runtime"]
+  }
+}
