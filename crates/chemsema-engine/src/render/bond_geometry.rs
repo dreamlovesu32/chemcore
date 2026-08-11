@@ -176,9 +176,7 @@ pub(super) fn compute_bold_bond_points(
 }
 
 pub(super) fn is_hash_bond(bond: &Bond) -> bool {
-    bond.order == 1
-        && bond.line_styles.main == BondLinePattern::Dashed
-        && bond.line_weights.main == BondLineWeight::Bold
+    bond.order == 1 && bond_main_line_pattern(bond) == BondLinePattern::Hash
 }
 
 pub(super) fn is_hashed_wedge_bond(bond: &Bond) -> bool {
@@ -1047,7 +1045,7 @@ pub(super) fn main_line_join_points_against_wide_bonds(
 pub(super) fn solid_joinable_main_line(bond: &Bond) -> bool {
     has_joinable_main_line(bond)
         && bond.line_weights.main == BondLineWeight::Normal
-        && bond.line_styles.main == BondLinePattern::Solid
+        && bond_main_line_pattern(bond) == BondLinePattern::Solid
 }
 
 pub(super) fn main_line_far_boundary_for_wide_bond(
@@ -1322,7 +1320,7 @@ pub(super) fn wide_boundary_lines_for_endpoint(
     let mut out = Vec::new();
 
     if bond.line_weights.main == BondLineWeight::Bold
-        && bond.line_styles.main == BondLinePattern::Solid
+        && bond_main_line_pattern(bond) == BondLinePattern::Solid
         && bond.stereo.is_none()
     {
         let half_width =

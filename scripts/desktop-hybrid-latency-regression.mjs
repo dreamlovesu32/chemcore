@@ -349,7 +349,9 @@ async function main() {
       const countNonMoleculeObjects = () => {
         const doc = JSON.parse(session.documentJson() || "null");
         const flatten = (objects) => objects.flatMap((object) => [object, ...flatten(object.children || [])]);
-        const objects = flatten(doc?.objects || []);
+        const objects = Array.isArray(doc?.entities?.scene)
+          ? doc.entities.scene
+          : flatten(doc?.objects || []);
         return {
           total: objects.length,
           nonMolecule: objects.filter((object) => (object.type || object.objectType || object.object_type) !== "molecule").length,
@@ -360,7 +362,10 @@ async function main() {
       const latestBracketObjectId = () => {
         const doc = JSON.parse(session.documentJson() || "null");
         const flatten = (objects) => objects.flatMap((object) => [object, ...flatten(object.children || [])]);
-        return flatten(doc?.objects || [])
+        const objects = Array.isArray(doc?.entities?.scene)
+          ? doc.entities.scene
+          : flatten(doc?.objects || []);
+        return objects
           .filter((object) => (object.type || object.objectType || object.object_type) === "bracket")
           .map((object) => object.id)
           .filter(Boolean)
@@ -369,7 +374,10 @@ async function main() {
       const nonMoleculeObjectSummaries = () => {
         const doc = JSON.parse(session.documentJson() || "null");
         const flatten = (objects) => objects.flatMap((object) => [object, ...flatten(object.children || [])]);
-        return flatten(doc?.objects || [])
+        const objects = Array.isArray(doc?.entities?.scene)
+          ? doc.entities.scene
+          : flatten(doc?.objects || []);
+        return objects
           .filter((object) => (object.type || object.objectType || object.object_type) !== "molecule")
           .map((object) => ({
             id: object.id,

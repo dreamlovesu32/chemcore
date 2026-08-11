@@ -85,14 +85,24 @@ jobs:
       - name: Install wasm-pack
         shell: pwsh
         run: |
-          $version = "0.14.0"
+          $toolchain = Get-Content "tools/wasm-pack.json" -Raw | ConvertFrom-Json
+          $version = $toolchain.version
+          $release = $toolchain.releases.'windows-x64'
           $archive = "$env:RUNNER_TEMP\wasm-pack.tar.gz"
           $installDir = "$env:RUNNER_TEMP\wasm-pack"
           Invoke-WebRequest `
-            -Uri "https://github.com/wasm-bindgen/wasm-pack/releases/download/v$version/wasm-pack-v$version-x86_64-pc-windows-msvc.tar.gz" `
+            -Uri "https://github.com/wasm-bindgen/wasm-pack/releases/download/v$version/$($release.asset)" `
             -OutFile $archive
+          $actualSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $release.sha256) {
+            throw "wasm-pack archive SHA-256 mismatch: expected $($release.sha256), got $actualSha256"
+          }
           New-Item -ItemType Directory -Force -Path $installDir | Out-Null
           tar -xzf $archive -C $installDir --strip-components 1
+          $actualVersion = (& "$installDir\wasm-pack.exe" --version).Trim()
+          if ($actualVersion -ne "wasm-pack $version") {
+            throw "wasm-pack version mismatch: expected wasm-pack $version, got $actualVersion"
+          }
           $installDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install Node dependencies

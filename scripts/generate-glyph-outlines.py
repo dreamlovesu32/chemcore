@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
+from ctypes import wintypes
 from pathlib import Path
 
 from fontTools.pens.recordingPen import RecordingPen
@@ -13,6 +15,7 @@ from fontTools.ttLib import TTFont
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GLYPH_PROFILES = ROOT / "shared" / "glyph_profiles.json"
 DEFAULT_OUTPUT = ROOT / "shared" / "glyph_outlines.json"
+GDI_LABEL_ANCHOR_MAX_LOGICAL_HEIGHT = 5760
 
 FONT_FACES = {
     "Arial": {
@@ -87,10 +90,124 @@ FONT_FACES = {
 
 FONT_ALIASES = {
     "Helvetica": "Arial",
+    "Times": "Times New Roman",
     "TeX Gyre Heros": "Arial",
     "Noto Sans SC": "SimSun",
     "Noto Serif SC": "SimSun",
 }
+
+
+class TextMetricW(ctypes.Structure):
+    _fields_ = [
+        ("tmHeight", wintypes.LONG),
+        ("tmAscent", wintypes.LONG),
+        ("tmDescent", wintypes.LONG),
+        ("tmInternalLeading", wintypes.LONG),
+        ("tmExternalLeading", wintypes.LONG),
+        ("tmAveCharWidth", wintypes.LONG),
+        ("tmMaxCharWidth", wintypes.LONG),
+        ("tmWeight", wintypes.LONG),
+        ("tmOverhang", wintypes.LONG),
+        ("tmDigitizedAspectX", wintypes.LONG),
+        ("tmDigitizedAspectY", wintypes.LONG),
+        ("tmFirstChar", wintypes.WCHAR),
+        ("tmLastChar", wintypes.WCHAR),
+        ("tmDefaultChar", wintypes.WCHAR),
+        ("tmBreakChar", wintypes.WCHAR),
+        ("tmItalic", wintypes.BYTE),
+        ("tmUnderlined", wintypes.BYTE),
+        ("tmStruckOut", wintypes.BYTE),
+        ("tmPitchAndFamily", wintypes.BYTE),
+        ("tmCharSet", wintypes.BYTE),
+    ]
+
+
+def gdi_label_anchor_metrics(family: str, face: str, ttfont: TTFont) -> dict:
+    """Measure ChemDraw's node-to-label baseline metric for one Windows face.
+
+    ChemDraw creates a GDI font whose negative logical height is the CDXML
+    point size multiplied by 20. The atom sits halfway through the GDI
+    character ascent (`tmAscent - tmInternalLeading`). Store that integer
+    metric as change points instead of a per-size lookup table.
+    """
+
+    gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
+    gdi32.CreateCompatibleDC.argtypes = [wintypes.HDC]
+    gdi32.CreateCompatibleDC.restype = wintypes.HDC
+    gdi32.CreateFontW.argtypes = [
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPCWSTR,
+    ]
+    gdi32.CreateFontW.restype = wintypes.HFONT
+    gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HGDIOBJ]
+    gdi32.SelectObject.restype = wintypes.HGDIOBJ
+    gdi32.GetTextMetricsW.argtypes = [wintypes.HDC, ctypes.POINTER(TextMetricW)]
+    gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
+    gdi32.DeleteDC.argtypes = [wintypes.HDC]
+
+    weights = {"regular": 400, "bold": 700, "italic": 400, "boldItalic": 700}
+    italic = face in {"italic", "boldItalic"}
+    dc = gdi32.CreateCompatibleDC(None)
+    if not dc:
+        raise ctypes.WinError(ctypes.get_last_error())
+    runs: list[list[int]] = []
+    previous_value = None
+    try:
+        for logical_height in range(1, GDI_LABEL_ANCHOR_MAX_LOGICAL_HEIGHT + 1):
+            font = gdi32.CreateFontW(
+                -logical_height,
+                0,
+                0,
+                0,
+                weights[face],
+                int(italic),
+                0,
+                0,
+                1,
+                0,
+                0,
+                4,
+                0,
+                family,
+            )
+            if not font:
+                raise ctypes.WinError(ctypes.get_last_error())
+            old = gdi32.SelectObject(dc, font)
+            metrics = TextMetricW()
+            if not gdi32.GetTextMetricsW(dc, ctypes.byref(metrics)):
+                gdi32.SelectObject(dc, old)
+                gdi32.DeleteObject(font)
+                raise ctypes.WinError(ctypes.get_last_error())
+            gdi32.SelectObject(dc, old)
+            gdi32.DeleteObject(font)
+            character_ascent = int(metrics.tmAscent - metrics.tmInternalLeading)
+            if character_ascent != previous_value:
+                runs.append([logical_height, character_ascent])
+                previous_value = character_ascent
+    finally:
+        gdi32.DeleteDC(dc)
+
+    units_per_em = ttfont["head"].unitsPerEm
+    win_descent = ttfont["OS/2"].usWinDescent
+    return {
+        "logicalHeightMax": GDI_LABEL_ANCHOR_MAX_LOGICAL_HEIGHT,
+        "characterAscentRuns": runs,
+        # CDXML can carry sizes beyond the 288 pt editor limit. Above that
+        # exact GDI domain, use the face's declared Windows descent metric.
+        "unhintedDescentEm": round(win_descent / units_per_em, 8),
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -111,8 +228,7 @@ def command_payload(op: str, points, units_per_em: int) -> dict:
     }
 
 
-def glyph_outline(ttfont: TTFont, ch: str) -> dict:
-    cmap = ttfont.getBestCmap()
+def glyph_outline(ttfont: TTFont, ch: str, cmap: dict[int, str]) -> dict:
     glyph_name = cmap.get(ord(ch))
     if not glyph_name:
         raise RuntimeError(f"missing glyph for {ch!r}")
@@ -148,6 +264,50 @@ def glyph_outline(ttfont: TTFont, ch: str) -> dict:
     }
 
 
+def glyph_kerning(ttfont: TTFont, chars: list[str], cmap: dict[int, str]) -> dict:
+    """Return horizontal legacy-kern adjustments in em for generated characters.
+
+    ChemDraw and the Windows text stack apply the face's kerning pairs before
+    positioning glyphs. The supported Windows faces expose those pairs through
+    a horizontal format-0 `kern` table. Keep only pairs whose two Unicode
+    characters are in this manifest; glyph substitution is intentionally not
+    kerned across font faces.
+    """
+
+    if "kern" not in ttfont:
+        return {}
+    units_per_em = ttfont["head"].unitsPerEm
+    glyph_to_chars: dict[str, list[str]] = {}
+    for ch in chars:
+        glyph_name = cmap.get(ord(ch))
+        if glyph_name:
+            glyph_to_chars.setdefault(glyph_name, []).append(ch)
+
+    pair_values: dict[tuple[str, str], int] = {}
+    for subtable in ttfont["kern"].kernTables:
+        # Bit 0 identifies horizontal kerning. Ignore cross-stream/minimum
+        # subtables because they do not alter the inline advance.
+        coverage = getattr(subtable, "coverage", 0)
+        if not coverage & 0x01 or not hasattr(subtable, "kernTable"):
+            continue
+        override = bool(coverage & 0x08)
+        for (left_glyph, right_glyph), value in subtable.kernTable.items():
+            if left_glyph not in glyph_to_chars or right_glyph not in glyph_to_chars:
+                continue
+            key = (left_glyph, right_glyph)
+            pair_values[key] = value if override else pair_values.get(key, 0) + value
+
+    kerning: dict[str, dict[str, float]] = {}
+    for (left_glyph, right_glyph), value in pair_values.items():
+        if not value:
+            continue
+        adjustment = round(value / units_per_em, 8)
+        for left in glyph_to_chars[left_glyph]:
+            for right in glyph_to_chars[right_glyph]:
+                kerning.setdefault(left, {})[right] = adjustment
+    return kerning
+
+
 def main() -> None:
     args = parse_args()
     glyph_profiles = json.loads(Path(args.glyph_profiles).read_text(encoding="utf-8"))
@@ -171,21 +331,27 @@ def main() -> None:
             if ttfont.getBestCmap() is None:
                 print(f"skip unsupported font face {family}/{face}: no Unicode cmap")
                 continue
+            cmap = ttfont.getBestCmap()
             glyphs = {}
             missing = 0
             for ch in chars:
                 try:
-                    glyphs[ch] = glyph_outline(ttfont, ch)
+                    glyphs[ch] = glyph_outline(ttfont, ch, cmap)
                 except Exception:  # noqa: BLE001
                     missing += 1
             if missing:
                 print(f"{family}/{face}: {missing} glyphs use runtime substitution")
-            generated_faces[face] = {"sourceFont": path.name, "glyphs": glyphs}
+            generated_faces[face] = {
+                "sourceFont": path.name,
+                "glyphs": glyphs,
+                "kerning": glyph_kerning(ttfont, chars, cmap),
+                "labelAnchorMetrics": gdi_label_anchor_metrics(family, face, ttfont),
+            }
         if generated_faces:
             families[family] = {"faces": generated_faces}
 
     payload = {
-        "version": 2,
+        "version": 4,
         "aliases": FONT_ALIASES,
         "families": families,
     }

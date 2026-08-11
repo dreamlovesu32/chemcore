@@ -126,7 +126,6 @@ pub(super) fn source_entity_map(
             object.meta.get("fragmentId").and_then(Value::as_str),
             object.meta.get("graphicId").and_then(Value::as_str),
             object.meta.get("spectrumId").and_then(Value::as_str),
-            object.meta.get("attachedNodeId").and_then(Value::as_str),
             object
                 .meta
                 .pointer("/import/cdxml/sourceId")
@@ -136,11 +135,6 @@ pub(super) fn source_entity_map(
         .flatten()
         {
             push_unique(&mut map, source_id, &object.id);
-        }
-        if let Some(source_ids) = object.meta.get("graphicIds").and_then(Value::as_array) {
-            for source_id in source_ids.iter().filter_map(Value::as_str) {
-                push_unique(&mut map, source_id, &object.id);
-            }
         }
         if let Some(resource_ref) = object.payload.resource_ref.as_deref() {
             if let Some(ResourceData::Fragment(fragment)) =
@@ -160,9 +154,28 @@ pub(super) fn source_entity_map(
             }
         }
     }
+    map_owned_node_label_text(root, &mut map);
     map_superseded_graphics(root, &mut map);
     map_unmodeled_containers(root, &mut map);
     map
+}
+
+fn map_owned_node_label_text(root: &XmlNode, map: &mut BTreeMap<String, Vec<String>>) {
+    for node in descendants(root).into_iter().filter(|node| node.is("n")) {
+        let Some(owner_ids) = node.attr("id").and_then(|id| map.get(id)).cloned() else {
+            continue;
+        };
+        for text_id in node
+            .children
+            .iter()
+            .filter(|child| child.is("t"))
+            .filter_map(|child| child.attr("id"))
+        {
+            for owner_id in &owner_ids {
+                push_unique(map, text_id, owner_id);
+            }
+        }
+    }
 }
 
 fn map_superseded_graphics(root: &XmlNode, map: &mut BTreeMap<String, Vec<String>>) {
@@ -192,7 +205,7 @@ fn map_unmodeled_containers(
             }
         }
     }
-    if let Some(source_id) = node.attr("id") {
+    if let Some(source_id) = node.attr("id").filter(|id| is_assigned_source_id(id)) {
         if let Some(existing) = map.get(source_id) {
             return existing.clone();
         }
@@ -205,13 +218,20 @@ fn map_unmodeled_containers(
 }
 
 fn push_unique(map: &mut BTreeMap<String, Vec<String>>, source_id: &str, entity_id: &str) {
+    if !is_assigned_source_id(source_id) {
+        return;
+    }
     let entries = map.entry(source_id.to_string()).or_default();
     if !entries.iter().any(|id| id == entity_id) {
         entries.push(entity_id.to_string());
     }
 }
 
-fn flatten_scene_object(object: &SceneObject) -> Vec<&SceneObject> {
+fn is_assigned_source_id(source_id: &str) -> bool {
+    !matches!(source_id.trim(), "" | "0")
+}
+
+pub(super) fn flatten_scene_object(object: &SceneObject) -> Vec<&SceneObject> {
     let mut objects = vec![object];
     for child in &object.children {
         objects.extend(flatten_scene_object(child));

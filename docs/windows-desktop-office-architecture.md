@@ -157,7 +157,7 @@ Later work on the same day continued thickening non-Office native desktop capabi
 
 ```text
 crates/chemsema-desktop-service
-  Has started native file read/write: .ccjz gzip, .ccjs, .cdxml, .svg.
+  Owns native file read/write: CCJZ Container v1, legacy gzip read, .ccjs, .cdxml, and .svg.
   Has persisted recent files for the desktop menu.
 
 apps/chemsema-desktop/src-tauri
@@ -303,25 +303,22 @@ Stage 1 only requires Windows/Office to recognize the ChemSema OLE class. Stage 
 
 ## Native Document Container
 
-Current `.ccjz` is gzip JSON, which is suitable for early stages. For Office objects, previews, thumbnails, and resource management, the long-term `.ccjz` API should be designed as a container model.
+Current `.ccjz` is the implemented deterministic `chemsema.container.v1` ZIP package. It supports hashed scene chunks, content-addressed resources, opaque binary attachments, and seek/range reads; legacy gzip remains read-only.
 
-The external extension can remain `.ccjz`; internally it can evolve toward:
+The current normative entries are:
 
 ```text
+mimetype
 manifest.json
-document.ccjs
-preview.svg
-preview.emf
-preview.png
-resources/
-  images/
-  fonts-or-glyph-cache/
-meta/
-  app-version.json
-  migration.json
+document/root.json
+entities/scene-000000.jsonl
+resources/<sha256>.json
+attachments/<sha256>.<ext>
 ```
 
-The container format may later choose zip, zstd package, or another implementation. Stage 1 can still keep gzip JSON internally, but all callers should use stable APIs:
+Previews, application-version metadata, and migration records are not part of the current `chemsema.container.v1` manifest. Adding them requires a governed schema/compatible field and cross-reader fixtures; callers must not insert undeclared ZIP entries.
+
+All callers continue to use stable container APIs:
 
 ```text
 load_ccjz()
@@ -331,7 +328,7 @@ update_preview()
 migrate()
 ```
 
-This allows upgrading from gzip JSON to a multi-file container later without overturning Web, Desktop, or Office callers.
+This keeps Web, Desktop, Office, CLI, and independent readers on the same governed container boundary.
 
 ## Clipboard Formats
 
@@ -398,16 +395,16 @@ These outputs should be generated uniformly by engine/render service. The Office
 
 - Desktop default editing runtime uses `DesktopHybridEngineHost`: hot interactions run synchronously through the WASM core inside WebView.
 - Tauri backend directly calls the Rust engine. Started: Tauri holds `DesktopDocumentService` and exposes `desktop_engine_*` commands.
-- Local filesystem, gzip, and path permissions belong to the Tauri/Rust service. Started: desktop open/save/save-as prefers Tauri native file commands, and `.ccjz` gzip is handled by the Rust service.
+- Local filesystem, atomic save, recovery sidecars, container validation, and path permissions belong to the Tauri/Rust service. Desktop open/save/save-as uses native file commands and CCJZ Container v1 is handled by the Rust service.
 - Viewer is responsible only for UI, event collection, coordinate conversion, and rendering; editing semantics remain decided by the Rust core.
 - `TauriEngineHost` remains a `?engine=tauri-native` diagnostic path and is not the desktop default hot interaction path.
 
 ### Stage 5: Document Container And Preview
 
-- Containerize the `.ccjz` API.
-- Add preview generation.
-- Add format version and migration.
-- Reserve thumbnail and resource-management support.
+- Done: containerized `.ccjz`, format/version checks, v0.1 and legacy-gzip migration, content-addressed resources, opaque attachments, atomic saves, and recovery journals.
+- Done: cross-reading among Rust, browser JavaScript, and the independent Python reader, plus container performance gates.
+- Pending: add preview/thumbnail as manifest-governed optional entries rather than private ZIP additions.
+- Done: browser visible-region CCJZ chunk loading with edit/undo-preserving hydration, native atomic saves that reuse unchanged entries and preserve opaque attachments, and browser Zip64 with safe-integer rejection.
 
 ### Stage 6: Windows Clipboard
 
@@ -452,8 +449,12 @@ These outputs should be generated uniformly by engine/render service. The Office
 - No desktop-only chemical editing logic.
 - No Office plugin directly parsing or modifying ChemSema JSON.
 - No SVG-only paste with editable object postponed indefinitely.
-- Do not freeze `.ccjz` API as forever single gzip JSON.
+- Do not regress `.ccjz` to a single gzip JSON or bypass the manifest with undeclared entries.
 - Do not turn the Tauri backend into a second business layer.
+
+## GUI Testing And Demo Reliability
+
+Real desktop E2E, WebView2 cross-validation, Windows UIA/real input, Office and OS boundaries, final-installer black-box execution, and demo qualification follow the [GUI Test Platform and Demo Reliability Architecture](./gui-test-platform-and-demo-reliability.md). Real input runs only in an isolated Hyper-V guest or dedicated test machine and test selection follows the code-capability-scenario impact graph. Browser dev-server tests alone do not prove desktop correctness, and the test-build Test ABI must never enter production installers.
 
 ## Current Environment Status
 

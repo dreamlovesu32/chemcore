@@ -6,7 +6,7 @@ pub(super) fn cdxml_node_label_alignment(label: &NodeLabel) -> &'static str {
     } else if label.layout.as_deref() == Some("attached-group-below") {
         "Below"
     } else if label.layout.as_deref() == Some("attached-group-center") {
-        "Right"
+        "Center"
     } else {
         "Auto"
     }
@@ -36,29 +36,25 @@ pub(super) fn cdxml_node_num_hydrogens_for_export(node: &Node) -> Option<u8> {
     (node.num_hydrogens > 0).then_some(node.num_hydrogens)
 }
 
-pub(super) fn cdxml_label_line_starts(label: &NodeLabel) -> Option<String> {
-    let lines: Vec<String> = if !label.lines.is_empty() {
-        label.lines.clone()
-    } else if !label.line_runs.is_empty() {
-        label
-            .line_runs
-            .iter()
-            .map(|line| line.iter().map(|run| run.text.as_str()).collect())
-            .collect()
-    } else {
-        Vec::new()
-    };
-    if lines.len() <= 1 {
+pub(super) fn cdxml_label_line_starts(authored_text: &str) -> Option<String> {
+    // ChemDraw can display one authored chemical label as several directional
+    // rows (for example H above N) without authored line breaks. That layout is
+    // carried by LabelAlignment and must not be serialized as LineStarts.
+    // LineStarts is emitted only for LF characters that are actually present
+    // in the authored text stream.
+    if !authored_text.contains('\n') {
         return None;
     }
-    let mut offset = 0usize;
+    let mut starts = authored_text
+        .bytes()
+        .enumerate()
+        .filter_map(|(offset, byte)| (byte == b'\n').then_some(offset + 1))
+        .collect::<Vec<_>>();
+    starts.push(authored_text.len());
     Some(
-        lines
+        starts
             .iter()
-            .map(|line| {
-                offset += line.chars().count() + 1;
-                offset.to_string()
-            })
+            .map(ToString::to_string)
             .collect::<Vec<_>>()
             .join(" "),
     )
@@ -104,19 +100,21 @@ pub(super) fn cdxml_bond_display(bond: &Bond, second: bool) -> Option<&'static s
             }
             _ => (bond.line_styles.right, bond.line_weights.right),
         };
-        if line_style == crate::BondLinePattern::Dashed {
-            return Some("Dash");
+        match line_style {
+            crate::BondLinePattern::Dashed => return Some("Dash"),
+            crate::BondLinePattern::Hash => return Some("Hash"),
+            _ => {}
         }
         if line_weight == crate::BondLineWeight::Bold {
             return Some("Bold");
         }
         return None;
     }
-    if bond.line_styles.main == crate::BondLinePattern::Dashed {
-        return Some("Dash");
-    }
-    if bond.line_styles.main == crate::BondLinePattern::Wavy {
-        return Some("Wavy");
+    match bond.line_styles.main {
+        crate::BondLinePattern::Dashed => return Some("Dash"),
+        crate::BondLinePattern::Hash => return Some("Hash"),
+        crate::BondLinePattern::Wavy => return Some("Wavy"),
+        crate::BondLinePattern::Solid => {}
     }
     if bond.line_weights.main == crate::BondLineWeight::Bold {
         return Some("Bold");

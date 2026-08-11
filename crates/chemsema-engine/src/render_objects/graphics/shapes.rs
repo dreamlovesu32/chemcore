@@ -525,24 +525,29 @@ pub(super) fn parse_hex_color(value: &str) -> Option<(u8, u8, u8)> {
 }
 
 pub(super) fn rounded_rect_path_d(x: f64, y: f64, width: f64, height: f64, radius: f64) -> String {
-    let r = radius.min(width * 0.5).min(height * 0.5).max(0.0);
-    if r <= crate::EPSILON {
+    // ChemDraw clamps the two corner axes independently.  A nominal radius
+    // larger than only the rectangle height therefore produces an elliptical
+    // capsule corner instead of shrinking both axes to height / 2.
+    let rx = radius.min(width * 0.5).max(0.0);
+    let ry = radius.min(height * 0.5).max(0.0);
+    if rx <= crate::EPSILON || ry <= crate::EPSILON {
         return rect_path_d(x, y, width, height);
     }
     let right = x + width;
     let bottom = y + height;
-    let k = r * 0.552_284_749_830_793_6;
+    let kx = rx * 0.552_284_749_830_793_6;
+    let ky = ry * 0.552_284_749_830_793_6;
     format!(
         "M {x},{bottom_start} C {x},{bottom_start} {x},{top_left_c1} {x},{top_left_start} C {x},{top_left_c2} {top_left_c3},{y} {top_left_end},{y} C {top_left_end},{y} {top_right_start},{y} {top_right_start},{y} C {top_right_c1},{y} {right},{top_left_c2} {right},{top_left_start} C {right},{top_left_start} {right},{bottom_start} {right},{bottom_start} C {right},{bottom_c1} {top_right_c1},{bottom} {top_right_start},{bottom} C {top_right_start},{bottom} {top_left_end},{bottom} {top_left_end},{bottom} C {top_left_c3},{bottom} {x},{bottom_c1} {x},{bottom_start}",
-        top_left_start = y + r,
-        top_left_c1 = y + r,
-        top_left_c2 = y + r - k,
-        top_left_c3 = x + r - k,
-        top_left_end = x + r,
-        top_right_start = right - r,
-        top_right_c1 = right - r + k,
-        bottom_start = bottom - r,
-        bottom_c1 = bottom - r + k,
+        top_left_start = y + ry,
+        top_left_c1 = y + ry,
+        top_left_c2 = y + ry - ky,
+        top_left_c3 = x + rx - kx,
+        top_left_end = x + rx,
+        top_right_start = right - rx,
+        top_right_c1 = right - rx + kx,
+        bottom_start = bottom - ry,
+        bottom_c1 = bottom - ry + ky,
     )
 }
 

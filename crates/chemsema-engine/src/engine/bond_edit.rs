@@ -163,6 +163,7 @@ impl Engine {
             label_clip_margin: None,
             hash_spacing: Some(hash_spacing),
             bond_spacing: Some(bond_spacing),
+            bond_spacing_absolute: None,
             margin_width: Some(margin_width),
             line_styles: pending_line_styles,
             line_weights: pending_line_weights,
@@ -253,6 +254,8 @@ impl Engine {
             styles: self.state.document.styles.clone(),
             objects: Vec::new(),
             links: Vec::new(),
+            orders: Default::default(),
+            logical_objects: Default::default(),
             reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),
             resources: BTreeMap::new(),
@@ -577,9 +580,15 @@ impl Engine {
 
     pub(super) fn pending_line_styles(&self) -> BondLineStyles {
         match self.state.tool.bond_variant {
-            BondVariant::Dashed | BondVariant::BoldDashed => {
+            BondVariant::Dashed => {
                 return BondLineStyles {
                     main: BondLinePattern::Dashed,
+                    ..BondLineStyles::default()
+                };
+            }
+            BondVariant::BoldDashed => {
+                return BondLineStyles {
+                    main: BondLinePattern::Hash,
                     ..BondLineStyles::default()
                 };
             }
@@ -632,7 +641,7 @@ impl Engine {
 
     pub(super) fn pending_line_weights(&self) -> BondLineWeights {
         match self.state.tool.bond_variant {
-            BondVariant::Bold | BondVariant::BoldDashed => {
+            BondVariant::Bold => {
                 return BondLineWeights {
                     main: BondLineWeight::Bold,
                     ..BondLineWeights::default()

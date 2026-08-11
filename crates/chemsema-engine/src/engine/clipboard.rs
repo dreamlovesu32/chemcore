@@ -9,6 +9,12 @@ use chemsema_chemical_graph::{MultiCenterInteractionV2, StereoElementV2};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+mod logical_objects;
+
+use logical_objects::{
+    append_logical_objects, remap_clipboard_logical_objects, selected_logical_objects,
+};
+
 const CLIPBOARD_PASTE_OFFSET_PT: f64 = 9.921_259_842_519_685;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +41,8 @@ pub(super) struct ClipboardContent {
     chemical_properties: Vec<ChemicalProperty>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     reaction_schemes: Vec<crate::ReactionSchemeData>,
+    #[serde(default, skip_serializing_if = "crate::LogicalObjectData::is_empty")]
+    logical_objects: crate::LogicalObjectData,
 }
 
 impl Engine {
@@ -621,6 +629,9 @@ impl Engine {
                 self.state.document.reaction_schemes.push(scheme);
             }
         }
+        let mut logical_objects = content.logical_objects.clone();
+        remap_clipboard_logical_objects(self, &mut logical_objects, &entity_id_map);
+        append_logical_objects(&mut self.state.document.logical_objects, logical_objects);
         for object_id in &pasted_scene_ids {
             reconcile_pasted_stoichiometry_grid(
                 &mut self.state.document,
@@ -892,6 +903,7 @@ impl Engine {
             .collect();
         let reaction_schemes =
             selected_reaction_schemes(&self.state.document, &selected_entity_ids);
+        let logical_objects = selected_logical_objects(&self.state.document, &selected_entity_ids);
 
         Some(ClipboardContent {
             nodes,
@@ -905,6 +917,7 @@ impl Engine {
             links,
             chemical_properties,
             reaction_schemes,
+            logical_objects,
         })
     }
 
@@ -1020,6 +1033,7 @@ impl Engine {
                     .is_none_or(|id| retained.contains(id))
         });
         document.reaction_schemes = selected_reaction_schemes(&document, &retained);
+        document.logical_objects = selected_logical_objects(&document, &retained);
         freeze_unbound_stoichiometry_grids(&mut document);
         if let Some(bounds) = self.render_bounds(RenderBoundsScope::Selection) {
             set_clipboard_selection_bounds_meta(&mut document, bounds);
@@ -1473,6 +1487,7 @@ fn clipboard_content_from_document(document: ChemSemaDocument) -> ClipboardConte
         links: document.links,
         chemical_properties: document.chemical_properties,
         reaction_schemes: document.reaction_schemes,
+        logical_objects: document.logical_objects,
     }
 }
 
@@ -2077,6 +2092,61 @@ fn remap_document_references_for_template_fusion(
                 replace(&mut mapping.reactant_atom_id);
                 replace(&mut mapping.product_atom_id);
             }
+        }
+    }
+    let logical = &mut document.logical_objects;
+    for group in &mut logical.alternative_groups {
+        group.member_entity_ids.iter_mut().for_each(&replace);
+        group.attachment_node_ids.iter_mut().for_each(&replace);
+    }
+    for group in &mut logical.bracketed_groups {
+        group.bracket_object_ids.iter_mut().for_each(&replace);
+        group.bracketed_entity_ids.iter_mut().for_each(&replace);
+        for attachment in &mut group.attachments {
+            if let Some(id) = &mut attachment.bracket_object_id {
+                replace(id);
+            }
+            for crossing in &mut attachment.crossing_bonds {
+                if let Some(id) = &mut crossing.bond_id {
+                    replace(id);
+                }
+                if let Some(id) = &mut crossing.inner_atom_id {
+                    replace(id);
+                }
+            }
+        }
+    }
+    for sequence in &mut logical.sequences {
+        sequence.text_object_ids.iter_mut().for_each(&replace);
+    }
+    for cross_reference in &mut logical.cross_references {
+        cross_reference
+            .text_object_ids
+            .iter_mut()
+            .for_each(&replace);
+    }
+    for tag in &mut logical.object_tags {
+        if let Some(id) = &mut tag.owner_entity_id {
+            replace(id);
+        }
+        tag.display_object_ids.iter_mut().for_each(&replace);
+    }
+    for annotation in &mut logical.annotations {
+        if let Some(id) = &mut annotation.owner_entity_id {
+            replace(id);
+        }
+    }
+    for registration in &mut logical.registry_numbers {
+        if let Some(id) = &mut registration.owner_entity_id {
+            replace(id);
+        }
+    }
+    for representation in &mut logical.representations {
+        if let Some(id) = &mut representation.owner_entity_id {
+            replace(id);
+        }
+        if let Some(id) = &mut representation.target_entity_id {
+            replace(id);
         }
     }
     for object in &mut document.objects {

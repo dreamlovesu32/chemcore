@@ -17,6 +17,10 @@ const directions = {
   up: [[70, 110], [70, 50]],
   downRight: [[70, 50], [122, 80]],
   upRight: [[70, 110], [122, 80]],
+  shallowDownRight: [[70, 50], [128, 65]],
+  steepDownRight: [[70, 45], [85, 105]],
+  shallowUpRight: [[70, 65], [128, 50]],
+  steepUpRight: [[70, 105], [85, 45]],
   short: [[70, 70], [82, 70]],
 };
 
@@ -63,6 +67,7 @@ for (const [direction, points] of Object.entries(directions)) {
     'Order="1 2" Topology="Ring" RxnParticipation="MakeAndChange" BS="E"',
     { points },
   );
+  add(`query-direction-${direction}`, 'Order="1 2"', { points });
 }
 add("per-bond-hide-all", 'Order="1 2" Topology="Ring" RxnParticipation="MakeAndChange" BS="E" ShowBondQuery="no" ShowBondRxn="no" ShowBondStereo="no"');
 add("root-hide-all", 'Order="1 2" Topology="Ring" RxnParticipation="MakeAndChange" BS="E"', {
@@ -79,6 +84,68 @@ add("single-query-down-right", 'Order="1 2" Topology="Ring" RxnParticipation="Ma
   points: directions.downRight,
 });
 add("single-stereo-down-right", 'BS="E"', { points: directions.downRight });
+for (const fontFamily of [
+  "Arial",
+  "Arial Narrow",
+  "Arial Black",
+  "Helvetica",
+  "TeX Gyre Heros",
+  "Times New Roman",
+  "Georgia",
+  "Cambria",
+  "Calibri",
+  "Courier New",
+  "Consolas",
+  "Verdana",
+  "Tahoma",
+  "Trebuchet MS",
+  "Symbol",
+  "Segoe UI Symbol",
+  "SimSun",
+  "Noto Sans SC",
+  "Noto Serif SC",
+]) {
+  const fontSlug = fontFamily.toLowerCase().replaceAll(" ", "-");
+  add(`query-font-${fontSlug}`, 'Order="1 2"', {
+    fontFamily,
+  });
+  add(`query-vertical-font-${fontSlug}`, 'Order="1 2"', {
+    fontFamily,
+    points: directions.down,
+  });
+  add(
+    `query-full-font-${fontSlug}`,
+    'Order="1 2" Topology="Ring" RxnParticipation="MakeAndChange"',
+    { fontFamily },
+  );
+  add(`stereo-font-${fontSlug}`, 'BS="E"', { fontFamily });
+  add(`stereo-vertical-font-${fontSlug}`, 'BS="E"', {
+    fontFamily,
+    points: directions.down,
+  });
+}
+for (const labelSize of [8, 10, 14, 18]) {
+  add(`query-size-${labelSize}`, 'Order="1 2"', { labelSize });
+}
+for (const marginWidth of [0.5, 1.6, 3, 6]) {
+  add(`query-margin-${String(marginWidth).replace(".", "_")}`, 'Order="1 2"', {
+    marginWidth,
+  });
+}
+for (const lineWidth of [0.2, 0.6, 1, 2]) {
+  add(`query-line-${String(lineWidth).replace(".", "_")}`, 'Order="1 2"', {
+    lineWidth,
+  });
+  add(`query-angle-line-${String(lineWidth).replace(".", "_")}`, 'Order="1 2"', {
+    lineWidth,
+    points: directions.downRight,
+  });
+  add(
+    `combined-line-${String(lineWidth).replace(".", "_")}`,
+    'Order="1 2" Topology="Ring" RxnParticipation="MakeAndChange" BS="E"',
+    { lineWidth, points: directions.downRight },
+  );
+}
 add("atom-rxn-full-order", "", {
   atomAttributes: 'SubstituentsExactly="3" RingBondCount="SimpleRing" UnsaturatedBonds="MustBePresent" Translation="Narrow" IsotopicAbundance="Enriched" RxnChange="yes" RxnStereo="Inversion"',
 });
@@ -99,16 +166,20 @@ function xmlEscape(value) {
 function documentXml(probe) {
   const [[x1, y1], [x2, y2]] = probe.points ?? directions.right;
   const show = probe.rootShow ?? { query: true, reaction: true, stereo: true };
+  const fontFamily = probe.fontFamily ?? "Arial";
+  const labelSize = probe.labelSize ?? 10;
+  const marginWidth = probe.marginWidth ?? 1.6;
+  const lineWidth = probe.lineWidth ?? 0.6;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <CDXML CreationProgram="ChemSema bond query reaction probe" BoundingBox="0 0 200 160"
  ShowBondQuery="${show.query ? "yes" : "no"}"
  ShowBondRxn="${show.reaction ? "yes" : "no"}"
  ShowBondStereo="${show.stereo ? "yes" : "no"}"
  ShowAtomQuery="yes" ShowAtomStereo="yes"
- BondLength="60" LineWidth="0.6" BoldWidth="2" HashSpacing="2.5"
- MarginWidth="1.6" LabelFont="3" LabelSize="10" CaptionFont="3" CaptionSize="10">
+ BondLength="60" LineWidth="${lineWidth}" BoldWidth="2" HashSpacing="2.5"
+ MarginWidth="${marginWidth}" LabelFont="3" LabelSize="${labelSize}" CaptionFont="3" CaptionSize="${labelSize}">
   <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
-  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <fonttable><font id="3" charset="iso-8859-1" name="${xmlEscape(fontFamily)}"/></fonttable>
   <page id="1" BoundingBox="0 0 200 160">
     <fragment id="10">
       <n id="101" p="${x1} ${y1}" Element="6" ${probe.atomAttributes ?? ""}/>
@@ -221,6 +292,10 @@ for (const probe of selectedCases) {
       atomAttributes: probe.atomAttributes ?? "",
       rootShow: probe.rootShow ?? { query: true, reaction: true, stereo: true },
       points: probe.points ?? directions.right,
+      fontFamily: probe.fontFamily ?? "Arial",
+      labelSize: probe.labelSize ?? 10,
+      marginWidth: probe.marginWidth ?? 1.6,
+      lineWidth: probe.lineWidth ?? 0.6,
     },
     bond: analyzeObject(cdxml, "b", "103"),
     atom: analyzeObject(cdxml, "n", "101"),

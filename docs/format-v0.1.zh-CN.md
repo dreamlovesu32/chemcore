@@ -1,5 +1,8 @@
 # chemsema 格式 v0.1
 
+> 旧版规范。新文件采用 [CCJS v0.2](./format-v0.2.zh-CN.md)；引擎只将 v0.1
+> 作为迁移输入读取，并统一写出规范化的 v0.2。
+
 ## 范围
 
 本文档定义 `chemsema` 第一版持久化文档格式。
@@ -15,13 +18,17 @@
 
 ## 格式总览
 
-文件是一个 JSON 文档，包含 6 个顶层区段：
+文件是一个 JSON 文档，核心顶层区段包括：
 
 - `format`
 - `document`
 - `styles`
 - `objects`
 - `resources`
+- `reactionSchemes`
+- `logicalObjects`
+- `links`
+- `chemicalProperties`
 - `interchange`（可选）
 
 从职责上看：
@@ -30,6 +37,9 @@
 - `styles` 存放可复用的渲染样式
 - `objects` 存放场景图节点
 - `resources` 存放可复用的化学载荷，例如 `molecule_fragment2d`
+- `reactionSchemes` 保存反应 Scheme/Step 的标准有向语义
+- `logicalObjects` 保存替代基、括号组、序列、标签、注释、登记号和 representation
+- `links` 保存 ChemSema 的通用编辑关系，不与 group 或 Reaction Step 混用
 - `interchange` 无损保存尚未提升为来源无关语义的交换格式对象和字段；它可编辑并参与导出，不属于 `meta`
 
 ## 顶层结构
@@ -45,9 +55,79 @@
   "styles": {},
   "objects": [],
   "resources": {},
+  "reactionSchemes": [],
+  "logicalObjects": {},
+  "links": [],
+  "chemicalProperties": [],
   "interchange": {}
 }
 ```
+
+## 逻辑对象层
+
+标准中不一定直接产生像素的对象不能只停留在 `interchange`。CCJS 使用
+`reactionSchemes` 和 `logicalObjects` 保存来源无关的明确语义，例如：
+
+```json
+{
+  "reactionSchemes": [
+    {
+      "id": "scheme_1",
+      "steps": [
+        {
+          "id": "step_1",
+          "linkPolicy": "linked",
+          "bindingOrigin": "authored",
+          "reactantEntityIds": ["mol_a"],
+          "productEntityIds": ["mol_b"],
+          "arrowObjectIds": ["arrow_1"],
+          "atomMappings": []
+        }
+      ]
+    }
+  ],
+  "logicalObjects": {
+    "alternativeGroups": [
+      {
+        "id": "alternative_1",
+        "memberEntityIds": ["mol_a"],
+        "attachmentNodeIds": ["atom_1"],
+        "position": [120, 80],
+        "opacity": 0.75,
+        "color": "#ff0000",
+        "zIndex": 12,
+        "supersededById": "alternative_2"
+      }
+    ],
+    "bracketedGroups": [
+      {
+        "id": "bracket_parent",
+        "bracketObjectIds": ["bracket_left", "bracket_right"],
+        "bracketedEntityIds": ["mol_a"],
+        "nestedGroupIds": ["bracket_child"],
+        "attachments": []
+      }
+    ],
+    "sequences": [],
+    "crossReferences": [],
+    "objectTags": [],
+    "annotations": [],
+    "registryNumbers": [],
+    "representations": []
+  }
+}
+```
+
+每个逻辑对象有全局唯一 id，引用使用 entity id；导入时确实无法解析的标准 id
+只能进入明确的 `unresolved...SourceId` 字段。完整结构、生命周期、Auto 规则和
+CDX/CDXML 映射见
+[`logical-object-native-model.zh-CN.md`](logical-object-native-model.zh-CN.md)。
+
+文档布局中的 Splitter 不进入 `logicalObjects`。页面级格式使用
+`document.layout.pageDefinition`，原生 Splitter 子对象使用
+`document.layout.splitters[]`。旧 `SplitterPositions` 是对象 ID 数组，使用
+`legacySplitterPositionIds[]` 明确保真；早期 ChemSema 曾错误写出的数字数组仅在
+读取时迁移为字符串 ID，不再被解释成坐标。
 
 ## Interchange 完整字段层
 
@@ -342,13 +422,16 @@ image 对象把栅格资源放置到场景中，本地 `bbox` 定义显示矩形
   "payload": {
     "resourceRef": "image_a",
     "bbox": [0, 0, 160, 120],
+    "imageCrop": { "x": 80, "y": 40, "width": 480, "height": 320 },
     "fit": "stretch",
     "opacity": 1
   }
 }
 ```
 
-CDX/CDXML 的栅格载荷映射到该对象时不改变原始字节。OLE、EMF、WMF、TIFF、PDF、PICT 等暂不能原生解码的复合载荷继续作为不透明资源保存，并显示带尺寸和格式名称的占位图，而不是静默空白；往返导出时原始字节仍然是权威数据。
+`imageCrop` 是可选的整数资源像素矩形，原点在源预览左上角；它先于对象适配、缩放、移动和旋转应用。OLE、EMF、WMF、TIFF、PDF、PICT 资源始终保留权威原始字节，并在能够提取时保存明确的位图预览。签名错误、超限、损坏和没有预览是不同状态，均显示带尺寸和状态的确定性占位。
+
+CDX/CDXML 没有标准裁剪属性。裁剪后的普通位图因此投影为 PNG；复合资源继续保存原始载荷，同时写入裁剪后的 PNG 预览。重新导入能保持可见像素，不伪造非标准 CDXML 字段。完整规则见 [旧式复合载荷预览与图片裁剪规则](embedded-preview-image-crop-rules.zh-CN.md)。
 
 ## Spectrum 对象
 
@@ -838,7 +921,11 @@ CDXML/CDX 根绘图默认值保存在 `document.meta.import.cdxml.defaults`。�
 - `wedgeWidth`：实锲形键和空心锲形键宽端总宽，单位为 pt；CDXML 源模板导入时按 `1.5 * BoldWidth` 派生，不从键长反推
 - `labelClipMargin`：旧文件兼容字段；新文档不得写出，渲染也忽略它，因为 glyph polygon 已经定义裁剪边界
 - `hashSpacing`：hash / hashed wedge 模板间距，单位为 pt
-- `bondSpacing`：双键间距百分比，对应 ChemDraw `BondSpacing`
+- `bondSpacing`：多重键中心线间距百分比，对应 ChemDraw `BondSpacing`
+- `bondSpacingAbsolute`：可选的多重键中心线绝对间距，单位为 pt，对应
+  ChemDraw `BondSpacingAbs`；双键绘制中存在时优先于 `bondSpacing`。三键有
+  已实测的 ChemDraw 22.2 例外：该字段存在时不绘制任一写入值，而是选择带
+  线宽下限的 15% 三键默认间距。
 - `marginWidth`：源 margin width，单位为 pt。它驱动 label glyph polygon 外扩，
   用于键对标签退让；在适用时也用于键与键交叉处的 knockout。
 - `lineStyles`：多线键每条线的线型，字段为 `main | left | right`，值为
@@ -932,6 +1019,7 @@ line 对象表示页面上的线性笔画几何。
 - `length` 对应 CDXML `HeadSize / 100`，实际头长为 `length * strokeWidth`
 - `centerLength` 对应 CDXML `ArrowheadCenterSize / 100`，实际凹口位置为 `centerLength * strokeWidth`
 - `width` 对应 CDXML `ArrowheadWidth / 100`，实际宽端半宽参数为 `width * strokeWidth`。对实心箭头，ChemDraw 将该值作为宽端半宽参数，渲染轮廓使用约 `width * strokeWidth + 0.05` 的外侧半宽，并用该半宽的 `7/16` 作为内侧贝塞尔控制点偏移；对开放/空心箭头，该值作为头部相对箭杆半宽的额外宽度参数
+- 实心全箭头和半箭头的可见头部是“同一路径的黑色填充 + `0.133333 pt` 固定细轮廓”。该轮廓不随文档 `LineWidth`、`HeadSize` 或 `ArrowheadWidth` 缩放；开放和空心箭头不使用这条重复轮廓规则
 - `curve` 对应 CDXML `AngularSize`，负值和正值分别表示两种弯曲方向
 - `curveSpacing` 对应 CDXML `CurveSpacing / 100`
 - `noGo` 对应 CDXML `NoGo`，可取 `none | cross | hash`
@@ -1046,7 +1134,7 @@ shape 对象表示简单的填充或描边区域。
 
 - `kind`：`circle | ellipse | rect | roundRect`
 - `bbox`：矩形/圆角矩形使用的局部包围盒；导入 CDXML 时直接来自 `BoundingBox`
-- `cornerRadius`：可选，`roundRect` 的圆角半径，对应 CDXML `CornerRadius / 100`
+- `cornerRadius`：可选，`roundRect` 的绝对圆角半径，单位为文档点。CDXML 存储的是另一种量：`(CornerRadius / 100) × 普通 LineWidth`；CDXML 缺失或写成 `0` 时采用实测默认值 `600`，`BoldWidth` 不替代普通 `LineWidth` 作为换算基准。导入时把该表达式解算为绝对半径，导出时再除以实际写出的 `LineWidth`。当半径超过矩形某一方向的半边长时，水平和垂直圆角半径分别限制为 `width / 2` 与 `height / 2`。
 - `center` / `majorAxisEnd` / `minorAxisEnd`：圆和椭圆使用的实际轴端点，对应 CDXML `Center3D`、`MajorAxisEnd3D`、`MinorAxisEnd3D`
 
 shape 的外观主要放在样式里，包括：

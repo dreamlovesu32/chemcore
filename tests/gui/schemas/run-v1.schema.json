@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsema.org/schemas/gui/run-v1.schema.json",
+  "title": "ChemSema GUI Run v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "runId", "scenarioId", "driver", "status", "startedAt", "endedAt", "durationMs", "environment", "actions", "oracles", "diagnostics", "artifacts", "evidenceKey"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.run.v1" },
+    "runId": { "type": "string", "minLength": 1 },
+    "scenarioId": { "type": "string", "minLength": 1 },
+    "driver": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["passed", "failed", "environment-error"] },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "endedAt": { "type": "string", "format": "date-time" },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "environment": { "type": "object" },
+    "actions": { "type": "array", "items": { "$ref": "#/$defs/receipt" } },
+    "oracles": { "type": "array", "items": { "$ref": "#/$defs/oracleResult" } },
+    "diagnostics": { "type": "array", "items": { "type": "string" } },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "failure": { "type": ["object", "null"] },
+    "evidenceKey": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "mediaType", "size", "sha256", "retention"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+        "mediaType": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+        "size": { "type": "integer", "minimum": 0, "maximum": 67108864 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "retention": { "enum": ["sample", "failure", "qualification", "temporary"] }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actionId", "inputType", "resolvedTarget", "startedAt", "endedAt", "durationMs", "status", "before", "after", "completion", "diagnostics", "artifacts"],
+      "properties": {
+        "actionId": { "type": "string" },
+        "inputType": { "type": "string" },
+        "resolvedTarget": {},
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["completed", "failed"] },
+        "before": { "$ref": "#/$defs/actionState" },
+        "after": { "$ref": "#/$defs/actionState" },
+        "completion": {},
+        "phases": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "durationMs", "status"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "durationMs": { "type": "integer", "minimum": 0 },
+              "status": { "enum": ["completed", "in-progress", "failed"] }
+            }
+          }
+        },
+        "diagnostics": { "type": "array", "items": { "type": "string" } },
+        "artifacts": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "actionState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["revision", "window"],
+      "properties": {
+        "revision": { "type": ["integer", "null"], "minimum": 0 },
+        "appScript": { "type": ["string", "null"] },
+        "engine": { "type": ["object", "null"] },
+        "window": { "type": "object" },
+        "rendered": { "type": "object" }
+      }
+    },
+    "oracleResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["oracleId", "kind", "passed", "observed"],
+      "properties": {
+        "oracleId": { "type": "string" },
+        "kind": { "type": "string" },
+        "passed": { "type": "boolean" },
+        "observed": {}
+      }
+    }
+  }
+}

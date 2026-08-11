@@ -20,7 +20,7 @@ mod import_text;
 use import_brackets::parse_ordered_bbox;
 use import_lines::non_bond_dash_array;
 
-pub(super) use import_brackets::append_bracket_objects;
+pub(super) use import_brackets::{append_bracket_objects, cdxml_bracket_side_anchor_x};
 pub(super) use import_graphics::{
     append_bio_shape_objects, append_gel_electrophoresis_objects, append_orbital_shape_objects,
     append_plasmid_map_objects, append_shape_objects, append_table_shape_objects,
@@ -74,7 +74,7 @@ pub(super) enum CdxmlTextObjectRole {
 }
 
 impl CdxmlTextObjectRole {
-    fn from_object_tag_name(name: Option<&str>) -> Option<Self> {
+    pub(super) fn from_object_tag_name(name: Option<&str>) -> Option<Self> {
         Some(match name? {
             "bracketusage" => Self::BracketUsage,
             "parameterizedBracketLabel" => Self::ParameterizedBracketLabel,
@@ -87,7 +87,7 @@ impl CdxmlTextObjectRole {
         })
     }
 
-    fn as_str(self) -> &'static str {
+    pub(super) fn as_str(self) -> &'static str {
         match self {
             Self::FreeText => "free_text",
             Self::BracketUsage => "bracket_usage",

@@ -528,6 +528,18 @@ impl Engine {
                     variant, head_size, curve, head_style, tail_style, head, tail, bold, no_go,
                 )
             }
+            EditorCommand::ApplyArrowEndpoints {
+                object_ids,
+                head_style,
+                tail_style,
+            } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_arrow_endpoints_to_selection(head_style, tail_style)
+            }
+            EditorCommand::ApplyArrowStylePatch { object_ids, patch } => {
+                self.select_scene_objects_for_style(object_ids);
+                self.apply_arrow_style_patch_to_selection(patch)
+            }
             EditorCommand::ApplyShapeStyle { object_ids, style } => {
                 self.select_scene_objects_for_style(object_ids);
                 self.apply_shape_style_to_selection(&style)
@@ -617,6 +629,10 @@ impl Engine {
             let changed = self.execute_relationship_command(command);
             return Ok(self.completed_command_result(changed));
         }
+        if editor_command_is_logical_object(&command) {
+            let changed = self.execute_logical_object_command(command)?;
+            return Ok(self.completed_command_result(changed));
+        }
         if editor_command_is_style(&command) {
             let changed = self.execute_style_command(command);
             return Ok(self.completed_command_result(changed));
@@ -689,11 +705,18 @@ impl Engine {
                     engine.set_bio_shape_direct(&object_id, data)
                 })
             }
+            EditorCommand::SetImageCrop { object_id, crop } => {
+                self.validate_image_crop_candidate(&object_id, crop)?;
+                self.with_command(command.clone(), |engine| {
+                    engine.set_image_crop_direct(&object_id, crop)
+                })
+            }
             EditorCommand::InitializeDocumentLayout => {
                 self.with_command(command.clone(), Engine::initialize_document_layout_direct)
             }
             EditorCommand::SetDocumentLayout { layout } => {
                 layout.validate()?;
+                self.validate_document_layout_candidate(&layout)?;
                 self.with_command(command.clone(), |engine| {
                     engine.set_document_layout_direct(layout)
                 })
@@ -727,6 +750,8 @@ impl Engine {
                 ));
             }
             EditorCommand::ApplyArrowStyle { .. }
+            | EditorCommand::ApplyArrowEndpoints { .. }
+            | EditorCommand::ApplyArrowStylePatch { .. }
             | EditorCommand::ApplyShapeStyle { .. }
             | EditorCommand::ApplyBracketKind { .. }
             | EditorCommand::ApplyOrbitalTemplate { .. }
@@ -747,6 +772,15 @@ impl Engine {
                 changed
             }
             EditorCommand::DeleteSelection => self.delete_selection(),
+            EditorCommand::SetObjectsLocked { object_ids, locked } => {
+                if object_ids.is_empty() {
+                    self.set_selection_locked(locked)
+                } else {
+                    self.with_command(command.clone(), |engine| {
+                        engine.set_objects_locked_direct(&object_ids, locked)
+                    })
+                }
+            }
             EditorCommand::DeleteTargets { targets } => self
                 .with_command(command.clone(), |engine| {
                     engine.delete_targets_direct(&targets)
@@ -817,6 +851,11 @@ impl Engine {
             }
             EditorCommand::CreateAnnotation { .. } | EditorCommand::UpdateAnnotation { .. } => {
                 unreachable!("relationship commands are dispatched before the main match")
+            }
+            EditorCommand::SetLogicalObject { .. }
+            | EditorCommand::DeleteLogicalObject { .. }
+            | EditorCommand::ReorderLogicalObject { .. } => {
+                unreachable!("logical-object commands are dispatched before the main match")
             }
             EditorCommand::ExpandLabelsInSelection => self.expand_labels_in_selection(),
             EditorCommand::CenterSelectionOnPage => self.center_selection_on_page(),

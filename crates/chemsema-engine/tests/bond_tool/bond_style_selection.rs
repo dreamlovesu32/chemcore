@@ -146,6 +146,9 @@ fn chemical_check_context_command_suppresses_invalid_label_marker() {
             "title": "chemical check toggle",
             "page": { "width": 80.0, "height": 60.0, "background": "#ffffff" }
         },
+        "styles": {
+            "style_molecule_default": { "kind": "molecule" }
+        },
         "objects": [
             {
                 "id": "obj_mol",

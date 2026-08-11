@@ -7,6 +7,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+#[path = "document/format_v02.rs"]
+mod format_v02;
 #[path = "document/geometry_constraints.rs"]
 mod geometry_constraints;
 pub use geometry_constraints::{
@@ -23,30 +25,23 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ChemSemaDocument {
     pub format: FormatInfo,
     pub document: DocumentInfo,
-    #[serde(default)]
     pub style: DocumentStyleInfo,
-    #[serde(default)]
     pub styles: BTreeMap<String, Value>,
-    #[serde(default)]
     pub objects: Vec<SceneObject>,
-    #[serde(default)]
     pub links: Vec<LinkRelation>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub orders: DocumentOrders,
+    pub logical_objects: crate::LogicalObjectData,
     pub reaction_schemes: Vec<crate::ReactionSchemeData>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub chemical_properties: Vec<ChemicalProperty>,
-    #[serde(default)]
     pub resources: BTreeMap<String, Resource>,
     /// Lossless, editable trees for interchange-format information that does
     /// not yet have a source-independent CCJS field.  This is deliberately a
     /// first-class field rather than import metadata: changing a value here is
     /// reflected by the corresponding exporter.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub interchange: BTreeMap<String, InterchangeDocument>,
 }
 
@@ -140,7 +135,7 @@ impl ChemSemaDocument {
         Self {
             format: FormatInfo {
                 name: "chemsema".to_string(),
-                version: "0.1".to_string(),
+                version: "0.2".to_string(),
                 unit: "pt".to_string(),
             },
             document: DocumentInfo {
@@ -183,6 +178,8 @@ impl ChemSemaDocument {
                 children: Vec::new(),
             }],
             links: Vec::new(),
+            orders: DocumentOrders::default(),
+            logical_objects: Default::default(),
             reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),
             resources,
@@ -309,6 +306,10 @@ impl ChemSemaDocument {
         find_scene_object_mut(&mut self.objects, object_id)
     }
 
+    pub(crate) fn scene_object_is_effectively_locked(&self, object_id: &str) -> bool {
+        find_scene_object_effective_lock(&self.objects, object_id, false).unwrap_or(false)
+    }
+
     pub fn ancestor_group_id_for_scene_object(&self, object_id: &str) -> Option<String> {
         find_ancestor_group_id(&self.objects, object_id, None)
     }
@@ -384,6 +385,25 @@ fn find_scene_object_mut<'a>(
     None
 }
 
+fn find_scene_object_effective_lock(
+    objects: &[SceneObject],
+    object_id: &str,
+    ancestor_locked: bool,
+) -> Option<bool> {
+    for object in objects {
+        let effectively_locked = ancestor_locked || object.locked;
+        if object.id == object_id {
+            return Some(effectively_locked);
+        }
+        if let Some(found) =
+            find_scene_object_effective_lock(&object.children, object_id, effectively_locked)
+        {
+            return Some(found);
+        }
+    }
+    None
+}
+
 fn find_ancestor_group_id(
     objects: &[SceneObject],
     object_id: &str,
@@ -443,13 +463,16 @@ fn remove_scene_objects_by_id(
 }
 
 pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
-    let mut value: Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
-    ensure_document_json_pt_unit(&mut value)?;
+    let value: Value = serde_json::from_str(json).map_err(|error| error.to_string())?;
+    format_v02::validate_format_header(&value)?;
+    let mut value = value;
     migrate_legacy_external_connection_points(&mut value);
     let mut document: ChemSemaDocument =
         serde_json::from_value(value).map_err(|error| error.to_string())?;
+    migrate_legacy_hash_bond_styles(&mut document);
     migrate_legacy_bracket_links(&mut document);
     document.document.layout.validate()?;
+    validate_scene_structure_and_references(&document)?;
     validate_scene_object_types(&document.objects)?;
     validate_spectrum_objects(&document.objects)?;
     let scene_ids = document
@@ -462,6 +485,7 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     validate_gel_electrophoresis_objects(&document.objects)?;
     validate_plasmid_map_objects(&document.objects)?;
     validate_bio_shape_objects(&document.objects)?;
+    validate_image_objects(&document)?;
     validate_geometry_constraint_objects(&document)?;
     validate_molecule_fragment_resources(&document)?;
     split_disconnected_molecule_objects(&mut document);
@@ -470,8 +494,177 @@ pub fn parse_document_json(json: &str) -> Result<ChemSemaDocument, String> {
     normalize_arrow_object_payloads(&mut document);
     normalize_fragment_label_payloads(&mut document);
     validate_chemical_properties(&document)?;
+    validate_logical_objects(&document)?;
     validate_link_relations(&document)?;
     Ok(document)
+}
+
+fn validate_scene_structure_and_references(document: &ChemSemaDocument) -> Result<(), String> {
+    fn visit(
+        document: &ChemSemaDocument,
+        objects: &[SceneObject],
+        seen: &mut BTreeSet<String>,
+    ) -> Result<(), String> {
+        for object in objects {
+            if object.id.trim().is_empty() {
+                return Err("scene object id must not be empty".to_string());
+            }
+            if !seen.insert(object.id.clone()) {
+                return Err(format!("duplicate scene object id '{}'", object.id));
+            }
+            if !object.children.is_empty() && object.object_type != "group" {
+                return Err(format!(
+                    "non-group scene object '{}' cannot own children",
+                    object.id
+                ));
+            }
+            if let Some(style_ref) = object.style_ref.as_deref() {
+                if !document.styles.contains_key(style_ref) {
+                    return Err(format!(
+                        "scene object '{}' references missing style '{}'",
+                        object.id, style_ref
+                    ));
+                }
+            }
+            if let Some(resource_ref) = object.payload.resource_ref.as_deref() {
+                if !document.resources.contains_key(resource_ref) {
+                    return Err(format!(
+                        "scene object '{}' references missing resource '{}'",
+                        object.id, resource_ref
+                    ));
+                }
+            }
+            visit(document, &object.children, seen)?;
+        }
+        Ok(())
+    }
+
+    let mut seen = BTreeSet::new();
+    visit(document, &document.objects, &mut seen)?;
+    for id in &document.orders.reading {
+        if !seen.contains(id) {
+            return Err(format!(
+                "reading order references missing scene entity '{id}'"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn migrate_legacy_hash_bond_styles(document: &mut ChemSemaDocument) {
+    for resource in document.resources.values_mut() {
+        let Some(fragment) = resource.data.as_fragment_mut() else {
+            continue;
+        };
+        for bond in &mut fragment.bonds {
+            let legacy_menu_hash = bond
+                .meta
+                .get("contextMenuBondStyle")
+                .and_then(Value::as_str)
+                == Some("single-hashed");
+            let legacy_tool_hash = bond.order == 1
+                && bond.stereo.is_none()
+                && bond.line_styles.main == BondLinePattern::Dashed
+                && bond.line_weights.main == BondLineWeight::Bold;
+            if legacy_menu_hash || legacy_tool_hash {
+                bond.line_styles.main = BondLinePattern::Hash;
+                bond.line_weights.main = BondLineWeight::Normal;
+                if let Some(meta) = bond.meta.as_object_mut() {
+                    meta.remove("contextMenuBondStyle");
+                }
+            }
+        }
+    }
+}
+
+fn validate_image_objects(document: &ChemSemaDocument) -> Result<(), String> {
+    fn visit(document: &ChemSemaDocument, objects: &[SceneObject]) -> Result<(), String> {
+        for object in objects {
+            if object.payload.extra.contains_key("imageCrop") && object.object_type != "image" {
+                return Err(format!(
+                    "object {} carries imageCrop but is not an image",
+                    object.id
+                ));
+            }
+            if object.object_type == "image" {
+                let crop = object.payload.image_crop()?;
+                if let Some(crop) = crop {
+                    let resource_ref = object
+                        .payload
+                        .resource_ref
+                        .as_deref()
+                        .ok_or_else(|| format!("image {} has no resourceRef", object.id))?;
+                    let resource = document.resources.get(resource_ref).ok_or_else(|| {
+                        format!(
+                            "image {} references missing resource {resource_ref}",
+                            object.id
+                        )
+                    })?;
+                    let image = resource.display_image().ok_or_else(|| {
+                        format!("image {} has no decodable preview to crop", object.id)
+                    })?;
+                    crop.validate(image.pixel_width, image.pixel_height)
+                        .map_err(|error| format!("image {}: {error}", object.id))?;
+                }
+            }
+            visit(document, &object.children)?;
+        }
+        Ok(())
+    }
+    visit(document, &document.objects)
+}
+
+fn validate_logical_objects(document: &ChemSemaDocument) -> Result<(), String> {
+    let scene_ids = document
+        .scene_objects()
+        .into_iter()
+        .map(|object| object.id.clone())
+        .collect::<BTreeSet<_>>();
+    let node_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.nodes.iter().map(|node| node.id.clone()))
+        .collect::<BTreeSet<_>>();
+    let bond_ids = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| entry.fragment.bonds.iter().map(|bond| bond.id.clone()))
+        .collect::<BTreeSet<_>>();
+    document
+        .logical_objects
+        .validate(&scene_ids, &node_ids, &bond_ids)?;
+    let mut all_ids = scene_ids
+        .iter()
+        .chain(node_ids.iter())
+        .chain(bond_ids.iter())
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    all_ids.extend(document.logical_objects.all_ids());
+    for scheme in &document.reaction_schemes {
+        if !all_ids.insert(scheme.id.as_str()) {
+            return Err(format!(
+                "reaction scheme id '{}' collides with another document entity",
+                scheme.id
+            ));
+        }
+        for step in &scheme.steps {
+            if !all_ids.insert(step.id.as_str()) {
+                return Err(format!(
+                    "reaction step id '{}' collides with another document entity",
+                    step.id
+                ));
+            }
+        }
+    }
+    for splitter in &document.document.layout.splitters {
+        if !all_ids.insert(splitter.id.as_str()) {
+            return Err(format!(
+                "document splitter id '{}' collides with another document entity",
+                splitter.id
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn migrate_legacy_bracket_links(document: &mut ChemSemaDocument) {
@@ -1961,6 +2154,7 @@ pub(crate) fn translate_node_label_geometry(label: &mut NodeLabel, delta_x: f64,
     if let Some(bbox) = &mut label.box_value {
         translate_bbox(bbox, delta_x, delta_y);
     }
+    translate_label_meta_local_bbox(label, delta_x, delta_y);
     for polygon in &mut label.glyph_polygons {
         for point in polygon {
             point[0] = round2(point[0] + delta_x);
@@ -1973,6 +2167,33 @@ pub(crate) fn translate_node_label_geometry(label: &mut NodeLabel, delta_x: f64,
             point[1] = round2(point[1] + delta_y);
         }
     }
+}
+
+fn translate_label_meta_local_bbox(label: &mut NodeLabel, delta_x: f64, delta_y: f64) {
+    let Some(values) = label
+        .meta
+        .pointer_mut("/import/cdxml/localBoundingBox")
+        .and_then(Value::as_array_mut)
+    else {
+        return;
+    };
+    if values.len() != 4 {
+        return;
+    }
+    let [Some(x1), Some(y1), Some(x2), Some(y2)] = [
+        values[0].as_f64(),
+        values[1].as_f64(),
+        values[2].as_f64(),
+        values[3].as_f64(),
+    ] else {
+        return;
+    };
+    *values = vec![
+        json!(round2(x1 + delta_x)),
+        json!(round2(y1 + delta_y)),
+        json!(round2(x2 + delta_x)),
+        json!(round2(y2 + delta_y)),
+    ];
 }
 
 fn translate_bbox(bbox: &mut [f64; 4], delta_x: f64, delta_y: f64) {
@@ -2624,6 +2845,7 @@ fn rebuild_node_label_glyph_polygons(
     );
     label.glyph_polygons = geometry.glyph_polygons;
     label.glyph_clip_polygons = geometry.clip_polygons;
+    label.glyph_clip_polygon_owners = geometry.clip_polygon_owners;
 }
 
 fn default_node_label_box(position: [f64; 2], text: &str, font_size: f64) -> [f64; 4] {
@@ -2643,25 +2865,6 @@ fn default_node_label_box(position: [f64; 2], text: &str, font_size: f64) -> [f6
     ]
 }
 
-fn ensure_document_json_pt_unit(value: &mut Value) -> Result<(), String> {
-    if !value.is_object() {
-        return Ok(());
-    }
-    let Some(format) = value.get_mut("format").and_then(Value::as_object_mut) else {
-        return Ok(());
-    };
-    if let Some(unit) = format.get("unit").and_then(Value::as_str) {
-        if unit.eq_ignore_ascii_case("pt") {
-            return Ok(());
-        }
-        return Err(format!(
-            "Unsupported chemsema document unit '{unit}'. Current development files must use pt."
-        ));
-    }
-    format.insert("unit".to_string(), Value::String("pt".to_string()));
-    Ok(())
-}
-
 fn default_format_unit() -> String {
     "pt".to_string()
 }
@@ -2672,6 +2875,13 @@ pub struct FormatInfo {
     pub version: String,
     #[serde(default = "default_format_unit")]
     pub unit: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DocumentOrders {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub reading: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2719,6 +2929,89 @@ pub enum DrawingSpace {
     #[default]
     Pages,
     Poster,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PageDefinition {
+    #[default]
+    Undefined,
+    Center,
+    Tl4,
+    IdTerm,
+    FlushLeft,
+    FlushRight,
+    Reaction1,
+    Reaction2,
+    MulticolumnTl4,
+    MulticolumnNonTl4,
+    UserDefined,
+}
+
+impl PageDefinition {
+    pub(crate) fn from_cdxml(value: Option<&str>) -> Result<Self, String> {
+        let value = value.unwrap_or("Undefined");
+        let definition = match value.trim().to_ascii_lowercase().as_str() {
+            "center" | "1" => Self::Center,
+            "tl4" | "2" => Self::Tl4,
+            "idterm" | "3" => Self::IdTerm,
+            "flushleft" | "4" => Self::FlushLeft,
+            "flushright" | "5" => Self::FlushRight,
+            "reaction1" | "6" => Self::Reaction1,
+            "reaction2" | "7" => Self::Reaction2,
+            "multicolumntl4" | "8" => Self::MulticolumnTl4,
+            "multicolumnnontl4" | "9" => Self::MulticolumnNonTl4,
+            "userdefined" | "10" => Self::UserDefined,
+            "undefined" | "0" => Self::Undefined,
+            _ => return Err(format!("unsupported PageDefinition '{value}'")),
+        };
+        Ok(definition)
+    }
+
+    pub(crate) const fn as_cdxml(self) -> &'static str {
+        match self {
+            Self::Undefined => "Undefined",
+            Self::Center => "Center",
+            Self::Tl4 => "TL4",
+            Self::IdTerm => "IDTerm",
+            Self::FlushLeft => "FlushLeft",
+            Self::FlushRight => "FlushRight",
+            Self::Reaction1 => "Reaction1",
+            Self::Reaction2 => "Reaction2",
+            Self::MulticolumnTl4 => "MulticolumnTL4",
+            Self::MulticolumnNonTl4 => "MulticolumnNonTL4",
+            Self::UserDefined => "UserDefined",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PageSplitter {
+    pub id: String,
+    #[serde(default)]
+    pub position: Option<[f64; 2]>,
+    #[serde(default)]
+    pub page_definition: PageDefinition,
+}
+
+fn deserialize_legacy_splitter_position_ids<'de, D>(
+    deserializer: D,
+) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let values = Vec::<Value>::deserialize(deserializer)?;
+    values
+        .into_iter()
+        .map(|value| match value {
+            Value::String(value) if !value.trim().is_empty() => Ok(value),
+            Value::Number(value) => Ok(value.to_string()),
+            _ => Err(serde::de::Error::custom(
+                "legacy splitter position IDs must be strings or numbers",
+            )),
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -2783,10 +3076,23 @@ pub struct DocumentLayout {
     /// Human-facing percent. CDX stores ten times this number.
     #[serde(default = "default_magnification_percent")]
     pub magnification_percent: f64,
-    /// Saved split-pane coordinates. They are document view state and never
-    /// affect rendering or export.
+    /// The page-level formatting definition from the official CDX enum.
     #[serde(default)]
-    pub splitter_positions: Vec<f64>,
+    pub page_definition: PageDefinition,
+    /// Native horizontal page splitters. `position` uses document coordinates;
+    /// the object is logical and does not create an editor drawing primitive.
+    #[serde(default)]
+    pub splitters: Vec<PageSplitter>,
+    /// ChemDraw 6 defined `SplitterPositions` as an object-ID array, then
+    /// obsoleted it in favor of Splitter objects. Preserve those IDs exactly.
+    /// The alias is an explicit migration for early ChemSema files that
+    /// incorrectly serialized the IDs as numeric `splitterPositions`.
+    #[serde(
+        default,
+        alias = "splitterPositions",
+        deserialize_with = "deserialize_legacy_splitter_position_ids"
+    )]
+    pub legacy_splitter_position_ids: Vec<String>,
     /// OLE/in-place editing extent and gap in document points.
     #[serde(default)]
     pub fix_in_place_extent: Option<[f64; 2]>,
@@ -2824,7 +3130,9 @@ impl Default for DocumentLayout {
             footer: String::new(),
             footer_position: default_footer_position(),
             magnification_percent: default_magnification_percent(),
-            splitter_positions: Vec::new(),
+            page_definition: PageDefinition::Undefined,
+            splitters: Vec::new(),
+            legacy_splitter_position_ids: Vec::new(),
             fix_in_place_extent: None,
             fix_in_place_gap: None,
         }
@@ -2885,12 +3193,28 @@ impl DocumentLayout {
         {
             return Err("document magnification must be between 1% and 999%".to_string());
         }
+        let mut splitter_ids = BTreeSet::new();
+        for splitter in &self.splitters {
+            if splitter.id.trim().is_empty() || !splitter_ids.insert(splitter.id.as_str()) {
+                return Err("document splitter IDs must be non-empty and unique".to_string());
+            }
+            if splitter
+                .position
+                .is_some_and(|point| point.into_iter().any(|value| !value.is_finite()))
+            {
+                return Err(format!(
+                    "document splitter '{}' has a non-finite position",
+                    splitter.id
+                ));
+            }
+        }
+        let mut legacy_splitter_ids = BTreeSet::new();
         if self
-            .splitter_positions
+            .legacy_splitter_position_ids
             .iter()
-            .any(|value| !value.is_finite() || *value < 0.0)
+            .any(|id| id.trim().is_empty() || !legacy_splitter_ids.insert(id.as_str()))
         {
-            return Err("document splitter positions must be finite and non-negative".to_string());
+            return Err("legacy splitter position IDs must be non-empty and unique".to_string());
         }
         for (name, value) in [
             ("in-place extent", self.fix_in_place_extent),
@@ -3579,6 +3903,61 @@ pub struct ObjectPayload {
     pub extra: BTreeMap<String, Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageCropRect {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+impl ImageCropRect {
+    pub fn validate(self, pixel_width: u32, pixel_height: u32) -> Result<(), String> {
+        if ![self.x, self.y, self.width, self.height]
+            .into_iter()
+            .all(f64::is_finite)
+            || [self.x, self.y, self.width, self.height]
+                .into_iter()
+                .any(|value| value.fract().abs() > crate::EPSILON)
+            || self.x < 0.0
+            || self.y < 0.0
+            || self.width <= crate::EPSILON
+            || self.height <= crate::EPSILON
+            || self.x + self.width > f64::from(pixel_width) + crate::EPSILON
+            || self.y + self.height > f64::from(pixel_height) + crate::EPSILON
+        {
+            return Err(format!(
+                "imageCrop must be an integer positive resource-pixel rectangle inside {pixel_width}x{pixel_height}"
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl ObjectPayload {
+    pub fn image_crop(&self) -> Result<Option<ImageCropRect>, String> {
+        self.extra
+            .get("imageCrop")
+            .map(|value| {
+                serde_json::from_value(value.clone())
+                    .map_err(|error| format!("invalid imageCrop: {error}"))
+            })
+            .transpose()
+    }
+
+    pub fn set_image_crop(&mut self, crop: Option<ImageCropRect>) {
+        if let Some(crop) = crop {
+            self.extra.insert(
+                "imageCrop".to_string(),
+                serde_json::to_value(crop).expect("serialize image crop"),
+            );
+        } else {
+            self.extra.remove("imageCrop");
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Resource {
@@ -3660,6 +4039,26 @@ impl ResourceData {
     pub fn as_image(&self) -> Option<ImageResourceData> {
         match self {
             Self::Json(value) => serde_json::from_value(value.clone()).ok(),
+            _ => None,
+        }
+    }
+
+    pub fn as_embedded_object(&self) -> Option<crate::EmbeddedObjectResourceData> {
+        match self {
+            Self::Json(value) => serde_json::from_value(value.clone()).ok(),
+            _ => None,
+        }
+    }
+}
+
+impl Resource {
+    pub fn display_image(&self) -> Option<ImageResourceData> {
+        match self.resource_type.as_str() {
+            "image" => self.data.as_image(),
+            "embedded-object" => self
+                .data
+                .as_embedded_object()
+                .and_then(|embedded| embedded.preview),
             _ => None,
         }
     }
@@ -4156,6 +4555,11 @@ pub struct NodeLabel {
     /// committed; it is deliberately not a CCJS persistence authority.
     #[serde(skip)]
     pub glyph_clip_polygons: Vec<Vec<[f64; 2]>>,
+    /// Parallel ownership for `glyph_clip_polygons`. `Some(i)` identifies the
+    /// visible glyph that produced the contour; `None` is a shared run-axis
+    /// contact envelope. Like the polygons, this is rebuilt rather than saved.
+    #[serde(skip)]
+    pub glyph_clip_polygon_owners: Vec<Option<usize>>,
     #[serde(default, rename = "box", skip_serializing_if = "Option::is_none")]
     pub box_value: Option<[f64; 4]>,
     #[serde(default)]
@@ -4254,6 +4658,11 @@ pub struct Bond {
     pub hash_spacing: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bond_spacing: Option<f64>,
+    /// Absolute center-to-center spacing for multiple-bond lines, in document
+    /// points. When present it takes precedence over `bond_spacing` and does
+    /// not use ChemDraw's percentage-spacing line-width floor.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bond_spacing_absolute: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub margin_width: Option<f64>,
     #[serde(default)]
@@ -4311,6 +4720,7 @@ pub enum BondLinePattern {
     #[default]
     Solid,
     Dashed,
+    Hash,
     Wavy,
 }
 
@@ -4423,7 +4833,6 @@ fn fragment_content_bbox(nodes: &[Node]) -> Option<[f64; 4]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
 
     fn polygon_bounds(polygon: &[[f64; 2]]) -> Option<[f64; 4]> {
         let mut iter = polygon.iter();
@@ -4676,10 +5085,7 @@ mod tests {
 
         let left_anchor = glyph_center(left_label, 1);
         let left_line_anchor_y = left_label.position.expect("left label baseline")[1]
-            - left_label
-                .font_size
-                .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
-                * MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
+            - crate::node_label_anchor_baseline_offset(left_label);
         assert!(
             (left_anchor.x - left_label_node.position[0]).abs() < 0.01
                 && (left_line_anchor_y - left_label_node.position[1]).abs() < 0.01,
@@ -4687,10 +5093,7 @@ mod tests {
         );
         let right_anchor = glyph_center(right_label, 0);
         let right_line_anchor_y = right_label.position.expect("right label baseline")[1]
-            - right_label
-                .font_size
-                .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
-                * MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
+            - crate::node_label_anchor_baseline_offset(right_label);
         assert!(
             (right_anchor.x - right_label_node.position[0]).abs() < 0.01
                 && (right_line_anchor_y - right_label_node.position[1]).abs() < 0.01,
@@ -4757,6 +5160,7 @@ mod tests {
                                 [0.0, 1.0],
                             ]],
                             glyph_clip_polygons: Vec::new(),
+                            glyph_clip_polygon_owners: Vec::new(),
                             box_value: Some([10.0, 2.0, 17.2, 10.0]),
                             meta: json!({
                                 "import": {
@@ -5207,6 +5611,7 @@ mod tests {
                             line_advances: Vec::new(),
                             glyph_polygons: Vec::new(),
                             glyph_clip_polygons: Vec::new(),
+                            glyph_clip_polygon_owners: Vec::new(),
                             box_value: None,
                             meta: json!({
                                 "import": {
@@ -5234,10 +5639,7 @@ mod tests {
         let fragment = resource.data.as_fragment().expect("fragment");
         let label = fragment.nodes[0].label.as_ref().expect("label");
         let line_anchor_y = label.position.expect("label baseline")[1]
-            - label
-                .font_size
-                .unwrap_or(DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT)
-                * MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
+            - crate::node_label_anchor_baseline_offset(label);
 
         assert!(
             (line_anchor_y - 30.0).abs() < 0.01,

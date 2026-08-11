@@ -12,6 +12,10 @@ pub struct ReactionSchemeData {
 #[serde(rename_all = "camelCase")]
 pub struct ReactionStepData {
     pub id: String,
+    #[serde(default)]
+    pub link_policy: crate::LinkPolicy,
+    #[serde(default)]
+    pub binding_origin: crate::LogicalBindingOrigin,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reactant_entity_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

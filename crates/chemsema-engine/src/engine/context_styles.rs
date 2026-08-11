@@ -1,3 +1,4 @@
+use super::arrows::set_line_arrow_bold_preserving_size;
 use super::*;
 use crate::{
     round2, AtomRadical, AtomReactionStereo, IsotopicAbundance, MoleculeFragment, Node,
@@ -329,8 +330,7 @@ impl Engine {
         let mut changed = false;
         for object_id in ids {
             if let Some(object) = self.state.document.find_scene_object_mut(&object_id) {
-                changed |=
-                    set_payload_string(&mut object.payload.extra, "orbitalTemplate", template);
+                changed |= super::orbitals::retarget_orbital_template_geometry(object, template);
             }
         }
         if !changed {
@@ -484,7 +484,19 @@ impl Engine {
 
     pub fn apply_line_style_to_selection(&mut self, style: &str) -> bool {
         let style = normalize_line_style_name(style);
-        let object_ids = self.state.selection.arrow_objects.clone();
+        let object_ids = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
         self.with_command(
             EditorCommand::ApplyLineStyle {
                 object_ids,
@@ -495,8 +507,19 @@ impl Engine {
     }
 
     fn apply_line_style_to_selection_untracked(&mut self, style: &str) -> bool {
-        let selected: BTreeSet<String> =
-            self.state.selection.arrow_objects.iter().cloned().collect();
+        let selected: BTreeSet<String> = self
+            .state
+            .selection
+            .arrow_objects
+            .iter()
+            .filter(|object_id| {
+                !self
+                    .state
+                    .document
+                    .scene_object_is_effectively_locked(object_id)
+            })
+            .cloned()
+            .collect();
         if selected.is_empty() {
             return false;
         }
@@ -542,7 +565,7 @@ impl Engine {
                     changed = true;
                 }
                 if object.kind() == crate::SceneObjectKind::Line {
-                    changed |= set_line_arrow_bold(object, style == "bold");
+                    changed |= set_line_arrow_bold_preserving_size(object, style == "bold");
                 }
             }
         }
@@ -1668,6 +1691,7 @@ fn expansion_atom_to_node(atom: &JsonValue, id: String, position: Point) -> Node
                 line_advances: Vec::new(),
                 glyph_polygons: Vec::new(),
                 glyph_clip_polygons: Vec::new(),
+                glyph_clip_polygon_owners: Vec::new(),
                 box_value: None,
                 meta: JsonValue::Null,
             }),
@@ -1711,6 +1735,7 @@ fn expansion_bond(
         label_clip_margin: None,
         hash_spacing: Some(hash_spacing),
         bond_spacing: Some(bond_spacing),
+        bond_spacing_absolute: None,
         margin_width: Some(margin_width),
         line_styles: BondLineStyles::default(),
         line_weights: BondLineWeights::default(),
@@ -1974,7 +1999,7 @@ fn orbital_style_json(style: &str, color: &str, stroke_width: f64) -> JsonValue 
         "filled" => json!({
             "kind": "shape",
             "fill": color,
-            "stroke": color,
+            "stroke": null,
             "strokeWidth": stroke_width,
             "dashArray": [],
         }),
@@ -2024,8 +2049,7 @@ fn apply_bond_style_key(bond: &mut Bond, style: &str, bold_width: f64, wedge_wid
         }
         "single-hashed" => {
             set_single_common(bond);
-            bond.line_styles.main = BondLinePattern::Dashed;
-            bond.meta = merge_object_meta_string(bond.meta.clone(), "contextMenuBondStyle", style);
+            bond.line_styles.main = BondLinePattern::Hash;
         }
         "single-hashed-wedged" => {
             set_single_common(bond);
@@ -2116,26 +2140,6 @@ fn existing_wide_end(bond: &Bond) -> String {
         .unwrap_or_else(|| "end".to_string())
 }
 
-fn set_line_arrow_bold(object: &mut SceneObject, bold: bool) -> bool {
-    let Some(arrow_head) = object
-        .payload
-        .extra
-        .get_mut("arrowHead")
-        .and_then(JsonValue::as_object_mut)
-    else {
-        return false;
-    };
-    let previous = arrow_head
-        .get("bold")
-        .and_then(JsonValue::as_bool)
-        .unwrap_or(false);
-    if previous == bold {
-        return false;
-    }
-    arrow_head.insert("bold".to_string(), json!(bold));
-    true
-}
-
 fn apply_text_object_style(object: &mut SceneObject, command: &str, value: &str) -> bool {
     let mut changed = false;
     match command {
@@ -2197,7 +2201,7 @@ fn apply_text_object_style(object: &mut SceneObject, command: &str, value: &str)
         _ => {
             let enabled = parse_enabled_value(value);
             changed |= apply_text_object_runs(object, |run| {
-                set_style_number(run, "fontWeight", if enabled { 700.0 } else { 400.0 })
+                set_style_u32(run, "fontWeight", if enabled { 700 } else { 400 })
             });
         }
     }
@@ -2457,6 +2461,14 @@ fn set_style_number(map: &mut Map<String, JsonValue>, key: &str, value: f64) -> 
     true
 }
 
+fn set_style_u32(map: &mut Map<String, JsonValue>, key: &str, value: u32) -> bool {
+    if map.get(key).and_then(JsonValue::as_u64) == Some(u64::from(value)) {
+        return false;
+    }
+    map.insert(key.to_string(), json!(value));
+    true
+}
+
 fn set_style_bool(map: &mut Map<String, JsonValue>, key: &str, value: bool) -> bool {
     if map.get(key).and_then(JsonValue::as_bool) == Some(value) {
         return false;
@@ -2547,12 +2559,6 @@ fn set_json_object_field(value: &mut JsonValue, key: &str, next: Option<JsonValu
         *value = JsonValue::Null;
     }
     changed
-}
-
-fn merge_object_meta_string(meta: JsonValue, key: &str, value: &str) -> JsonValue {
-    let mut object = meta.as_object().cloned().unwrap_or_default();
-    object.insert(key.to_string(), json!(value));
-    JsonValue::Object(object)
 }
 
 fn clear_object_meta_key(meta: JsonValue, key: &str) -> JsonValue {

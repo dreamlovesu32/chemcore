@@ -29,6 +29,7 @@ export function createAppWindowLifecycleHost(options) {
   const saveCurrentDocument = (...args) => options.saveCurrentDocument(...args);
   const isAbortError = (...args) => options.isAbortError(...args);
   const autoSaveAllOleEditDocumentTabs = (...args) => options.autoSaveAllOleEditDocumentTabs(...args);
+  const discardRecoveryJournalForTab = (...args) => options.discardRecoveryJournalForTab?.(...args);
   const uiActions = options.uiActions;
   const dialogs = createAppDialogHost({ state });
   let windowCloseGuardInProgress = false;
@@ -168,6 +169,7 @@ export function createAppWindowLifecycleHost(options) {
       return false;
     }
     if (decision === UNSAVED_CLOSE_DECISION.DISCARD) {
+      await discardRecoveryJournalForTab(freshTab);
       return true;
     }
     return saveDocumentTabBeforeClose(freshTab);

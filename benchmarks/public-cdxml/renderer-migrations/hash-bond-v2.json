@@ -1,0 +1,50 @@
+{
+  "schema": "chemsema.public-cdxml-reviewed-renderer-migration.v1",
+  "rule": "chemdraw-hash-bond-primitive-v2",
+  "summary": "Display=Hash changed from the incorrect thin dashed-line primitive to ChemDraw's LineWidth-by-BoldWidth stripe primitive. The visual gate correctly detected residual mismatch pixels moving inside six already-failing documents; this review replaces only those exact candidate artifacts and does not weaken ordinary regression checks.",
+  "fromRepository": {
+    "head": "063564a24799c67bbe31714fcb88ea0fa8f2b4e9",
+    "identity": "ad569415ced58cbc9c107b2da61482f137f9135dd8f41a18e27a1f4e179fe99d"
+  },
+  "toRepository": {
+    "head": "9c8ab2ddff8fccc6bab635cbf2be06f471eb7e77",
+    "identity": "cdce1951a431c6daf0e7820e253ca8d5b04e82e154eaa52f057d3f03f4366e77"
+  },
+  "evidence": {
+    "rendererCommit": "cde7f67ab83127b03d6de53e859b9eb8e8c45561",
+    "probe": "scripts/chemdraw-hash-bond-probe.mjs",
+    "rules": "docs/bond-rendering-rules.md#hash-bonds"
+  },
+  "cases": [
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/molecules/bonds.cdx",
+      "previousCandidateSha256": "723831425a21062188ab420db0bd9c58533cba21b33bb024561da0b50ab9f90d",
+      "currentCandidateSha256": "b77f876e9c865974ee6325416f1512fc04173ee4b72033fc169deb58eb177114"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/molecules/cdxml2/960_bug_superatom.cdxml",
+      "previousCandidateSha256": "747768dc414c9d2d21a6c3d1a86904e224b029f9e1ff98149116d68974b2eed4",
+      "currentCandidateSha256": "03158b700b02ee62989745390710f6d8bc6d1d239a16dec0791201dbde571799"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template2.cdxml",
+      "previousCandidateSha256": "1d22dd99728d9371abeb542d35ee4dfb6795db85e5783b79793f99998e50d256",
+      "currentCandidateSha256": "d7926ca6716a9e8512b5b1dca2305a44b82aef83a70bd8118efb1e52f635da79"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template4.cdxml",
+      "previousCandidateSha256": "39b4dba2cf59a3536ef6bc0bab6af3ce2de50bc6a89aac5f62dde9e31dc02968",
+      "currentCandidateSha256": "c82140dad05ffce0818ae0942e0881edbb9a5de344172ce47182d721926a0396"
+    },
+    {
+      "relativeCdxml": "rdkit/Code/GraphMol/test_data/CDXML/chemdraw_template9.cdxml",
+      "previousCandidateSha256": "469fd21faebd5baea9e0be13946a9bea8023630a75aaf45e5a723255aa600819",
+      "currentCandidateSha256": "09c36c90c310edda4a0bcb49ed741efa7a803c388e6888bad2ea7b4f35433495"
+    },
+    {
+      "relativeCdxml": "rdkit/External/ChemDraw/test_data/patents/US20030032827A1-20030213-C00040.CDX",
+      "previousCandidateSha256": "71b0fc92288df4d3f35c1e0527148994c16f9baed3622f970acf3e8e5dd57077",
+      "currentCandidateSha256": "909a6170435233b8d1f0017772737b129c11d040199eda874f73a7e9bcb3600d"
+    }
+  ]
+}

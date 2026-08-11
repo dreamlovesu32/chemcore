@@ -7,10 +7,12 @@ is a release-quality guide, not a marketing claim.
 | --- | --- | --- |
 | CDXML import | Beta | Public fixtures, published paper figures, golden SVG snapshots, parser regressions |
 | CDX import/export | Beta | Round-trip tests and binary storage regression coverage |
+| CCJS 0.2 / CCJZ v1 | Beta | Schema, migration, stable diagnostics, five-format round trips, Rust/JS/Python cross-reading, viewport loading, COW/Zip64, journal, and performance gates; ecosystem/corpus/full-report boundaries remain in the stability contract |
 | SVG export | Usable | Golden SVG snapshots and pixel comparison scripts |
 | Office/OLE copy and embedding | Beta | Clipboard payload tests, EMF preview tests, Word paste/roundtrip validation scripts |
 | Browser editor | Beta | Viewer interaction smoke tests and stability user-path scripts |
 | Desktop app | Beta | Tauri build, file association config, hybrid latency regression, manual install validation |
+| GUI test platform | Implementation in progress / 25 registered scenarios now include native TLC and gel creation, accessible subtool selection, multi-plate color editing, exact internal spot/band dragging, history, and persistence in addition to the prior production pointer, keyboard, native save/open, multi-object, grouping, arrow, text, shape, symbol, bracket, table, and orbital cells; the current 25-scenario candidate qualification is intentionally red at one passed and 24 missing | Versioned schemas/runner/qualification manifest, real Playwright and isolated Hyper-V production paths, precise impact/resource gates, content-addressed candidates, guarded UIA/CDP targeting, real input, separately bounded product and transport windows, native save/reopen, independent CCJS chemistry/property/geometry/hierarchy/table/chromatography oracles, selection/clipboard/history/locking/grouping, trace attribution, fail-then-pass blocking aggregation, root-confined evidence rehashing, bounded bundles, and guest/host SHA-256 verification are operational; the chromatography cell passes 23/23 real actions and 3/3 oracles with two 12-lane plates, exact moved mark values, and synchronized frame/internal colors, while the full feature/object/property/value and `0/1/2/many` matrix, complex/large/xlarge construction, environment/model/fault/mutation coverage, endurance, 1,000-repeat demonstration qualification, and final-installer qualification remain |
 | CLI one-shot commands | Usable | Rust tests, `npm run verify`, stability report, generated-output verification |
 | CLI JSONL session | Experimental/usable | Session unit tests and large-file performance report |
 | Agent precise capture | Usable beta | PNG/SVG capture tests, public fixture crops, README example crops |
@@ -24,6 +26,7 @@ The current beta treats these areas as hardening priorities:
 | Area | Baseline |
 | --- | --- |
 | File import | Public fixtures, parser regression tests, and planned malicious-input corpus expansion |
+| CCJZ container | Entry-count, per-entry/total-size, path, duplicate/case-collision, hash, and declaration-binding limits today; a unified public rejection conformance corpus remains pending |
 | XML/CDXML parsing | Parser tests today; depth and size limits are tracked as beta-hardening work |
 | Raster/vector export | Output path verification today; render timeouts and large-output caps are tracked as beta-hardening work |
 | CLI session | Deterministic JSONL protocol today; request timeout and resource-budget policies are tracked as beta-hardening work |
@@ -41,6 +44,8 @@ Before a public beta release:
 5. Build the installer with `npm run desktop:build`.
 6. Confirm GitHub CI passes for both `main` and the release tag.
 7. Upload the installer asset and record its SHA256 digest.
+
+These are the current beta gates, not complete GUI or demo qualification. Once implemented, stable releases and formal demos must also pass `gui-pr`, `gui-nightly`, final-installer `release-qualification`, and the [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.md#14-demo-qualification-gate). Its manifest must prove current valid real-interaction evidence for every feature and object, all public properties, the `0/1/2/many` matrix, and complex/large construction. Unchanged closure evidence may be reused; affected, expired, and non-cacheable work must rerun. A first-run failure remains a flaky failure even when a retry passes. Real-input actions keep product completion deadlines separate from the larger host/guest transaction envelope, so infrastructure latency cannot either consume the functional observation window or weaken the product oracle.
 
 ## Current Communication Boundary
 

@@ -63,11 +63,77 @@ pub fn document_to_cdx(document: &ChemSemaDocument) -> Result<Vec<u8>, String> {
     }
     let cdxml = document_to_cdxml(document);
     let mut root = crate::cdxml::parse_xml_tree(&cdxml)?;
+    normalize_compressed_embedded_payloads_for_cdx(&mut root)?;
     let source = document.interchange.get("cdx").map(|source| &source.root);
     if let Some(source) = source {
         overlay_unmodeled_cdx_values(&mut root, source);
     }
     CdxWriter::new(source).write(&root)
+}
+
+fn normalize_compressed_embedded_payloads_for_cdx(
+    node: &mut crate::cdxml::XmlNode,
+) -> Result<(), String> {
+    if node.name == "embeddedobject" {
+        for (compressed, plain, size_attribute) in [
+            (
+                "CompressedEnhancedMetafile",
+                "EnhancedMetafile",
+                "UncompressedEnhancedMetafileSize",
+            ),
+            (
+                "CompressedWindowsMetafile",
+                "WindowsMetafile",
+                "UncompressedWindowsMetafileSize",
+            ),
+            (
+                "CompressedOLEObject",
+                "OLEObject",
+                "UncompressedOLEObjectSize",
+            ),
+        ] {
+            let Some(encoded) = node.attrs.get(compressed).cloned() else {
+                continue;
+            };
+            let compact = encoded
+                .bytes()
+                .filter(|byte| !byte.is_ascii_whitespace())
+                .collect::<Vec<_>>();
+            let compressed_bytes = BASE64
+                .decode(compact)
+                .map_err(|error| format!("{compressed}: invalid base64: {error}"))?;
+            let expected_size = node
+                .attrs
+                .get(size_attribute)
+                .and_then(|value| value.parse::<u64>().ok());
+            let (decoded_format, decoded, _) = crate::embedded_preview::decompress_container(
+                compressed,
+                &compressed_bytes,
+                expected_size,
+            )
+            .map_err(|result| {
+                format!(
+                    "{compressed}: {}",
+                    result
+                        .detail
+                        .unwrap_or_else(|| "compressed payload decode failed".to_string())
+                )
+            })?;
+            if decoded_format != plain {
+                return Err(format!(
+                    "{compressed}: decoded format {decoded_format} does not match {plain}"
+                ));
+            }
+            node.attrs.remove(compressed);
+            node.attrs.remove(size_attribute);
+            node.attrs
+                .insert(plain.to_string(), encode_hex_bytes(&decoded));
+        }
+    }
+    for child in &mut node.children {
+        normalize_compressed_embedded_payloads_for_cdx(child)?;
+    }
+    Ok(())
 }
 
 fn validate_cdx_chemical_property_types(document: &ChemSemaDocument) -> Result<(), String> {
@@ -910,6 +976,19 @@ enum PropertyKind {
 }
 
 const DRAWING_SPACE: &[(i16, &str)] = &[(0, "pages"), (1, "poster")];
+const PAGE_DEFINITION: &[(i16, &str)] = &[
+    (0, "Undefined"),
+    (1, "Center"),
+    (2, "TL4"),
+    (3, "IDTerm"),
+    (4, "FlushLeft"),
+    (5, "FlushRight"),
+    (6, "Reaction1"),
+    (7, "Reaction2"),
+    (8, "MulticolumnTL4"),
+    (9, "MulticolumnNonTL4"),
+    (10, "UserDefined"),
+];
 const BOND_DISPLAY: &[(i16, &str)] = &[
     (0, "Solid"),
     (1, "Dash"),
@@ -1434,6 +1513,44 @@ mod tests {
         let decoded = cdx_to_cdxml(&cdx).expect("CDX should decode to CDXML");
         assert!(decoded.contains("<s font=\"3\" size=\"12\" face=\"1\" color=\"0\">Hello</s>"));
         assert!(decoded.contains("<s font=\"3\" size=\"8\" face=\"0\" color=\"0\">2</s>"));
+    }
+
+    #[test]
+    fn cdx_unassigned_invisible_text_remains_an_invisible_object_after_export() {
+        let source = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BoundingBox="0 0 120 80">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1" BoundingBox="0 0 120 80">
+    <t id="0" p="10 20" BoundingBox="10 10 60 25" Visible="no"><s font="3" size="12" face="0" color="0">(20)</s></t>
+  </page>
+</CDXML>
+"#;
+        let source_cdx = cdxml_to_cdx(source).expect("CDXML should encode to CDX");
+        let decoded = cdx_to_cdxml(&source_cdx).expect("CDX should decode to CDXML");
+        assert!(decoded.contains("<t"));
+        assert!(decoded.contains("id=\"0\""));
+        assert!(decoded.contains("Visible=\"no\""));
+
+        let imported =
+            parse_cdx_document(&source_cdx, Some("invisible text")).expect("CDX should import");
+        let text = imported
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.object_type == "text")
+            .expect("the invisible text is still an object");
+        assert!(!text.visible);
+
+        let exported = document_to_cdxml(&imported);
+        assert!(exported.contains("UTF8Text=\"(20)\""));
+        assert!(exported.contains("Visible=\"no\""));
+        let reopened =
+            parse_cdxml_document(&exported, Some("invisible text")).expect("CDXML should reopen");
+        let reopened_text = reopened
+            .scene_objects()
+            .into_iter()
+            .find(|object| object.object_type == "text")
+            .expect("the invisible text survives export");
+        assert!(!reopened_text.visible);
     }
 
     #[test]

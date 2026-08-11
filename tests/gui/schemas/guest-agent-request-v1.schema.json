@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsema.org/schemas/gui/guest-agent-request-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "args"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.guest-agent-request.v1" },
+    "id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "args": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "prefixItems": [{ "enum": ["click", "drag", "key"] }]
+    }
+  }
+}

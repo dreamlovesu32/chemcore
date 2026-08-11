@@ -175,7 +175,7 @@ export function createBrowserDocumentTabs(options) {
       };
     }
     const text = looksLikeCompressedChemSemaFile(file)
-      ? await decompressChemSemaText(await file.arrayBuffer())
+      ? await decompressChemSemaText(file)
       : await file.text();
     return {
       text,

@@ -33,8 +33,13 @@ mod spectrum_render;
 #[path = "render/style_payload.rs"]
 mod style_payload;
 
-use bond_render::{compute_solid_wedge_points, render_fragment_bond};
+pub(crate) use bond_metrics::double_bond_center_distance_for_bond_weights;
+use bond_render::{
+    bond_endpoint_world, bond_label_clipped_body_geometry, compute_solid_wedge_points,
+    imported_cdxml_dative_bond, render_fragment_bond,
+};
 pub use bounds::{render_primitive_bounds, render_primitives_bounds};
+pub(crate) use bounds::{text_object_visual_bounds, text_primitive_visual_bounds};
 use contact::{
     bond_ray_is_acute, build_main_bond_contact_kernel, build_main_bond_contact_kernel_for_nodes,
     center_double_skips_extension, main_bond_endpoint_geometry, main_contact_is_straight_through,
@@ -61,9 +66,12 @@ pub(crate) use bounds::{
     line_object_visual_bounds, shape_object_visual_bounds,
 };
 use labels::{
+    algebraic_body_segment_after_label_retreats, apply_label_endpoint_retreats,
     attached_label_glyph_anchor_world, body_segment_label_retreats,
-    clip_body_segment_out_of_label_geometry, label_box_world, label_clip_polygons_world,
-    label_polygons_world, render_fragment_line, render_fragment_line_with_profiles, world_point,
+    clip_body_segment_out_of_label_geometry, clip_wavy_body_segment_out_of_label_geometry,
+    label_box_world, label_clip_polygons_world, label_clip_polygons_world_for_cardinal_strip,
+    label_clip_polygons_world_for_segment, label_polygons_world, render_fragment_line,
+    render_fragment_line_with_profiles, world_point,
 };
 use style_payload::*;
 
@@ -75,6 +83,39 @@ const HASH_WEDGE_SPACING: f64 = crate::HASH_WEDGE_SPACING_PT.value();
 const HASH_WEDGE_START_OFFSET: f64 = crate::HASH_WEDGE_START_OFFSET_PT.value();
 const HASH_WEDGE_END_INSET: f64 = crate::HASH_WEDGE_END_INSET_PT.value();
 const HASH_BLACK_SEGMENT_LENGTH: f64 = crate::HASH_BLACK_SEGMENT_LENGTH_PT.value();
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BondLineLane {
+    Main,
+    Left,
+    Right,
+}
+
+fn effective_render_line_pattern(
+    bond: &Bond,
+    lane: BondLineLane,
+    authored: BondLinePattern,
+) -> BondLinePattern {
+    if authored == BondLinePattern::Hash && !(bond.order == 1 && lane == BondLineLane::Main) {
+        BondLinePattern::Solid
+    } else {
+        authored
+    }
+}
+
+fn bond_main_line_pattern(bond: &Bond) -> BondLinePattern {
+    let authored = if bond
+        .meta
+        .pointer("/import/cdxml/collapsedFragmentDashDisplaysSolid")
+        .and_then(JsonValue::as_bool)
+        == Some(true)
+    {
+        BondLinePattern::Solid
+    } else {
+        bond.line_styles.main
+    };
+    effective_render_line_pattern(bond, BondLineLane::Main, authored)
+}
 const HASH_TARGET_GAP_LENGTH: f64 = crate::HASH_TARGET_GAP_LENGTH_PT.value();
 const SOLID_WEDGE_END_INSET: f64 = crate::SOLID_WEDGE_END_INSET_PT.value();
 const CENTER_DOUBLE_NO_EXTENSION_ANGLE_DEGREES: f64 = 162.0;
@@ -195,11 +236,13 @@ fn insert_bond_margin_silhouettes(
                 let key = (Some(object_id.to_string()), bond_id.to_string());
                 if prepared_bond_keys.insert(key.clone()) {
                     if let Some(info) = bonds.get(&key) {
-                        with_silhouettes.extend(bond_crossing_knockouts(
+                        let crossing_primitives = prepare_bond_crossings(
                             document,
+                            &mut with_silhouettes,
                             &rendered_bonds,
                             info,
-                        ));
+                        );
+                        with_silhouettes.extend(crossing_primitives);
                         rendered_bonds.push(info);
                     }
                 }
@@ -221,6 +264,7 @@ struct DocumentBondRenderInfo {
     margin_width: f64,
     crossing_envelope: BondCrossingEnvelope,
     explicit_crossings: Option<BTreeSet<String>>,
+    can_split_crossings: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -264,14 +308,8 @@ fn collect_object_bond_render_info(
                 ) else {
                     continue;
                 };
-                let start = Point::new(
-                    object.transform.translate[0] + begin.position[0],
-                    object.transform.translate[1] + begin.position[1],
-                );
-                let end_point = Point::new(
-                    object.transform.translate[0] + end.position[0],
-                    object.transform.translate[1] + end.position[1],
-                );
+                let start = bond_endpoint_world(object, begin, bond, "begin");
+                let end_point = bond_endpoint_world(object, end, bond, "end");
                 if start.distance(end_point) <= EPSILON {
                     continue;
                 }
@@ -291,6 +329,11 @@ fn collect_object_bond_render_info(
                         margin_width: document_margin_width_for_bond(document, bond, stroke_width),
                         crossing_envelope,
                         explicit_crossings: imported_cdxml_crossing_bonds(bond),
+                        can_split_crossings: bond.order == 1
+                            && bond_stereo_kind(bond).is_none()
+                            && bond_main_line_pattern(bond) == BondLinePattern::Solid
+                            && bond.line_weights.main == BondLineWeight::Normal
+                            && !imported_cdxml_dative_bond(bond),
                     },
                 );
             }
@@ -299,8 +342,9 @@ fn collect_object_bond_render_info(
     }
 }
 
-fn bond_crossing_knockouts(
+fn prepare_bond_crossings(
     document: &ChemSemaDocument,
+    primitives: &mut Vec<RenderPrimitive>,
     rendered_bonds: &[&DocumentBondRenderInfo],
     over_bond: &DocumentBondRenderInfo,
 ) -> Vec<RenderPrimitive> {
@@ -314,12 +358,19 @@ fn bond_crossing_knockouts(
                 return None;
             }
             if let Some(crossing) = bond_crossing_point_for_margin(under_bond, over_bond) {
-                local_bond_crossing_knockout(
-                    under_bond,
-                    over_bond,
-                    crossing,
-                    &document.document.page.background,
-                )
+                if under_bond.can_split_crossings
+                    && over_bond.can_split_crossings
+                    && split_rendered_bond_at_crossing(primitives, under_bond, over_bond, crossing)
+                {
+                    None
+                } else {
+                    local_bond_crossing_knockout(
+                        under_bond,
+                        over_bond,
+                        crossing,
+                        &document.document.page.background,
+                    )
+                }
             } else {
                 near_endpoint_bond_crossing_knockout(
                     under_bond,
@@ -329,6 +380,136 @@ fn bond_crossing_knockouts(
             }
         })
         .collect()
+}
+
+fn split_rendered_bond_at_crossing(
+    primitives: &mut Vec<RenderPrimitive>,
+    under_bond: &DocumentBondRenderInfo,
+    over_bond: &DocumentBondRenderInfo,
+    crossing: Point,
+) -> bool {
+    let matches_under_bond = |primitive: &RenderPrimitive| {
+        primitive.role() == RenderRole::DocumentBond
+            && primitive.object_id() == under_bond.object_id.as_deref()
+            && primitive_bond_id(primitive) == Some(under_bond.id.as_str())
+    };
+    let matching = primitives
+        .iter()
+        .filter(|primitive| matches_under_bond(primitive))
+        .collect::<Vec<_>>();
+    if matching.is_empty()
+        || matching
+            .iter()
+            .any(|primitive| !matches!(primitive, RenderPrimitive::Polygon { .. }))
+    {
+        return false;
+    }
+
+    let over_axis = Vector::new(
+        over_bond.end_point.x - over_bond.start.x,
+        over_bond.end_point.y - over_bond.start.y,
+    )
+    .normalized();
+    let over_normal = Vector::new(-over_axis.y, over_axis.x);
+    let offsets = over_bond.clearance_offsets_at(crossing);
+    let lower_boundary = offsets.min - over_bond.margin_width;
+    let upper_boundary = offsets.max + over_bond.margin_width;
+    let previous = std::mem::take(primitives);
+    for primitive in previous {
+        if !matches_under_bond(&primitive) {
+            primitives.push(primitive);
+            continue;
+        }
+        let RenderPrimitive::Polygon {
+            role,
+            object_id,
+            node_id,
+            bond_id,
+            points,
+            fill,
+            stroke,
+            stroke_width,
+        } = primitive
+        else {
+            unreachable!("ordinary split crossing was prevalidated as polygon geometry");
+        };
+        let before = clip_polygon_to_crossing_half_plane(
+            &points,
+            crossing,
+            over_normal,
+            lower_boundary,
+            false,
+        );
+        let after = clip_polygon_to_crossing_half_plane(
+            &points,
+            crossing,
+            over_normal,
+            upper_boundary,
+            true,
+        );
+        for clipped in [before, after] {
+            if clipped.len() < 3 || polygon_area_signed(&clipped).abs() <= 1.0e-4 {
+                continue;
+            }
+            primitives.push(RenderPrimitive::Polygon {
+                role,
+                object_id: object_id.clone(),
+                node_id: node_id.clone(),
+                bond_id: bond_id.clone(),
+                points: clipped,
+                fill: fill.clone(),
+                stroke: stroke.clone(),
+                stroke_width,
+            });
+        }
+    }
+    true
+}
+
+fn clip_polygon_to_crossing_half_plane(
+    polygon: &[Point],
+    origin: Point,
+    normal: Vector,
+    boundary: f64,
+    keep_greater: bool,
+) -> Vec<Point> {
+    if polygon.len() < 3 {
+        return Vec::new();
+    }
+    let signed_offset =
+        |point: Point| (point.x - origin.x) * normal.x + (point.y - origin.y) * normal.y;
+    let is_inside = |offset: f64| {
+        if keep_greater {
+            offset >= boundary - EPSILON
+        } else {
+            offset <= boundary + EPSILON
+        }
+    };
+    let mut output = Vec::new();
+    let mut previous = *polygon.last().expect("non-empty polygon");
+    let mut previous_offset = signed_offset(previous);
+    let mut previous_inside = is_inside(previous_offset);
+    for &current in polygon {
+        let current_offset = signed_offset(current);
+        let current_inside = is_inside(current_offset);
+        if current_inside != previous_inside {
+            let denominator = current_offset - previous_offset;
+            if denominator.abs() > EPSILON {
+                let t = ((boundary - previous_offset) / denominator).clamp(0.0, 1.0);
+                output.push(Point::new(
+                    previous.x + (current.x - previous.x) * t,
+                    previous.y + (current.y - previous.y) * t,
+                ));
+            }
+        }
+        if current_inside {
+            output.push(current);
+        }
+        previous = current;
+        previous_offset = current_offset;
+        previous_inside = current_inside;
+    }
+    compact_polygon_points(output)
 }
 
 fn bonds_are_crossing_candidates(
@@ -637,8 +818,12 @@ fn document_bond_crossing_envelope(
     end: Point,
     stroke_width: f64,
 ) -> BondCrossingEnvelope {
-    let main_half_width =
-        line_weight_stroke_width_for_bond(bond, stroke_width, bond.line_weights.main) * 0.5;
+    let main_half_width = line_pattern_visual_width_for_bond(
+        bond,
+        stroke_width,
+        bond_main_line_pattern(bond),
+        bond.line_weights.main,
+    ) * 0.5;
     let symmetric = |half_width: f64| CrossingOffsets {
         min: -half_width,
         max: half_width,
@@ -670,7 +855,7 @@ fn document_bond_crossing_envelope(
             clearance_end: end_offsets,
         };
     }
-    if bond.order == 1 && bond.line_styles.main == BondLinePattern::Wavy {
+    if bond.order == 1 && bond_main_line_pattern(bond) == BondLinePattern::Wavy {
         let amplitude = wavy_bond_amplitude_for_bond(bond, stroke_width);
         return constant(symmetric(amplitude + main_half_width), symmetric(amplitude));
     }
@@ -752,7 +937,7 @@ fn document_bond_crossing_envelope(
         return constant(silhouette, centerlines);
     }
     if bond.order >= 3 {
-        let offset = triple_bond_offset_distance(start, end, stroke_width);
+        let offset = triple_bond_offset_distance_for_bond(bond, start, end, stroke_width);
         let left_half_width =
             line_weight_stroke_width_for_bond(bond, stroke_width, bond.line_weights.left) * 0.5;
         let right_half_width =
@@ -833,8 +1018,8 @@ fn collect_document_target_bond_segments(
             ) else {
                 continue;
             };
-            let start = entry.world_point_for_node(begin);
-            let end_point = entry.world_point_for_node(end);
+            let start = bond_endpoint_world(entry.object, begin, bond, "begin");
+            let end_point = bond_endpoint_world(entry.object, end, bond, "end");
             if start.distance(end_point) <= EPSILON {
                 continue;
             }
@@ -1122,7 +1307,8 @@ fn render_image_object(
     let preserve_aspect_ratio =
         object.payload.extra.get("fit").and_then(JsonValue::as_str) == Some("contain");
     let center = Point::new(x + width * 0.5, y + height * 0.5);
-    if resource.resource_type != "image" {
+    let image = resource.display_image();
+    if image.is_none() {
         let radians = object.transform.rotate.to_radians();
         let cos = radians.cos();
         let sin = radians.sin();
@@ -1153,13 +1339,15 @@ fn render_image_object(
             stroke: "#6b7280".to_string(),
             stroke_width: 0.75,
         });
-        let format = match &resource.data {
-            ResourceData::Json(value) => value
-                .get("format")
-                .and_then(JsonValue::as_str)
-                .unwrap_or("object"),
-            _ => "object",
-        };
+        let embedded = resource.data.as_embedded_object();
+        let format = embedded
+            .as_ref()
+            .map(|value| value.format.as_str())
+            .unwrap_or("object");
+        let status = embedded
+            .as_ref()
+            .map(|value| value.preview_status.as_str().to_string())
+            .unwrap_or_else(|| "invalid-resource".to_string());
         out.push(RenderPrimitive::Text {
             role: RenderRole::DocumentText,
             object_id: Some(object.id.clone()),
@@ -1168,7 +1356,7 @@ fn render_image_object(
             y: center.y,
             baseline_offset: None,
             dominant_baseline: Some("central".to_string()),
-            text: format!("Embedded {format}"),
+            text: format!("Embedded {format} ({status})"),
             font_size: 8.0_f64.min(height.abs() * 0.3).max(3.0),
             font_family: Some("Arial".to_string()),
             fill: Some("#4b5563".to_string()),
@@ -1182,9 +1370,16 @@ fn render_image_object(
         });
         return;
     }
-    let Some(image) = resource.data.as_image() else {
+    let image = image.expect("image preview was checked above");
+    let Ok(source_crop) = object.payload.image_crop() else {
         return;
     };
+    if source_crop.is_some_and(|crop| {
+        crop.validate(image.pixel_width, image.pixel_height)
+            .is_err()
+    }) {
+        return;
+    }
     out.push(RenderPrimitive::Image {
         role: RenderRole::DocumentGraphic,
         object_id: Some(object.id.clone()),
@@ -1193,6 +1388,9 @@ fn render_image_object(
         width: crate::round2(width),
         height: crate::round2(height),
         href: format!("data:{};base64,{}", image.mime_type, image.data_base64),
+        source_crop,
+        source_width: image.pixel_width,
+        source_height: image.pixel_height,
         opacity,
         preserve_aspect_ratio,
         rotate: crate::round2(object.transform.rotate),
@@ -1312,6 +1510,7 @@ mod tests {
             label_clip_margin: None,
             hash_spacing: None,
             bond_spacing: None,
+            bond_spacing_absolute: None,
             margin_width: None,
             line_styles: crate::BondLineStyles::default(),
             line_weights: crate::BondLineWeights::default(),
@@ -1337,24 +1536,6 @@ mod tests {
             segments.push(usable_end - cursor);
         }
         segments
-    }
-
-    #[test]
-    fn equal_black_segment_gap_intervals_keep_black_segments_equal() {
-        let gaps = equal_black_segment_gap_intervals(10.0, 0.4, 0.6, 1.0, 1.5);
-        assert!(!gaps.is_empty());
-
-        let black_lengths = black_segment_lengths(10.0, 0.4, 0.6, &gaps);
-        assert!(black_lengths.len() >= 2);
-        for length in &black_lengths {
-            approx_eq(*length, 1.0);
-        }
-    }
-
-    #[test]
-    fn equal_black_segment_gap_intervals_return_empty_when_too_short() {
-        let gaps = equal_black_segment_gap_intervals(0.8, 0.0, 0.0, 1.0, 1.5);
-        assert!(gaps.is_empty());
     }
 
     fn assert_gap_intervals(actual: &[(f64, f64)], expected: &[(f64, f64)]) {

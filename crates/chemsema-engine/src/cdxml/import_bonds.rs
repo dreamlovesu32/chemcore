@@ -18,8 +18,9 @@ pub(super) fn normalize_bond(
     let source_order = bond.attr("Order").unwrap_or("");
     let is_aromatic =
         parse_f64(Some(source_order)).is_some_and(|order| (order - 1.5).abs() <= EPSILON);
-    let is_aromatic_dash = is_aromatic && display == "Dash" && display2.is_empty();
-    let is_topology_only_aromatic_dash = is_aromatic_dash
+    let is_topology_only_aromatic_dash = is_aromatic
+        && display == "Dash"
+        && display2.is_empty()
         && [&begin, &end].iter().all(|node_id| {
             nodes.iter().any(|node| {
                 node.id == **node_id
@@ -34,20 +35,10 @@ pub(super) fn normalize_bond(
     let bold_width = parse_f64(bond.attr("BoldWidth")).unwrap_or(defaults.bold_width);
     let hash_spacing = parse_f64(bond.attr("HashSpacing")).unwrap_or(defaults.hash_spacing);
     // ChemDraw gives the absolute spacing field precedence when both encodings
-    // are present. Internally bonds store the equivalent percentage of their
-    // actual endpoint distance so the renderer can keep one spacing model.
+    // are present. Keep it as an independent native value: unlike percentage
+    // spacing, absolute spacing is not subject to the 2.5 * LineWidth floor.
     let bond_spacing_abs = parse_f64(bond.attr("BondSpacingAbs"));
-    let bond_length = nodes
-        .iter()
-        .find(|node| node.id == begin)
-        .zip(nodes.iter().find(|node| node.id == end))
-        .map(|(begin, end)| begin.point().distance(end.point()));
-    let bond_spacing = bond_spacing_abs
-        .zip(bond_length)
-        .filter(|(_, length)| *length > EPSILON)
-        .map(|(spacing, length)| spacing / length * 100.0)
-        .or_else(|| parse_f64(bond.attr("BondSpacing")))
-        .unwrap_or(defaults.bond_spacing);
+    let bond_spacing = parse_f64(bond.attr("BondSpacing")).unwrap_or(defaults.bond_spacing);
     let stereo = match display {
         "WedgeBegin" => Some(BondStereo {
             kind: "solid-wedge".to_string(),
@@ -84,6 +75,23 @@ pub(super) fn normalize_bond(
     } else {
         cdxml_bond_order(bond.attr("Order"))
     };
+    let collapsed_fragment_dash_displays_solid = order == 1
+        && display == "Dash"
+        && [&begin, &end].iter().all(|node_id| {
+            nodes.iter().any(|node| {
+                node.id == **node_id
+                    && node
+                        .meta
+                        .pointer("/import/cdxml/nodeType")
+                        .and_then(Value::as_str)
+                        == Some("Fragment")
+                    && node
+                        .meta
+                        .pointer("/import/cdxml/hasCollapsedFragment")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+            })
+        });
     let mut line_styles = if is_topology_only_aromatic_dash {
         BondLineStyles::default()
     } else {
@@ -128,6 +136,8 @@ pub(super) fn normalize_bond(
         "sourceId": source_id,
         "generatedId": source_id.is_none(),
         "aromatic": is_aromatic,
+        "topologyOnlyAromaticDash": is_topology_only_aromatic_dash,
+        "collapsedFragmentDashDisplaysSolid": collapsed_fragment_dash_displays_solid,
         "bondSpacingAbs": bond_spacing_abs,
     }}});
     if let Some(value) = bond.attr("CrossingBonds") {
@@ -200,6 +210,7 @@ pub(super) fn normalize_bond(
         label_clip_margin: None,
         hash_spacing: Some(hash_spacing),
         bond_spacing: Some(bond_spacing),
+        bond_spacing_absolute: bond_spacing_abs,
         margin_width: None,
         line_styles,
         line_weights,
@@ -322,11 +333,7 @@ pub(super) fn cdxml_apply_line_style_for_double_placement(
 
     *line_styles = BondLineStyles::default();
     *line_weights = BondLineWeights::default();
-    if matches!(display, "Dash" | "Hash") {
-        line_styles.main = crate::BondLinePattern::Dashed;
-    } else if display == "Wavy" {
-        line_styles.main = crate::BondLinePattern::Wavy;
-    }
+    line_styles.main = cdxml_bond_main_line_pattern(order, display);
     if display == "Bold" {
         line_weights.main = crate::BondLineWeight::Bold;
     }
@@ -336,9 +343,7 @@ pub(super) fn cdxml_apply_line_style_for_double_placement(
         crate::DoubleBondPlacement::Right => &mut line_styles.right,
         crate::DoubleBondPlacement::Center => unreachable!(),
     };
-    if matches!(display2, "Dash" | "Hash") {
-        *outer_style = crate::BondLinePattern::Dashed;
-    }
+    *outer_style = cdxml_bond_second_line_pattern(display2);
 
     let outer_weight = match placement {
         crate::DoubleBondPlacement::Left => &mut line_weights.left,
@@ -416,18 +421,31 @@ fn cdxml_bond_absolute_stereo(value: Option<&str>) -> crate::BondAbsoluteStereo 
 
 pub(super) fn cdxml_bond_line_styles(order: u8, display: &str, display2: &str) -> BondLineStyles {
     let mut styles = BondLineStyles::default();
-    if matches!(display, "Dash" | "Hash") {
-        styles.main = crate::BondLinePattern::Dashed;
+    styles.main = cdxml_bond_main_line_pattern(order, display);
+    if styles.main != crate::BondLinePattern::Solid {
         if order >= 2 {
-            styles.left = crate::BondLinePattern::Dashed;
+            styles.left = styles.main;
         }
-    } else if display == "Wavy" {
-        styles.main = crate::BondLinePattern::Wavy;
     }
-    if order >= 2 && matches!(display2, "Dash" | "Hash") {
-        styles.right = crate::BondLinePattern::Dashed;
-    }
+    styles.right = cdxml_bond_second_line_pattern(display2);
     styles
+}
+
+fn cdxml_bond_main_line_pattern(_order: u8, display: &str) -> crate::BondLinePattern {
+    match display {
+        "Dash" => crate::BondLinePattern::Dashed,
+        "Hash" => crate::BondLinePattern::Hash,
+        "Wavy" => crate::BondLinePattern::Wavy,
+        _ => crate::BondLinePattern::Solid,
+    }
+}
+
+fn cdxml_bond_second_line_pattern(display: &str) -> crate::BondLinePattern {
+    match display {
+        "Dash" => crate::BondLinePattern::Dashed,
+        "Hash" => crate::BondLinePattern::Hash,
+        _ => crate::BondLinePattern::Solid,
+    }
 }
 
 pub(super) fn cdxml_bond_line_weights(order: u8, display: &str, display2: &str) -> BondLineWeights {

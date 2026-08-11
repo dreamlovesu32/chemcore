@@ -7,7 +7,9 @@ export class WasmEngine {
     activeArrowEditDegrees(): number;
     annotationDialogJson(annotation: string): string;
     applyArrowEndpointOptionsToSelection(variant: string, head_size: string, curve: string, head_style: string, tail_style: string, no_go: string, bold: boolean): boolean;
+    applyArrowEndpointPatchToSelection(head_style: string, tail_style: string): boolean;
     applyArrowOptionsToSelection(variant: string, head_size: string, head: boolean, tail: boolean, bold: boolean): boolean;
+    applyArrowStylePatchToSelection(patch_json: string): boolean;
     applyBondStyleToSelection(style: string): boolean;
     applyBracketKindToSelection(kind: string): boolean;
     applyBracketLabelText(bracket_id: string, session_json: string): boolean;
@@ -56,6 +58,7 @@ export class WasmEngine {
     contextMenuJson(hit_json: string, has_paste: boolean): string;
     copySelection(): boolean;
     cutSelection(): boolean;
+    deleteLogicalObject(kind: string, id: string): boolean;
     deleteSelectedChemicalProperty(): boolean;
     deleteSelection(): boolean;
     documentCdx(): Uint8Array;
@@ -63,6 +66,7 @@ export class WasmEngine {
     documentColorsJson(): string;
     documentJson(): string;
     documentLayoutDialogJson(): string;
+    documentPatchJson(): string;
     documentSdf(): string;
     documentStylePreset(): string;
     documentSvg(): string;
@@ -80,6 +84,7 @@ export class WasmEngine {
     historyJson(): string;
     hoverArrowAction(x: number, y: number): string;
     hoverShapeAction(x: number, y: number): string;
+    hydrateDocumentJson(json: string): number;
     insertDocumentTemplateJsonAt(template_id: string, json: string, x: number, y: number): boolean;
     interactionRenderListJson(): string;
     joinSelection(): boolean;
@@ -89,6 +94,8 @@ export class WasmEngine {
     loadDocumentCdxml(cdxml: string): void;
     loadDocumentJson(json: string): void;
     loadDocumentSdf(sdf: string): void;
+    logicalObjectsDialogJson(): string;
+    logicalObjectsJson(): string;
     constructor();
     nmrPredictionRequestJson(nucleus: string): string;
     nmrResultDocumentJson(response_json: string): string;
@@ -112,6 +119,7 @@ export class WasmEngine {
     renderBoundsJson(scope: string): string;
     renderListJson(): string;
     renderTargetsJson(request_json: string): string;
+    reorderLogicalObject(kind: string, id: string, index: number): boolean;
     replaceHoveredEndpointLabel(label: string): boolean;
     revision(): bigint;
     rotateSelectionDegrees(degrees: number): boolean;
@@ -137,12 +145,14 @@ export class WasmEngine {
     setDocumentStylePreset(preset: string): void;
     setElementOptions(symbol: string, atomic_number: number): void;
     setLinkPolicyForSelection(policy: string): boolean;
+    setLogicalObjectJson(kind: string, value_json: string): boolean;
     setOrbitalOptions(template: string, style: string, phase: string, color: string): void;
     setShapeOptions(kind: string, style: string, color: string): void;
     setSymbolOptions(kind: string): void;
     setTemplate(template: string): void;
     setTool(active_tool: string, bond_variant: string): void;
     shapeToolIconSvg(kind: string, style: string): string;
+    spatialQueryJson(min_x: number, min_y: number, max_x: number, max_y: number): string;
     stateJson(): string;
     symbolToolIconSvg(kind: string): string;
     takePendingDialogJson(): string;
@@ -174,7 +184,9 @@ export interface InitOutput {
     readonly wasmengine_activeArrowEditDegrees: (a: number) => number;
     readonly wasmengine_annotationDialogJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_applyArrowEndpointOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number, n: number) => number;
+    readonly wasmengine_applyArrowEndpointPatchToSelection: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly wasmengine_applyArrowOptionsToSelection: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
+    readonly wasmengine_applyArrowStylePatchToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBondStyleToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBracketKindToSelection: (a: number, b: number, c: number) => number;
     readonly wasmengine_applyBracketLabelText: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
@@ -223,6 +235,7 @@ export interface InitOutput {
     readonly wasmengine_contextMenuJson: (a: number, b: number, c: number, d: number) => [number, number];
     readonly wasmengine_copySelection: (a: number) => number;
     readonly wasmengine_cutSelection: (a: number) => number;
+    readonly wasmengine_deleteLogicalObject: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_deleteSelectedChemicalProperty: (a: number) => number;
     readonly wasmengine_deleteSelection: (a: number) => number;
     readonly wasmengine_documentCdx: (a: number) => [number, number, number, number];
@@ -230,6 +243,7 @@ export interface InitOutput {
     readonly wasmengine_documentColorsJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentLayoutDialogJson: (a: number) => [number, number];
+    readonly wasmengine_documentPatchJson: (a: number) => [number, number, number, number];
     readonly wasmengine_documentSdf: (a: number) => [number, number, number, number];
     readonly wasmengine_documentStylePreset: (a: number) => [number, number];
     readonly wasmengine_documentSvg: (a: number) => [number, number];
@@ -247,6 +261,7 @@ export interface InitOutput {
     readonly wasmengine_historyJson: (a: number) => [number, number, number, number];
     readonly wasmengine_hoverArrowAction: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_hoverShapeAction: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_hydrateDocumentJson: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmengine_insertDocumentTemplateJsonAt: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number];
     readonly wasmengine_interactionRenderListJson: (a: number) => [number, number, number, number];
     readonly wasmengine_joinSelection: (a: number) => number;
@@ -256,6 +271,8 @@ export interface InitOutput {
     readonly wasmengine_loadDocumentCdxml: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_loadDocumentJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_loadDocumentSdf: (a: number, b: number, c: number) => [number, number];
+    readonly wasmengine_logicalObjectsDialogJson: (a: number) => [number, number, number, number];
+    readonly wasmengine_logicalObjectsJson: (a: number) => [number, number, number, number];
     readonly wasmengine_new: () => number;
     readonly wasmengine_nmrPredictionRequestJson: (a: number, b: number, c: number) => [number, number, number, number];
     readonly wasmengine_nmrResultDocumentJson: (a: number, b: number, c: number) => [number, number, number, number];
@@ -279,6 +296,7 @@ export interface InitOutput {
     readonly wasmengine_renderBoundsJson: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_renderListJson: (a: number) => [number, number, number, number];
     readonly wasmengine_renderTargetsJson: (a: number, b: number, c: number) => [number, number, number, number];
+    readonly wasmengine_reorderLogicalObject: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
     readonly wasmengine_replaceHoveredEndpointLabel: (a: number, b: number, c: number) => number;
     readonly wasmengine_revision: (a: number) => bigint;
     readonly wasmengine_rotateSelectionDegrees: (a: number, b: number) => number;
@@ -304,12 +322,14 @@ export interface InitOutput {
     readonly wasmengine_setDocumentStylePreset: (a: number, b: number, c: number) => void;
     readonly wasmengine_setElementOptions: (a: number, b: number, c: number, d: number) => void;
     readonly wasmengine_setLinkPolicyForSelection: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmengine_setLogicalObjectJson: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly wasmengine_setOrbitalOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly wasmengine_setShapeOptions: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly wasmengine_setSymbolOptions: (a: number, b: number, c: number) => void;
     readonly wasmengine_setTemplate: (a: number, b: number, c: number) => void;
     readonly wasmengine_setTool: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly wasmengine_shapeToolIconSvg: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly wasmengine_spatialQueryJson: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly wasmengine_stateJson: (a: number) => [number, number, number, number];
     readonly wasmengine_symbolToolIconSvg: (a: number, b: number, c: number) => [number, number];
     readonly wasmengine_takePendingDialogJson: (a: number) => [number, number];

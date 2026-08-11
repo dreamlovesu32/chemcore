@@ -157,6 +157,7 @@ Windows x64 安装包已经放在 [chemsema-v1.0.0-beta.1 release](https://githu
 
 - **CDXML/CDX 导入导出**：Rust engine 内置 CDXML/CDX 解析与写出路径，可把 ChemDraw 文件转换为 ChemSema 文档模型，并保留足够的源文件绘图信息用于重渲染和回写。
 - **统一文档与渲染模型**：文档模型、运行时 scene、命中测试、选择状态和 render primitive 都在内核中定义；前端主要负责事件采集和显示，不重新发明化学规则。
+- **可扩展原生文档**：CCJS 0.2 使用平铺实体与显式 hierarchy/relations；CCJZ 提供带哈希分块、可见区加载、未变 entry/附件复用、浏览器 Zip64，以及结构化化学/往返校验。
 - **复杂键绘制几何**：已实现普通键、双键、三键、实/虚楔形键、虚线键、哈希键、label clipping、键键接触、交叉白边和 ChemDraw 风格模板参数等规则。
 - **箭头与图形对象**：支持反应箭头、平衡箭头、空心箭头、弯箭头、括号、线条、图形和符号对象，并持续对齐 ChemDraw 的交互和渲染细节。
 - **选择、拖拽、旋转与排列**：支持对象级和分子局部选择，支持多选拖拽预览、旋转、翻转、对齐、分布、颜色应用和可撤销命令历史。
@@ -239,7 +240,8 @@ chemsema/
 - Rust stable，Windows 桌面路径需要 MSVC toolchain
 - Node.js 和 npm
 - Python 3，用于本地静态服务和部分可选分析脚本
-- `npm run build:engine-wasm` 会在需要时安装 `wasm-pack`
+- 使用 `tools/wasm-pack.json` 声明的精确 `wasm-pack` 版本；缺失或版本不同
+  时构建会失败关闭，CI 使用前还会校验锁定的 Windows 压缩包 SHA-256
 - 桌面 shell 与 Office/OLE 集成需要 Windows
 
 ## 快速开始
@@ -358,7 +360,11 @@ ORCID 见 [CITING.md](./CITING.md)。GitHub 也会读取 [CITATION.cff](./CITATI
 - CLI protocol contract：[docs/protocol](./docs/protocol/README.md)
 - Document Commit 合同：[English](./docs/document-commit-contract.md) / [中文](./docs/document-commit-contract.zh-CN.md)
 - 编辑器命令历史：[English](./docs/editor-command-history.md) / [中文](./docs/editor-command-history.zh-CN.md)
-- 格式 v0.1：[English](./docs/format-v0.1.md) / [中文](./docs/format-v0.1.zh-CN.md)
+- 当前 CCJS 格式 v0.2：[English](./docs/format-v0.2.md) / [中文](./docs/format-v0.2.zh-CN.md)
+- CCJS 架构、格式比较与必要性：[中文](./docs/ccjs-architecture-and-format-rationale.zh-CN.md)
+- CCJS v0.2 当前实现状态与 stable 发布门禁：[中文](./docs/ccjs-v0.2-stability-architecture.zh-CN.md)
+- CCJZ 容器、Document Patch 与 Recovery Journal 合同：[docs/protocol](./docs/protocol/README.md)
+- 旧版格式 v0.1：[English](./docs/format-v0.1.md) / [中文](./docs/format-v0.1.zh-CN.md)
 - Glyph 裁剪规则：[English](./docs/glyph-clip-polygons.md) / [中文](./docs/glyph-clip-polygons.zh-CN.md)
 - Glyph kernel：[English](./docs/glyph-kernel.md) / [中文](./docs/glyph-kernel.zh-CN.md)
 - 隐式氢规则：[English](./docs/implicit-hydrogen-rules.md) / [中文](./docs/implicit-hydrogen-rules.zh-CN.md)
@@ -368,6 +374,7 @@ ORCID 见 [CITING.md](./CITING.md)。GitHub 也会读取 [CITATION.cff](./CITATI
 - 文本符号与 glyph profile：[English](./docs/text-symbol-glyph-profile-rules.md) / [中文](./docs/text-symbol-glyph-profile-rules.zh-CN.md)
 - 价键驱动标签识别：[English](./docs/valence-label-recognition-rules.md) / [中文](./docs/valence-label-recognition-rules.zh-CN.md)
 - Windows 桌面端与 Office 架构：[English](./docs/windows-desktop-office-architecture.md) / [中文](./docs/windows-desktop-office-architecture.zh-CN.md)
+- GUI 测试平台与展示可靠性架构：[English](./docs/gui-test-platform-and-demo-reliability.md) / [中文](./docs/gui-test-platform-and-demo-reliability.zh-CN.md)
 - 发布质量矩阵：[English](./docs/release-quality.md) / [中文](./docs/release-quality.zh-CN.md)
 - Release notes：[English](./CHANGELOG.md) / [中文](./CHANGELOG.zh-CN.md)
 - Roadmap：[English](./ROADMAP.md) / [中文](./ROADMAP.zh-CN.md)

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -30,6 +31,38 @@ pub enum BioDrawKind {
 impl Default for BioDrawKind {
     fn default() -> Self {
         Self::PlasmidMap
+    }
+}
+
+impl FromStr for BioDrawKind {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "one-substrate-enzyme" | "1-substrate-enzyme" => Ok(Self::OneSubstrateEnzyme),
+            "two-substrate-enzyme" | "2-substrate-enzyme" => Ok(Self::TwoSubstrateEnzyme),
+            "receptor" => Ok(Self::Receptor),
+            "g-protein-alpha" | "gprotein-alpha" => Ok(Self::GProteinAlpha),
+            "g-protein-beta" | "gprotein-beta" => Ok(Self::GProteinBeta),
+            "g-protein-gamma" | "gprotein-gamma" => Ok(Self::GProteinGamma),
+            "immunoglobulin" | "immunoglobin" => Ok(Self::Immunoglobulin),
+            "ion-channel" => Ok(Self::IonChannel),
+            "endoplasmic-reticulum" => Ok(Self::EndoplasmicReticulum),
+            "golgi" => Ok(Self::Golgi),
+            "membrane-line" => Ok(Self::MembraneLine),
+            "membrane-arc" => Ok(Self::MembraneArc),
+            "membrane-ellipse" => Ok(Self::MembraneEllipse),
+            "membrane-micelle" => Ok(Self::MembraneMicelle),
+            "dna" => Ok(Self::Dna),
+            "helix-protein" => Ok(Self::HelixProtein),
+            "mitochondrion" => Ok(Self::Mitochondrion),
+            "cloud" => Ok(Self::Cloud),
+            "trna" | "t-rna" => Ok(Self::TRna),
+            "ribosome-a" => Ok(Self::RibosomeA),
+            "ribosome-b" => Ok(Self::RibosomeB),
+            "plasmid-map" | "plasmidMap" => Ok(Self::PlasmidMap),
+            _ => Err(format!("Unsupported BioDraw kind '{value}'")),
+        }
     }
 }
 

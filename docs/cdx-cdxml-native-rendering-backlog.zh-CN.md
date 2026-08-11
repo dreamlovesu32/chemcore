@@ -44,11 +44,11 @@
 | 11 | `NR-011` | StoichiometryGrid | 完成 | 完成 | 完成 | 完成 | [x] |
 | 12 | `NR-012` | 凝胶电泳对象 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 13 | `NR-013` | 质粒图对象 | 完成 | 完成 | 完成 | 完成 | [x] |
-| 14 | `NR-014` | BioShape/BioDraw 对象 | 完成 | 完成 | 校准中 | 完成 | [ ] |
+| 14 | `NR-014` | BioShape/BioDraw 对象 | 完成 | 完成 | 完成 | 完成 | [x] |
 | 15 | `NR-015` | TemplateGrid | 完成 | 完成 | 完成 | 完成 | [x] |
-| 16 | `NR-016` | 文档页眉、页脚和分页布局 | 完成 | 部分 | 未做 | 部分 | [ ] |
-| 17 | `NR-017` | 逻辑对象的原生语义编辑 | 完成 | 部分 | 不适用/部分 | 部分 | [ ] |
-| 18 | `NR-018` | 旧式复合载荷预览与图片裁剪 | 完成 | 部分 | 部分 | 完成 | [ ] |
+| 16 | `NR-016` | 文档页眉、页脚和分页布局 | 完成 | 完成 | 完成 | 完成 | [x] |
+| 17 | `NR-017` | 逻辑对象的原生语义编辑 | 完成 | 完成 | 不适用 | 完成 | [x] |
+| 18 | `NR-018` | 旧式复合载荷预览与图片裁剪 | 完成 | 完成 | 完成 | 完成 | [x] |
 
 ## 逐项范围与验收
 
@@ -287,13 +287,13 @@
 - marker 标签、region 两端和中段控制点分别修改标签几何、碱基位置和径向偏移；多圈由 region offset 统一表达，跨零点外部数据按顺时针 sweep 保留。
 - 规则和门禁见 [质粒图对象规则](plasmid-map-rules.zh-CN.md)。
 
-### [ ] NR-014 BioShape/BioDraw 对象
+### [x] NR-014 BioShape/BioDraw 对象
 
 **范围**：DNA、RNA、蛋白、膜、酶、Golgi、抗体及其他 `bioshape` 枚举。
 
-**2026-07-27 完成状态**：
+**2026-07-28 完成状态**：
 
-- 已用静默 ChemDraw 探针复核 21 个官方 `BioShapeType`、默认轴几何和类型专属参数；探针入口为 `npm run probe:chemdraw-bioshapes`。当前继续用 136 组轴长、旋转与参数响应样本校准轮廓和重复单元规则；在绝对视觉门禁通过前，本项不得关闭。
+- 已用静默 ChemDraw 探针复核 21 个官方 `BioShapeType`、默认轴几何和类型专属参数；探针入口为 `npm run probe:chemdraw-bioshapes`。136 组轴长、旋转与参数响应样本均已进入规则校准和回归门禁。
 - CCJS 新增来源无关的 `payload.bioShape`，显式保存类型、三轴点、填充、线型、颜色、线宽、渐隐和全部类型参数；未知枚举明确报错，不猜成其他类型。
 - 21 类 BioShape 已进入共享 Rust render primitive，GUI、SVG、PNG、EMF、Office 与内核工具图标复用同一语义；质粒图继续使用独立的 `PlasmidMapData`。
 - CDXML 与 CDX 已覆盖导入、导出和二次解析；全类型 CDXML 往返、代表性 CDX 往返及非默认填充/线型均有回归。
@@ -301,7 +301,7 @@
 - 右键 `BioShape Properties...` 由内核按对象类型下发可编辑字段；修改走类型化 `set-bio-shape` 命令并进入撤销历史，不适用字段不会出现在对话框。
 - 按 ChemDraw 手册边界实现专属控制柄：Receptor 宽度、GProteinGamma 轮廓、DNA 四参数、HelixProtein 四参数，以及膜单元尺寸/弧线端点；手册未定义专属控制柄的类型只使用统一选择框缩放和旋转。
 - 21 类工具图标全部由同一 Rust BioShape 渲染器生成，并按实际图元边界做正方形自适应取景；Web、桌面和 Harmony 不维护另一套图标几何。
-- 已建立 21 类 ChemDraw SVG 逐类绝对视觉门禁：双方使用同一文档单位比例，只允许整体平移，不再按内容边界独立缩放；同时检查双向前景距离分位，局部差异不会被对象或画布尺寸稀释。单底物酶、DNA、螺旋蛋白与胶束另有参数化路径拓扑/坐标门禁；当前基线只用于阻止已审查结果回退，不等同于宣称与 ChemDraw 像素完全一致。
+- 已建立 21 类 ChemDraw SVG 逐类绝对视觉门禁：双方使用同一文档单位比例，只允许整体平移，不再按内容边界独立缩放；同时检查尺寸比、IoU、总差异和双向前景距离的固定上限，局部差异不会被对象或画布尺寸稀释。单底物酶、DNA、螺旋蛋白与胶束另有参数化路径拓扑/坐标门禁；21 类绝对门禁与 4 类参数化几何门禁全部通过，版本库基线只额外负责阻止已审查结果回退。
 
 **目标**：先复核所有枚举及参数，再按共享几何基元实现，不为单个图标存硬编码样例坐标。
 
@@ -337,9 +337,9 @@
 
 **验收**：多页、重叠、裁切标记、页眉页脚、缩放和嵌入范围均有规则；普通单页导出不受无关字段污染。
 
-**完成说明**：规则、字段作用域、页面锚点、四向补页、纸张视图、完整参数对话框、CDX/CDXML/CCJS 往返和多页 PDF 门禁见 [`document-layout-rules.zh-CN.md`](document-layout-rules.zh-CN.md)。SVG、EMF 和 Office 预览保持明确的单画布/单对象语义，不用分页 PDF 行为隐式替代。
+**完成说明**：规则、字段作用域、页面锚点、四向补页、纸张视图、完整参数对话框、CDX/CDXML/CCJS 往返和多页 PDF 门禁见 [`document-layout-rules.zh-CN.md`](document-layout-rules.zh-CN.md)。纸张视图与多页 PDF 共用同一页眉页脚令牌解释和页内裁切标记坐标；真实 GUI 门禁覆盖两页页码、页眉、页脚和每页 8 个裁切标记。SVG、EMF 和 Office 预览保持明确的单画布/单对象语义，不用分页 PDF 行为隐式替代。
 
-### [ ] NR-017 逻辑对象的原生语义编辑
+### [x] NR-017 逻辑对象的原生语义编辑
 
 **范围**：`scheme/step`、`altgroup`、`bracketattachment/crossingbond/represent`、`sequence/crossreference`、`objecttag/annotation`、`regnum`、`splitter`。
 
@@ -349,7 +349,15 @@
 
 **验收**：创建、修改、删除和重排时引用保持一致；CDX/CDXML 往返稳定；需要影响布局或显示的字段有对应回归测试。
 
-### [ ] NR-018 旧式复合载荷预览与图片裁剪
+**2026-07-28 进展**：
+
+- 已建立来源无关的 `reactionSchemes` 与 `logicalObjects` 原生模型，覆盖 Scheme/Step、Alternative Group、Bracketed Group/Attachment/Crossing Bond、Sequence/Cross Reference、ObjectTag、Annotation、Registry Number 和 Representation；Splitter 归入文档布局模型。
+- 已增加统一 set/delete/reorder 命令、引用校验、undo/redo、删除清理、完整选择复制粘贴和跨标签 id 重映射。
+- Reaction 已接入 Link Auto：普通反应箭头按局部轴生成 typed inferred Step；机制曲箭和无箭头端点的线明确排除；显式 Link/Unlink 覆盖 Auto。
+- CDXML/CDX 导入导出由原生模型重建，标准 source id 稳定复用；字段总账已把对应对象和字段提升为 `native-semantic`。
+- 浏览器和桌面右键 `Logical Objects...` 提供内核驱动的完整属性管理器。实现与门禁规则见 [`logical-object-native-model.zh-CN.md`](logical-object-native-model.zh-CN.md)。
+
+### [x] NR-018 旧式复合载荷预览与图片裁剪
 
 **范围**：EMF/WMF/OLE/TIFF/PDF/PICT 内容级预览提取，以及来源无关的图片裁剪矩形。
 
@@ -358,6 +366,8 @@
 **目标**：为每种容器建立有签名校验和尺寸上限的明确解码分支；图片裁剪保存为资源坐标中的显式矩形，并由 GUI、SVG、PNG 与 EMF 共用。
 
 **验收**：每种受支持容器至少一个可提交夹具；损坏载荷、超限载荷和无预览载荷均有确定错误/占位规则；裁剪在旋转、缩放、复制粘贴和 CDX/CDXML 往返后不漂移。
+
+**完成说明**：复合载荷使用 `chemsema.resource.embedded-object.v1` 同时保存权威原字节、明确预览状态和可选位图预览。TIFF、EMF、WMF、OLE、PDF、PICT 及三种 zlib 压缩载荷分别经过签名、声明解压大小、64 MiB、32768 单边和一亿像素上限校验；九个提交夹具和损坏/无预览/解压长度错误测试关闭失败边界。图片裁剪保存为整数资源像素 `payload.imageCrop`，右键对话框、DOM/SVG/PNG、EMF/Office 共用 `RenderPrimitive::Image.sourceCrop`。CDX/CDXML 因无标准裁剪字段而明确烘焙 PNG：普通位图转换为裁剪 PNG，复合载荷保留原始属性并附带裁剪 preview；可见结果、边界框和旋转稳定往返。规则见 [旧式复合载荷预览与图片裁剪规则](embedded-preview-image-crop-rules.zh-CN.md)。
 
 ## 已有的部分实现
 

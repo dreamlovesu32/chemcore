@@ -148,6 +148,14 @@ Additional rules:
 - They differ only by width parameters.
 - In contact, both are main-bond contact objects.
 
+## Dative Bonds
+
+- CDX/CDXML `Order="dative"` uses an ordinary-width shaft and a solid concave-tail arrowhead; it does not use wedge-bond geometry.
+- For clipped bond length `L` and ordinary line width `LW`, the head length is exactly `min(10 * LW, 2L / 3)`.
+- The head base half-width is one quarter of the head length. The concave notch is seven eighths of the head length behind the tip.
+- The shaft must end at the notch. It must not continue to the tip or enter ordinary bond contact at the acceptor end; the donor end still follows ordinary main-bond contact rules.
+- This geometry depends only on `LineWidth` and visible bond length, not on `BoldWidth`, font settings, or nominal `BondLength`. It comes from silent ChemDraw SVG measurements across directions, `5–100pt` bond lengths, and four `LineWidth/BoldWidth` combinations.
+
 ## Ordinary Dashed Bonds
 
 - The body of an ordinary dashed bond is still a standard rectangular main bond.
@@ -159,16 +167,53 @@ Additional rules:
   first and last black stripes absorb the contact miter; interior black and
   white intervals remain equal. Do not compute the dash rhythm on the original
   centerline and then paste a disconnected endpoint cap over it.
+- `Display="Dash"` remains the losslessly preserved and exported source style.
+  However, when and only when both endpoints of a single bond are
+  `NodeType="Fragment"` nodes with a direct child `<fragment>`, ChemDraw draws
+  the visible main line as solid. If either endpoint lacks that structure, the
+  bond remains an ordinary dashed bond. `BS="N"` is the determined-symmetric
+  CIP stereochemistry field, while `BeginAttach` and `EndAttach` are styled-text
+  character attachment indices; none participates in this display exception.
+  Silent ChemDraw A/B probes kept the solid result when changing the outer
+  `Display`, internal connection style, attachment index, and completed
+  connection mapping. Removing the direct child fragment from either endpoint
+  consistently restored the same outer bond as 15 dashed segments.
 
 ## Hash Bonds
 
 Hash bonds are a separate model: a bold solid body plus white cut segments.
 
-- The body is always a bold solid rectangle.
-- Black segment lengths must be equal.
-- White segment lengths may vary within a range.
-- The number of white segments changes only when the total length exceeds the range allowed by the current segment count.
-- Black segment length has higher priority than equal spacing of white segments.
+- `Hash` is an explicit authored line pattern in CCJS. It must not be encoded
+  as the otherwise ambiguous combination `dashed + bold`.
+- For a final visible axis length `L`, effective `LineWidth` `w`, effective
+  `BoldWidth` `b`, and effective `HashSpacing` `h`, ChemDraw uses:
+
+  ```text
+  no stripe                                      when L < w
+  count = max(1, 1 + floor((L - w) / h))         when L >= w
+  pitch = (L - w) / (count - 1)                  when count > 1
+  ```
+
+- Every black stripe is a rectangle of axial length `w` and transverse width
+  `b`. With two or more stripes, the first and last stripes touch the final
+  visible endpoints and the stripe starts/centers are equally spaced. With one
+  stripe, it touches the authored begin endpoint and leaves the remaining
+  length blank at the end.
+- The rule is rotation invariant. Per-bond `LineWidth`, `BoldWidth`, and
+  `HashSpacing` override document defaults independently.
+- ChemDraw activates `Display="Hash"` for an order-1 bond, and for an
+  `Order="1.5"` bond only while `Display2` is absent (the visible result is one
+  hash lane). `Display2="Hash"` is retained as an authored field but does not
+  activate a hash lane. On order-2/order-3 bonds, authored Hash values are also
+  retained for round trip while the effective rendered lanes are solid. CCJS
+  therefore separates authored line patterns from effective render patterns.
+- The rule is verified by 53 silent ChemDraw SVG probes spanning directions,
+  threshold lengths, Default/ACS widths, spacing overrides, bond-local
+  overrides, orders, and double-bond placements:
+
+  ```bash
+  npm run probe:chemdraw-hash-bonds -- tmp/chemdraw-hash-bond-probe
+  ```
 
 ### Hash Bonds And Ordinary Main Bonds
 
@@ -286,21 +331,31 @@ max(actual bond length * bondSpacing / 100, 2.5 * lineWidth)
 
 This is not a style-template branch: ACS, default, and custom CDXML documents use the same rule with their source `LineWidth`, `BondLength`, and `BondSpacing` values.
 
+`bondSpacingAbsolute` / CDXML `BondSpacingAbs` is different: it is the exact
+center-to-center distance in points, takes precedence over the percentage, and
+does not receive the line-width floor. This remains true even when the authored
+absolute distance is smaller than the line width.
+
 ### Automatic Side Selection
 
 When CDXML or an editing operation gives only `Order="2"` and no explicit `DoublePosition`, the engine should decide automatically using ChemDraw-compatible rules:
 
-1. If either end of the bond directly connects to another double bond, use centered double.
-2. If neither end has other connected bonds, use centered double.
-3. If one terminal end has substituent bonds on both left and right sides while the other end has no substituent bond, use centered double.
-4. If the bond belongs to a ring, first choose the reference ring using ring-selection rules, then place the secondary line inside that reference ring:
+1. If the bond belongs to a ring, first choose the reference ring using ring-selection rules, then place the secondary line inside that reference ring:
    - a fully alternating six-membered ring has priority over shorter fused small rings
    - then compare complete alternation, alternation match count, closeness to six-membered rings, and path length in order
-5. For non-ring structures, compute the signed projection sum of all connected substituent bonds along the left normal of the begin-to-end axis:
-   - positive sum: place on the left side
-   - negative sum: place on the right side
-   - exact tie while adding a substituent: use the side of the newly added bond
-   - exact tie without editing context: default to the right side
+2. Normalize every attachment direction and compute its signed component `s` along the left normal of the begin-to-end axis. ChemDraw treats `|s| < 0.2146` as effectively collinear and does not let that attachment support either side. The measured transition lies between 12.3899 degrees (excluded) and 12.3950 degrees (included), independent of actual bond length, `BondSpacing`, `BondSpacingAbs`, line width, and whole-structure rotation.
+3. An adjacent double or aromatic bond has one narrower cumulene branch before ordinary attachment coverage:
+   - if its normalized normal component is below `0.173691` (the midpoint of the measured transition interval), center the target double even when another angled single bond is also attached
+   - the measured transition lies between 10.002 degrees (centered) and 10.003 degrees (side-positioned), invariant under rotation and adjacent-double lengths from 15 to 60 pt
+   - a bent conjugated chain above that threshold resumes the same endpoint-coverage rule as every other attachment
+4. For each side, count how many double-bond endpoints have at least one effective attachment. The only possible coverage values are 0, 1, and 2:
+   - this is endpoint coverage, not attachment count, bond length, a projection-length sum, or element/CIP priority
+   - `BS=E/Z` and `BondCircularOrdering` preserve stereochemical meaning but do not choose the rendered side; the official format definition also calls `BondCircularOrdering` redundant when node positions are complete
+5. If neither side has an effective attachment, use centered double.
+6. If one terminal endpoint has effective attachments on both sides and the other endpoint has none, use centered double.
+7. Otherwise choose the side with greater endpoint coverage. On an exact coverage tie during attachment editing, use the side of the newly added effective bond. Without editing context, or when the new bond is still effectively collinear, default to `Right`.
+
+`scripts/chemdraw-double-bond-side-probe.mjs` verifies the general matrix. `scripts/chemdraw-aromatic-chain-side-probe.mjs` independently verifies the 10.002/10.003-degree cumulene transition with an extra terminal single bond, bent conjugated chains, aromatic `Order="1.5"`, display styles, rotations, bond lengths, mirrored geometry, reversed endpoints, and the non-effect of `BondCircularOrdering`. Both probes silently open the inputs in ChemDraw and classify the actual main/secondary line positions in exported SVG. An explicit `DoublePosition` always takes precedence and freezes automatic side selection.
 
 ### Main Bond
 
@@ -315,15 +370,57 @@ When CDXML or an editing operation gives only `Order="2"` and no explicit `Doubl
   their own actual parallel axes with their own half-widths, then share the
   larger retreat. Do not derive both from an unshifted center axis.
 - At terminal ends, it is the same length as the main bond.
-- At non-terminal ends, it is shortened by "main-bond spacing * `sqrt(3) / 3`".
-- When the angle between the main bond and the connected main bond is less than `90°`, the secondary line may retreat; however, if the other bond has a same-side secondary line, same-side secondary-line intersection still has priority.
+- At a non-terminal endpoint occupied on the secondary-line side, let `d` be
+  the main/secondary center distance and let `alpha` be the included angle
+  between the double-bond ray and the adjacent bond ray. ChemDraw places the
+  secondary endpoint on the angular-bisector boundary, so its axial inset is
+  the same for solid and segmented secondary lines:
 
-### Acute-Angle Retreat
+  ```text
+  inset = d / tan(alpha / 2)
+  ```
 
-- If the main bond connects to a main bond and that side's angle is less than `90°`, the secondary line may retreat.
-- If the other bond also has a same-side secondary line, same-side secondary lines still intersect directly.
-- If the other secondary line is not on the same side, use retreat.
-- If it meets a centered double bond, use the centered double's center line as the retreat reference.
+  Equivalently, if `theta = 180 degrees - alpha` is the adjacent bond's
+  deflection from a straight continuation, `inset = d * tan(theta / 2)`.
+  When several same-side bonds are present, use the greatest required inset.
+  An opposite-side attachment does not shorten the secondary line. A
+  same-side secondary-line intersection still has priority over this retreat.
+  The familiar `d * sqrt(3) / 3` value is only the `theta = 60 degrees`
+  regular-ring case; it is not a universal fallback. Silent ChemDraw SVG
+  probes cover `theta = 15..120 degrees`, one or both endpoints, solid and
+  segmented lanes, three bond lengths, three percentage spacings, four line
+  widths, and absolute-spacing inputs.
+
+## Triple Bonds
+
+The center line lies on the bond axis. Each outer line is offset by the same
+center-to-center distance used for two normal-weight multiple-bond lines:
+
+```text
+max(actual bond length * bondSpacing / 100, 2.5 * lineWidth)
+```
+
+The rule uses the bond's actual endpoint distance, not the document's nominal
+`BondLength`, and is invariant under bond direction.
+`bondSpacingAbsolute` / CDXML `BondSpacingAbs` does not use the one-sided
+double-bond rule for a triple bond. ChemDraw 22.2 preserves the field, but its
+presence suppresses both that value and the authored document `BondSpacing`
+for triple-bond rendering. The outer-line distance is instead
+`max(actual bond length * 15 / 100, 2.5 * lineWidth)`. The reproducible
+ChemDraw SVG probe covers three lengths, three percentage spacings, three line
+widths, horizontal/diagonal/vertical directions, a 3-by-7 matrix of absolute
+values, and absolute-field cases across three lengths and three authored
+percentages:
+
+```bash
+node scripts/chemdraw-triple-bond-spacing-probe.mjs
+```
+- An ordinary adjacent single bond never applies the one-sided-double angular
+  inset to a triple outer line. Both outer lines keep their authored full axial
+  span at every measured attachment angle from `30°` through `330°`; the main
+  line may independently extend into the node contact.
+- Explicit outer-line-to-outer-line contact profiles remain authoritative when
+  the adjacent multiple bond actually supplies a matching contour.
 
 ## Centered Double Bonds
 
@@ -351,7 +448,8 @@ Rules:
 
 - The triple-bond main line is a main-bond contact object.
 - The two outer lines independently evaluate their endpoint profiles.
-- At terminal ends, outer lines remain full length.
+- At terminal ends and ordinary single-bond junctions, outer lines remain full
+  length.
 - Similar to one-sided double-bond secondary lines, outer-line contact is determined by each line's own contour.
 
 ## Hash-Family Priority In Multi-Bond Nodes
@@ -393,6 +491,11 @@ Later rules must not overturn geometry topology already determined by earlier ru
 - For a terminal label on a side double bond, the default attachment glyph is
   laid out on that structural-node/main-bond axis. The parallel secondary-line
   spacing must never shift the label by half the double-bond separation.
+- An explicit fixed `LabelDisplay="Left"` or `"Right"` anchors the authored
+  edge, not the nearest ordinary-baseline glyph. A leading/trailing subscript
+  participates in that edge anchor. A superscript does not: search inward to
+  the first/last non-superscript glyph. Automatic chemical layouts continue to
+  exclude both generated subscripts and superscripts from attachment anchors.
 - Export must write preserved endpoint attachments back to CDX/CDXML so an
   open-save-open cycle stabilizes. Applying an internal attachment must not
   move the opposite atom merely to make the bond axis look aligned.
@@ -414,10 +517,57 @@ Later rules must not overturn geometry topology already determined by earlier ru
   descender must not pull another glyph's clipping rectangle downward.
 - Subscript and superscript glyphs do not join this same-row rectangular
   interior model.
+- ChemDraw's narrow axial-contact sectors follow the writing axes. Bond rays
+  within `10°` of the vertical axis use glyph-column ownership. Rays within
+  `10°` of the horizontal axis use one shared left/right run envelope and that
+  envelope replaces the general natural/feature outline kernel inside the
+  sector. Diagonal contacts use the complete label outline.
+  Horizontal glyph origins include the selected face's real kerning before
+  the run envelope is built; `BeginAttach`/`EndAttach` choose the authored
+  character used as the ray origin but do not change the envelope boundary.
+  Top/bottom ownership is selected from the raw glyph intervals intersected by
+  the bond center and body-edge rays; `MarginWidth` expands the selected
+  glyph's clip geometry, but must not make a neighboring glyph steal the
+  column. On the cap-facing side, the selected glyph's own top extent is
+  authoritative. On the baseline-facing side, use the descent envelope of the
+  complete run that shares the selected glyph's exact layout baseline. Shifted
+  subscript and superscript runs remain separate. If a vertical ray lies in an
+  internal kerning gap, assign the gap to the nearest glyph in the ray
+  direction. The public
+  `3060_iso_butane.cdxml` sample demonstrates the vertical branch: the bond
+  under `CH3` stops at the `C` column (`y = 191.09pt` in ChemDraw), not at the
+  lower edge of the remote subscript `3`. Public case `0137` demonstrates the
+  horizontal branch repeatedly: fixed-display labels such as `(CH2CHO)m`
+  continue to mask the bond through the complete run's X envelope. The
+  same-baseline `T`/`Tyr` probe demonstrates the asymmetric vertical rule:
+  their cap-facing endpoints coincide, while the baseline-facing endpoint of
+  `Tyr` includes the `y` descender.
 - For rendered bonds with thickness, the whole bond body must be clipped out of
   the glyph clip polygon. Ordinary, dashed, bold, and multi-line bonds should
   evaluate the center line plus both body boundary lines for the current visual
   half-width and use the largest retreat required by those glyph intersections.
+- Parallel sub-lines of a double or triple bond share the retreat required by
+  the complete label outline. The single-line vertical glyph-column branch
+  must not be applied independently to those sub-lines; a shifted formula
+  script can therefore determine their common endpoint. For triple bonds,
+  the shared cut plane is the farthest intersection of the three lane
+  centerline rays with that outline; it does not expand with `LineWidth`.
+  ChemDraw probes from `0.2` through `4 pt` keep the same axial endpoint even
+  when the lane spacing itself reaches the line-width floor.
+- Label retreat is an unbounded ray operation, not a segment clamp. If the
+  label exclusion boundary lies beyond the opposite atom because the authored
+  bond is shorter than the label, keep the computed endpoint past that atom;
+  the visible bond body is therefore reversed. Do not scale the two endpoint
+  retreats back to the authored bond length. ChemDraw's bare-CDXML spacing
+  probe remains linear through this crossover, and `NeedsClean` does not alter
+  the result.
+- The overrun rule above applies when only one endpoint exclusion boundary
+  crosses the bond. If both endpoints have labels and their two exclusion
+  distances meet or cross, ChemDraw collapses the bond body to zero width, so
+  it contributes no visible ink. Single- and double-bond spacing probes both
+  preserve this distinction.
+- Apply endpoint label clipping exactly once. A body already produced from the
+  unbounded endpoint rays must not be clipped again using its reversed endpoints.
 
 ## Bond-Bond Crossings And White Margins
 
@@ -426,11 +576,15 @@ Non-endpoint bond-bond crossings are intersections of two internal bond segments
 Rules:
 
 - CDX/CDXML `CrossingBonds` (CDX property `0x060E`, type `CDXObjectIDArray`) is authoritative crossing-pair semantics in document-global object-ID scope, including pairs whose bonds belong to different fragments. Import must preserve it and export must remap and write the new object IDs. If either bond in a pair has an explicit crossing list, no geometric crossing may be invented outside those lists; geometric fallback is allowed only when both bonds lack the property.
+- Crossing geometry must use the same final endpoints as the rendered bond body. When `BeginAttach`/`EndAttach` names a character inside a label, the crossing axis starts at that character's final glyph anchor rather than the node's raw `p`. Full-document rendering, target rendering, and local dependency detection share this axis; otherwise the upper bond and the lower-bond gap are visibly centered on different lines.
 - Layering follows final paint order: compare CDXML `Z` first and document order within the same layer. The later-painted bond is the upper bond.
-- Before drawing the upper bond, generate background knockout geometry only around each intersection so the lower bond breaks locally. Never clone the whole upper bond with an enlarged background stroke; a whole-bond silhouette erases valid endpoint contacts and unrelated nearby geometry.
+- When two ordinary, normal-width, solid single bonds cross, ChemDraw clips the lower bond-body polygon into two pieces at the cut interval instead of painting the complete bond and covering it with white. The engine must emit the same real segmented geometry so antialiased edges cannot leave black slivers.
+- Composite, dashed, wavy, and wedge bonds use their own explicit local-background-knockout branches so the lower bond breaks only around the intersection. Never clone the whole upper bond with an enlarged background stroke; a whole-bond silhouette erases valid endpoint contacts and unrelated nearby geometry.
 - White margin width uses the upper bond's template parameter: Default is `2.0pt`, ACS Document 1996 is `1.6pt`.
 - Let `n = (-axis.y, axis.x)` be the upper bond's unit normal. Determine the upper bond's ChemDraw cut envelope `[c_min, c_max]` along `n` at the intersection, then expand that interval by the source margin. The knockout strip is exactly `[c_min - marginWidth, c_max + marginWidth]`; it is not required to be symmetric about the parent bond axis.
 - A plain or bold filled line uses its visible body contour for `[c_min, c_max]`. A wedge uses its interpolated local contour. Composite line families instead use the envelope of their child centerlines: centered double and triple bonds use the outer child centers, and a side double uses the main and side-line centers. A wavy bond uses the extrema of its wave center path. Do not add the child stroke half-width again for these composite/path envelopes; the upper bond is repainted over the local knockout.
+- A wavy bond is a sequence of quarter-ellipse cubic segments. Its transverse radius is `BoldWidth / 2`. ChemDraw derives an axial phase grid from document defaults, not from the individual bond: `division_count = clamp(round(BondLength / LineWidth), 12, 16)` and `grid_step = BondLength / division_count`. It draws grid segments only while the next point remains within the authored bond length, so a `29.998pt` bond in a `30pt` template deliberately has one fewer terminal segment than a `30.000pt` bond. The sole lower bound is explicit and general: if fewer than 12 grid segments fit, ChemDraw draws 12 and redistributes those 12 steps over the actual bond length. Each Bezier handle is `0.5522847498307936` times the radius perpendicular to that endpoint's tangent: centerline endpoints use the transverse amplitude, while crest and trough endpoints use the axial step.
+- A label-clipped wavy bond is a separate phase branch, but it preserves the measured label-direction sectors: horizontal contacts use the dedicated run envelope, diagonal contacts use the complete glyph outline, and only the top/bottom cardinal sectors select glyph columns through the wave strip. In that cardinal branch, clip the MarginWidth-expanded glyph geometry against the continuous transverse strip swept by the visible wave, whose half-width is `BoldWidth / 2 + LineWidth / 2`; do not approximate it with only center and edge rays. The strip can reach a nearby script glyph such as the `2` in `R2` without making horizontal long labels use their whole text rectangle. After clipping, `segment_count = clamp(ceil(clipped_length / grid_step), 1, division_count)` and those segments are redistributed over the clipped length. The ordinary 12-segment minimum does not apply: measured ChemDraw paths can end after 9 or 11 segments, including at a crest or trough rather than on the centerline.
 - Therefore a centered double with center distance `d` uses `[-d/2, d/2]`. A left side double uses `[0, d]`, and a right side double uses `[-d, 0]`, where left/right follow `n`. This asymmetric interval is required: symmetrizing a side double erases too much of the lower bond on the empty side.
 - In the symmetric special case `[c_min, c_max] = [-h_over, h_over]`, with acute crossing angle `theta`, the lower bond's axial half-gap is:
 
@@ -438,7 +592,7 @@ Rules:
   gapHalf = (h_over + marginWidth) / abs(sin(theta))
   ```
 
-- Both cut edges must be parallel to the upper bond. The other two local-knockout edges only confine the patch to the lower bond's complete visible contour and must not extend along the whole upper bond. A tiny antialiasing allowance may be added only to these lower-contour confinement edges; it must not widen the upper cut interval.
+- Both cut edges must be parallel to the upper bond. For ordinary solid single bonds, clip the lower polygon directly with these two half-planes. In local-knockout branches, the other two edges only confine the patch to the lower bond's complete visible contour and must not extend along the whole upper bond. A tiny antialiasing allowance may be added only to the knockout's lower-contour confinement edges; it must not widen the upper cut interval.
 - Bonds sharing endpoints still use the node contact kernel, not this white-margin rule.
 - For an interior centerline intersection, the intersection must lie inside both finite segments and the local strip rule above applies.
 - ChemDraw also tests the upper bond's **finite margin envelope** against the lower bond silhouette. The envelope expands each lateral side by `marginWidth` and extends past both butt caps by `marginWidth` along the bond axis. Therefore a near-endpoint miss can still shorten or notch the lower bond even when the two finite centerlines do not intersect. Render the overlap of that finite envelope and the lower visible silhouette; do not extend an infinite white strip through the document.

@@ -2,9 +2,9 @@
 
 ## 定位
 
-`chemsema-nomenclature/chemical-graph/2` 是 ChemSema 用于确定分子实体和离散整数配比的、
-与绘图表现无关的化学语义图。系统命名、核磁预测、图身份比较以及外部格式适配器都应以它
-作为统一输入边界。
+`chemsema-nomenclature/chemical-graph/2` 是 ChemSema 用于确定分子实体、分子片段和离散
+整数配比的、与绘图表现无关的化学语义图。系统命名、核磁预测、图身份比较以及外部格式
+适配器都应以它作为统一输入边界。
 
 它不是绘图文档、查询语言、反应模型、聚合物模型或通用物质配方。坐标、字体、颜色、说明
 文字、选择状态和缓存几何不得进入该图。机器规范为
@@ -17,7 +17,7 @@
 
 新导出的图必须声明：
 
-- `profile`：`molecular-entity` 或 `discrete-composition`；
+- `profile`：`molecular-entity`、`molecular-fragment` 或 `discrete-composition`；
 - `aromaticityModel`：目前为 `explicit-aromatic-bonds`；
 - `hydrogenModel`：目前为 `resolved-counts`；
 - `valenceModel`：目前为 `chem-sema2026`；
@@ -29,7 +29,10 @@
 芳香键形式与交替 Kekulé 形式不会被偷偷视为相同。导入适配器必须先使用明确支持的芳香性
 模型完成规范化，再生成 V2。已经解析的隐式氢数参与化学身份。
 
-`molecular-entity` 只允许一个连通、计数为一的组分；`discrete-composition` 可包含多个
+`molecular-entity` 只允许一个连通、计数为一的组分。`molecular-fragment` 同样只允许一个
+计数为一的连通组分，并且必须至少有一个结构化 `freeValences` 项；每项记录自由价所在原子
+及缺失键级（`single`、`double` 或 `triple`）。重复项有意义：同一原子上的两个单自由价
+不会被折叠成一个双自由价。`discrete-composition` 可包含多个
 连通组分及正整数计数。分数占位、非化学计量固体、Markush/查询结构、聚合物和反应是明确
 的不支持边界，不得近似后静默通过。
 
@@ -42,7 +45,35 @@
 
 `is_isomorphic_to()` 才是精确身份操作。它比较原子属性、已解析氢数、键型和配位方向、
 组分及计数、立体元素和增强立体组，以及多中心相互作用。来源 id、数组顺序、组分/相互
-作用 id 和审计 assumption 不参与化学身份。
+作用 id 和审计 assumption 不参与化学身份。自由价所在原子、键级和重复次数参与身份。
+
+因此，V2 不承诺“一个分子只有一段 JSON”，也不把 SMILES 字符串当作身份键。只有当导入
+适配器按照声明的芳香性、氢、价态、电荷和立体语义完成解析后，两条不同 SMILES 才可能
+得到同构的 V2 图。需要数据库唯一键时，应使用图同构或另行版本化的规范身份算法；不能
+直接散列 `normalized()` JSON，因为它有意保留来源原子 id。
+
+## 分子片段存储示例
+
+`propan-2-yl` 正常存储三个碳组成的骨架，只额外声明中心碳 `c2` 上有一个单自由价：
+
+```json
+{
+  "semantics": {"profile": "molecular-fragment"},
+  "atoms": [
+    {"id":"c1","atomicNumber":6,"implicitHydrogens":3},
+    {"id":"c2","atomicNumber":6,"implicitHydrogens":1},
+    {"id":"c3","atomicNumber":6,"implicitHydrogens":3}
+  ],
+  "bonds": [
+    {"id":"b1","atoms":["c1","c2"],"kind":"single"},
+    {"id":"b2","atoms":["c2","c3"],"kind":"single"}
+  ],
+  "freeValences": [{"atom":"c2","order":"single"}]
+}
+```
+
+上面为便于阅读省略了固定字段。完整规范样例见
+[`fixtures/chemical-graph-v2/valid/propan-2-yl.json`](../fixtures/chemical-graph-v2/valid/propan-2-yl.json)。
 
 ## 立体与多中心相互作用
 
@@ -72,6 +103,7 @@ kappa、mu 等命名符号由命名规则推导，不作为绘图字符串存储
 
 系统命名和 NMR provider 遇到不认识的 schema、规范化契约或身份字段必须拒绝，不得忽略
 后继续计算。
+NMR 请求面向完整分子实体；`molecular-fragment` 主要用于系统命名和结构编辑边界。
 
 ## 外部格式和损失规则
 
@@ -93,3 +125,5 @@ CDX/CDXML、SMILES 和 SDF V2000 边界生成带版本号的
 代理几何；但仅有 ChemicalGraph 时不能假定这些表现层几何存在。因此，在适配器
 尚未明确构造这套文档编码之前，映射报告会拒绝把配位相互作用声明为无损
 CDX/CDXML 映射。
+当前 CDX/CDXML、SMILES 和 SDF V2000 映射报告也会拒绝把片段声明为无损，直至对应
+适配器具有经过验证的结构化自由价编码。

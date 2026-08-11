@@ -199,9 +199,15 @@ export function createEditorCommandController(options) {
     let changed = false;
     const commandChanged = (value) => value?.changed ?? Boolean(value);
     if (command === "undo") {
-      changed = await executeDocumentCommand("undo", () => state.editorEngine.undo());
+      changed = await executeDocumentCommand(
+        "undo",
+        options.commandEngine?.executeEngineCommand ? undefined : () => state.editorEngine.undo(),
+      );
     } else if (command === "redo") {
-      changed = await executeDocumentCommand("redo", () => state.editorEngine.redo());
+      changed = await executeDocumentCommand(
+        "redo",
+        options.commandEngine?.executeEngineCommand ? undefined : () => state.editorEngine.redo(),
+      );
     } else if (command === "copy") {
       const fragmentJson = await state.editorEngine.clipboardSelectionJson?.() || null;
       const documentJson = await state.editorEngine.clipboardDocumentJson?.() || null;
@@ -233,6 +239,7 @@ export function createEditorCommandController(options) {
     } else if (command === "select-all") {
       await options.activateEditorTool("select");
       changed = { changed: !!(await state.editorEngine.selectAll?.()) };
+      options.invalidateEditorEngineReadCache?.();
       options.renderEditorOverlay();
       options.refreshCommandAvailability();
       return changed.changed;

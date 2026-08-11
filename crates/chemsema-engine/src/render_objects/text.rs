@@ -69,6 +69,13 @@ fn wrap_text_lines(text: &str, max_width: f64, font_size: f64) -> Vec<String> {
     out
 }
 
+fn uses_layout_anchor(object: &SceneObject) -> bool {
+    matches!(
+        object.meta.get("role").and_then(|value| value.as_str()),
+        Some("bracket_usage" | "parameterized_bracket_label")
+    )
+}
+
 pub(crate) fn render_text_object(
     out: &mut Vec<RenderPrimitive>,
     document: &ChemSemaDocument,
@@ -110,6 +117,17 @@ pub(crate) fn render_text_object(
         return;
     };
     let text_anchor = text_anchor(&align);
+    // Ordinary CDXML text is rendered from its authored `p` anchor; import
+    // preserves the p-to-box delta as `anchorOffsetX`. Bracket object-tag text
+    // is different: ChemDraw lays it out from the owning bracket and retains
+    // the nested text `p` only for round-trip serialization. Its scene
+    // transform is therefore the render anchor.
+    let anchor_offset_x = if uses_layout_anchor(object) {
+        0.0
+    } else {
+        payload_number(&object.payload, "anchorOffsetX").unwrap_or(0.0)
+    };
+    let anchor_x = tx + anchor_offset_x;
     let font_family = style
         .and_then(|value| style_string(value, "fontFamily"))
         .or_else(|| Some("Arial".to_string()));
@@ -130,7 +148,7 @@ pub(crate) fn render_text_object(
                 }
                 push_text_rotated(
                     out,
-                    tx,
+                    anchor_x,
                     ty + baseline_offset + baseline_advance(index),
                     Some(baseline_offset),
                     String::new(),
@@ -142,6 +160,7 @@ pub(crate) fn render_text_object(
                     object_id.clone(),
                     rotate,
                     rotate_center,
+                    true,
                 );
             }
             return;
@@ -153,7 +172,7 @@ pub(crate) fn render_text_object(
         {
             push_text_rotated(
                 out,
-                tx,
+                anchor_x,
                 ty + baseline_offset + baseline_advance(index),
                 Some(baseline_offset),
                 line,
@@ -165,6 +184,7 @@ pub(crate) fn render_text_object(
                 object_id.clone(),
                 rotate,
                 rotate_center,
+                true,
             );
         }
         return;
@@ -183,7 +203,7 @@ pub(crate) fn render_text_object(
     {
         push_text_rotated(
             out,
-            tx,
+            anchor_x,
             ty + font_size * 0.82 + baseline_advance(index),
             Some(font_size * 0.82),
             line,
@@ -195,6 +215,7 @@ pub(crate) fn render_text_object(
             object_id.clone(),
             rotate,
             rotate_center,
+            false,
         );
     }
 }

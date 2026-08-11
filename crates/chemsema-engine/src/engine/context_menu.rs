@@ -218,6 +218,16 @@ impl Engine {
         self.append_selection_relationship_items(&mut items);
         self.append_selection_color_items(&mut items);
         self.append_special_object_dialog_items(&mut items, single_object_type.as_deref());
+        if let Some(all_locked) = self.selection_objects_are_all_locked() {
+            items.extend([
+                separator(),
+                item(
+                    if all_locked { "Unlock" } else { "Lock" },
+                    "set-selection-locked",
+                    if all_locked { "false" } else { "true" },
+                ),
+            ]);
+        }
 
         if single_object_type.as_deref() == Some("table") {
             items.extend(self.table_cell_context_menu_items(hit));
@@ -259,6 +269,8 @@ impl Engine {
             separator(),
             item("Insert Image...", "insert-image", ""),
             item("From SMILES...", "smiles-dialog", ""),
+            separator(),
+            item("Logical Objects...", "logical-objects-dialog", ""),
         ]);
         items
     }
@@ -288,7 +300,11 @@ impl Engine {
 
     fn append_selection_relationship_items(&self, items: &mut Vec<JsonValue>) {
         if !self.state.selection.is_empty() {
-            items.extend([separator(), self.link_menu()]);
+            items.extend([
+                separator(),
+                self.link_menu(),
+                item("Logical Objects...", "logical-objects-dialog", ""),
+            ]);
         }
     }
 
@@ -367,6 +383,48 @@ impl Engine {
                 item("Annotation Properties...", "annotation-dialog", "selected"),
             ]);
         }
+        if single_object_type == Some("image") {
+            if let Some(object) = self.selected_scene_objects().first() {
+                let image = object
+                    .payload
+                    .resource_ref
+                    .as_deref()
+                    .and_then(|resource_ref| self.state.document.resources.get(resource_ref))
+                    .and_then(crate::Resource::display_image);
+                if let Some(image) = image {
+                    let crop = object.payload.image_crop().ok().flatten().unwrap_or(
+                        crate::ImageCropRect {
+                            x: 0.0,
+                            y: 0.0,
+                            width: f64::from(image.pixel_width),
+                            height: f64::from(image.pixel_height),
+                        },
+                    );
+                    items.extend([
+                        separator(),
+                        item(
+                            "Crop Image...",
+                            "image-crop-dialog",
+                            json!({
+                                "kind": "image-crop",
+                                "title": "Crop Image",
+                                "objectId": object.id,
+                                "sourceWidth": image.pixel_width,
+                                "sourceHeight": image.pixel_height,
+                                "crop": crop,
+                            })
+                            .to_string(),
+                        ),
+                        json!({
+                            "label": "Reset Image Crop",
+                            "command": "image-crop-reset",
+                            "value": object.id,
+                            "disabled": object.payload.image_crop().ok().flatten().is_none(),
+                        }),
+                    ]);
+                }
+            }
+        }
     }
 
     fn append_stoichiometry_grid_items(&self, items: &mut Vec<JsonValue>, hit: &JsonValue) {
@@ -436,6 +494,39 @@ impl Engine {
         items: &mut Vec<JsonValue>,
         selected_types: &BTreeSet<&str>,
     ) {
+        if selected_types.len() == 1 && selected_types.contains("line") {
+            items.extend([
+                separator(),
+                self.line_style_menu(),
+                self.arrow_type_menu(),
+                self.arrow_head_size_menu(),
+                self.arrow_curve_menu(),
+                self.arrow_no_go_menu(),
+                self.arrowheads_menu(),
+            ]);
+        } else if selected_types.len() == 1 && selected_types.contains("curve") {
+            items.extend([separator(), self.line_style_menu()]);
+        } else if selected_types.len() == 1 && selected_types.contains("text") {
+            items.extend([
+                separator(),
+                self.text_font_menu(),
+                self.text_style_menu(),
+                self.text_size_menu(),
+                self.text_alignment_menu(),
+                item("Line Spacing...", "text-line-spacing", ""),
+            ]);
+        } else if self.selection_contains_only_orbitals() {
+            items.extend([
+                separator(),
+                self.orbital_template_menu(),
+                self.orbital_style_menu(),
+                self.orbital_phase_menu(),
+            ]);
+        } else if selected_types.len() == 1 && selected_types.contains("shape") {
+            items.extend([separator(), self.shape_style_menu()]);
+        } else if self.selection_contains_only_bracket_targets() {
+            items.extend([separator(), self.bracket_type_menu()]);
+        }
         items.extend([
             separator(),
             item("Bring Forward", "order", "bring-forward"),
@@ -514,7 +605,10 @@ impl Engine {
                 items.extend([
                     separator(),
                     self.line_style_menu(),
-                    separator(),
+                    self.arrow_type_menu(),
+                    self.arrow_head_size_menu(),
+                    self.arrow_curve_menu(),
+                    self.arrow_no_go_menu(),
                     self.arrowheads_menu(),
                     separator(),
                     order_subitems_flat(),
@@ -1046,6 +1140,22 @@ impl Engine {
             self.selected_uniform_arrow_endpoint("head").as_deref(),
             self.selected_uniform_arrow_endpoint("tail").as_deref(),
         )
+    }
+
+    fn arrow_type_menu(&self) -> JsonValue {
+        arrow_type_menu(self.selected_uniform_arrow_kind().as_deref())
+    }
+
+    fn arrow_head_size_menu(&self) -> JsonValue {
+        arrow_head_size_menu(self.selected_uniform_arrow_head_size().as_deref())
+    }
+
+    fn arrow_curve_menu(&self) -> JsonValue {
+        arrow_curve_menu(self.selected_uniform_arrow_curve().as_deref())
+    }
+
+    fn arrow_no_go_menu(&self) -> JsonValue {
+        arrow_no_go_menu(self.selected_uniform_arrow_no_go().as_deref())
     }
 
     fn bond_type_menu(&self) -> JsonValue {
@@ -1624,7 +1734,7 @@ impl Engine {
     fn selected_uniform_color(&self) -> Option<String> {
         let mut colors = Vec::new();
         for object in self.selected_scene_objects() {
-            colors.push(style_color_for_object(&self.state.document, object));
+            collect_visible_bracket_colors(&self.state.document, object, &mut colors);
         }
         for bond in self.selected_bonds() {
             colors.push(css_color_to_hex(
@@ -1731,21 +1841,25 @@ impl Engine {
     }
 
     fn selected_uniform_bracket_kind(&self) -> Option<String> {
-        uniform_value(
-            self.selected_scene_objects()
-                .into_iter()
-                .filter(|object| object.object_type == "bracket")
-                .map(|object| {
-                    object
-                        .payload
-                        .extra
-                        .get("kind")
-                        .and_then(JsonValue::as_str)
-                        .unwrap_or("round")
-                        .to_string()
-                })
-                .collect(),
-        )
+        let mut kinds = Vec::new();
+        for object in self.selected_scene_objects() {
+            collect_bracket_kinds(object, &mut kinds);
+        }
+        uniform_value(kinds)
+    }
+
+    fn selection_contains_only_bracket_targets(&self) -> bool {
+        let selected = self.selected_scene_objects();
+        !selected.is_empty() && selected.into_iter().all(scene_object_is_bracket_target)
+    }
+
+    fn selection_contains_only_orbitals(&self) -> bool {
+        let selected = self.selected_scene_objects();
+        !selected.is_empty()
+            && selected.into_iter().all(|object| {
+                object.object_type == "shape"
+                    && payload_string(object, "kind").as_deref() == Some("orbital")
+            })
     }
 
     fn selected_uniform_line_style(&self) -> Option<String> {
@@ -1774,6 +1888,85 @@ impl Engine {
                         .extra
                         .get("arrowHead")
                         .and_then(|arrow| arrow.get(endpoint))
+                        .and_then(JsonValue::as_str)
+                        .unwrap_or("none")
+                        .to_string()
+                })
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_arrow_kind(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "line")
+                .map(|object| {
+                    object
+                        .payload
+                        .extra
+                        .get("arrowHead")
+                        .and_then(|arrow| arrow.get("kind"))
+                        .and_then(JsonValue::as_str)
+                        .unwrap_or("solid")
+                        .to_string()
+                })
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_arrow_head_size(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "line")
+                .map(arrow_object_head_size_name)
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_arrow_curve(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "line")
+                .map(|object| {
+                    let curve = object
+                        .payload
+                        .extra
+                        .get("arrowHead")
+                        .and_then(|arrow| arrow.get("curve"))
+                        .and_then(JsonValue::as_f64)
+                        .unwrap_or(0.0)
+                        .abs();
+                    if curve >= 260.0 {
+                        "270"
+                    } else if curve >= 150.0 {
+                        "180"
+                    } else if curve >= 105.0 {
+                        "120"
+                    } else if curve >= 60.0 {
+                        "90"
+                    } else {
+                        "none"
+                    }
+                    .to_string()
+                })
+                .collect(),
+        )
+    }
+
+    fn selected_uniform_arrow_no_go(&self) -> Option<String> {
+        uniform_value(
+            self.selected_scene_objects()
+                .into_iter()
+                .filter(|object| object.object_type == "line")
+                .map(|object| {
+                    object
+                        .payload
+                        .extra
+                        .get("arrowHead")
+                        .and_then(|arrow| arrow.get("noGo"))
                         .and_then(JsonValue::as_str)
                         .unwrap_or("none")
                         .to_string()
@@ -2184,6 +2377,140 @@ fn line_style_menu(current: Option<&str>) -> JsonValue {
     )
 }
 
+fn arrow_type_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "Arrow Type",
+        vec![
+            checked_item(
+                "Solid",
+                "arrow-property",
+                "variant:solid",
+                current == Some("solid"),
+            ),
+            checked_item(
+                "Curved",
+                "arrow-property",
+                "variant:curved",
+                current == Some("curved"),
+            ),
+            checked_item(
+                "Mirrored Curved",
+                "arrow-property",
+                "variant:curved-mirror",
+                current == Some("curved-mirror"),
+            ),
+            checked_item(
+                "Hollow",
+                "arrow-property",
+                "variant:hollow",
+                current == Some("hollow"),
+            ),
+            checked_item(
+                "Open Hollow",
+                "arrow-property",
+                "variant:open",
+                current == Some("open"),
+            ),
+            checked_item(
+                "Equilibrium",
+                "arrow-property",
+                "variant:equilibrium",
+                current == Some("equilibrium"),
+            ),
+            checked_item(
+                "Unequal Equilibrium",
+                "arrow-property",
+                "variant:unequal-equilibrium",
+                current == Some("unequal-equilibrium"),
+            ),
+        ],
+    )
+}
+
+fn arrow_head_size_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "Arrow Head Size",
+        vec![
+            checked_item(
+                "Small",
+                "arrow-property",
+                "headSize:small",
+                current == Some("small"),
+            ),
+            checked_item(
+                "Medium",
+                "arrow-property",
+                "headSize:medium",
+                current == Some("medium"),
+            ),
+            checked_item(
+                "Large",
+                "arrow-property",
+                "headSize:large",
+                current == Some("large"),
+            ),
+        ],
+    )
+}
+
+fn arrow_curve_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "Arrow Curve",
+        vec![
+            checked_item(
+                "90 degrees",
+                "arrow-property",
+                "curve:90",
+                current == Some("90"),
+            ),
+            checked_item(
+                "120 degrees",
+                "arrow-property",
+                "curve:120",
+                current == Some("120"),
+            ),
+            checked_item(
+                "180 degrees",
+                "arrow-property",
+                "curve:180",
+                current == Some("180"),
+            ),
+            checked_item(
+                "270 degrees",
+                "arrow-property",
+                "curve:270",
+                current == Some("270"),
+            ),
+        ],
+    )
+}
+
+fn arrow_no_go_menu(current: Option<&str>) -> JsonValue {
+    submenu(
+        "No-Go Mark",
+        vec![
+            checked_item(
+                "None",
+                "arrow-property",
+                "noGo:none",
+                current == Some("none"),
+            ),
+            checked_item(
+                "Cross",
+                "arrow-property",
+                "noGo:cross",
+                current == Some("cross"),
+            ),
+            checked_item(
+                "Double Slash",
+                "arrow-property",
+                "noGo:hash",
+                current == Some("hash"),
+            ),
+        ],
+    )
+}
+
 fn arrowheads_menu(head: Option<&str>, tail: Option<&str>) -> JsonValue {
     submenu(
         "Arrowheads",
@@ -2548,6 +2875,50 @@ fn style_color_for_object(document: &crate::ChemSemaDocument, object: &SceneObje
     )
 }
 
+fn scene_object_is_bracket_target(object: &SceneObject) -> bool {
+    object.object_type == "bracket"
+        || (object.object_type == "group"
+            && object.meta.get("kind").and_then(JsonValue::as_str) == Some("bracket-group"))
+}
+
+fn collect_bracket_kinds(object: &SceneObject, kinds: &mut Vec<String>) {
+    if object.object_type == "bracket" {
+        kinds.push(
+            object
+                .payload
+                .extra
+                .get("kind")
+                .and_then(JsonValue::as_str)
+                .unwrap_or("round")
+                .to_string(),
+        );
+        return;
+    }
+    if scene_object_is_bracket_target(object) {
+        for child in &object.children {
+            collect_bracket_kinds(child, kinds);
+        }
+    }
+}
+
+fn collect_visible_bracket_colors(
+    document: &crate::ChemSemaDocument,
+    object: &SceneObject,
+    colors: &mut Vec<String>,
+) {
+    if object.object_type == "bracket" {
+        colors.push(style_color_for_object(document, object));
+        return;
+    }
+    if scene_object_is_bracket_target(object) {
+        for child in &object.children {
+            collect_visible_bracket_colors(document, child, colors);
+        }
+    } else {
+        colors.push(style_color_for_object(document, object));
+    }
+}
+
 fn shape_style_for_object(document: &crate::ChemSemaDocument, object: &SceneObject) -> String {
     let style = object
         .style_ref
@@ -2605,6 +2976,37 @@ fn line_object_style(document: &crate::ChemSemaDocument, object: &SceneObject) -
     "plain".to_string()
 }
 
+fn arrow_object_head_size_name(object: &SceneObject) -> String {
+    let arrow = object.payload.extra.get("arrowHead");
+    let kind = arrow
+        .and_then(|value| value.get("kind"))
+        .and_then(JsonValue::as_str)
+        .unwrap_or("solid");
+    let bold = arrow
+        .and_then(|value| value.get("bold"))
+        .and_then(JsonValue::as_bool)
+        .unwrap_or(false);
+    let length = arrow
+        .and_then(|value| value.get("length"))
+        .and_then(JsonValue::as_f64)
+        .unwrap_or(10.0)
+        / if bold { 2.0 } else { 1.0 };
+    if matches!(kind, "hollow" | "open") {
+        if length >= 9.0 {
+            "large"
+        } else {
+            "small"
+        }
+    } else if length >= 18.0 {
+        "large"
+    } else if length >= 12.5 {
+        "medium"
+    } else {
+        "small"
+    }
+    .to_string()
+}
+
 fn bond_style_key(bond: &Bond) -> String {
     if bond
         .meta
@@ -2641,12 +3043,7 @@ fn bond_style_key(bond: &Bond) -> String {
         }
         .to_string();
     }
-    if bond
-        .meta
-        .get("contextMenuBondStyle")
-        .and_then(JsonValue::as_str)
-        == Some("single-hashed")
-    {
+    if bond.line_styles.main == BondLinePattern::Hash {
         return "single-hashed".to_string();
     }
     let stereo = bond

@@ -416,6 +416,82 @@ fn orbital_axis_bounds(start: Point, end: Point, padding: f64) -> [f64; 4] {
     ]
 }
 
+pub(super) fn retarget_orbital_template_geometry(
+    object: &mut SceneObject,
+    template: &str,
+) -> bool {
+    let current = object
+        .payload
+        .extra
+        .get("orbitalTemplate")
+        .and_then(JsonValue::as_str)
+        .unwrap_or("s");
+    if current == template {
+        return false;
+    }
+    let point = |key: &str| {
+        object
+            .payload
+            .extra
+            .get(key)
+            .and_then(JsonValue::as_array)
+            .filter(|values| values.len() == 2)
+            .and_then(|values| Some(Point::new(values[0].as_f64()?, values[1].as_f64()?)))
+    };
+    let (center, major) = if matches!(current, "s" | "oval") {
+        (point("center"), point("majorAxisEnd"))
+    } else {
+        (point("axisStart"), point("axisEnd"))
+    };
+    let (Some(center), Some(major)) = (center, major) else {
+        return false;
+    };
+    let axis = Vector::new(major.x - center.x, major.y - center.y);
+    let size = axis.length();
+    if size <= crate::EPSILON {
+        return false;
+    }
+    let direction = axis.normalized();
+    let normal = Vector::new(-direction.y, direction.x);
+    let extra = &mut object.payload.extra;
+    for key in ["center", "majorAxisEnd", "minorAxisEnd", "axisStart", "axisEnd"] {
+        extra.remove(key);
+    }
+    extra.insert("orbitalTemplate".to_string(), json!(template));
+    extra.insert("angle".to_string(), json!(round2(direction.y.atan2(direction.x).to_degrees())));
+    extra.insert("size".to_string(), json!(round2(size)));
+    match template {
+        "s" | "oval" => {
+            let minor_size = if template == "oval" { size * OVAL_MINOR_RATIO } else { size };
+            let next_major = center.translated(direction.scaled(size));
+            let next_minor = center.translated(normal.scaled(minor_size));
+            extra.insert("center".to_string(), json!([round2(center.x), round2(center.y)]));
+            extra.insert(
+                "majorAxisEnd".to_string(),
+                json!([round2(next_major.x), round2(next_major.y)]),
+            );
+            extra.insert(
+                "minorAxisEnd".to_string(),
+                json!([round2(next_minor.x), round2(next_minor.y)]),
+            );
+            object.payload.bbox = Some([
+                round2(center.x - size),
+                round2(center.y - minor_size),
+                round2(size * 2.0),
+                round2(minor_size * 2.0),
+            ]);
+        }
+        _ => {
+            let end = center.translated(direction.scaled(size));
+            extra.insert("axisStart".to_string(), json!([round2(center.x), round2(center.y)]));
+            extra.insert("axisEnd".to_string(), json!([round2(end.x), round2(end.y)]));
+            let [x1, y1, x2, y2] = orbital_axis_bounds(center, end, size * 0.75);
+            object.payload.bbox = Some([round2(x1), round2(y1), round2(x2 - x1), round2(y2 - y1)]);
+        }
+    }
+    true
+}
+
 fn orbital_template_name(value: OrbitalTemplate) -> &'static str {
     match value {
         OrbitalTemplate::S => "s",

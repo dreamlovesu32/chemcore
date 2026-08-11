@@ -288,6 +288,7 @@ pub(super) fn make_centered_node_label(
         line_advances: Vec::new(),
         glyph_polygons: geometry.glyph_polygons,
         glyph_clip_polygons: geometry.clip_polygons,
+        glyph_clip_polygon_owners: geometry.clip_polygon_owners,
         box_value: Some(label_box),
         meta: serde_json::Value::Null,
     }
@@ -318,6 +319,7 @@ pub(super) fn make_centered_node_label_from_runs(
     preserve_measured_box: bool,
     treat_as_literal_text_mode: bool,
     force_grouped_attached_layout: bool,
+    use_face_text_advance: bool,
     forced_decision: Option<crate::LabelLayoutDecision>,
     glyph_clip_profile: GlyphClipProfile,
 ) -> crate::NodeLabel {
@@ -341,6 +343,13 @@ pub(super) fn make_centered_node_label_from_runs(
         lines.join("\n")
     };
     let anchor_char = label_anchor_char_for_layout(&line_runs, &layout);
+    // ChemDraw uses the selected face's text advance when a collapsed label is
+    // attached as one whole text unit. Chemical group anchoring is different:
+    // an element/group inside the formula owns the attachment, and script runs
+    // participate in that chemical layout rather than ordinary text advance.
+    // Keeping the two metric domains explicit prevents labels such as F3C from
+    // widening their active box when its 3 is displayed as a subscript.
+    let use_face_text_advance = uses_face_text_advance(use_face_text_advance, &line_runs);
     let line_height = session
         .line_height
         .filter(|value| value.is_finite() && *value > 0.0)
@@ -348,16 +357,18 @@ pub(super) fn make_centered_node_label_from_runs(
     let estimated_width = lines
         .iter()
         .zip(line_runs.iter())
-        .map(|(_, runs)| estimate_line_runs_width(runs, font_size))
+        .map(|(_, runs)| estimate_line_runs_width(runs, font_size, use_face_text_advance))
         .fold(font_size * 0.6, f64::max);
     let estimated_height = round2((line_height * lines.len().max(1) as f64).max(line_height));
     let anchor_prefix_width = line_runs
         .get(layout.anchor_line)
-        .map(|runs| estimate_prefix_width(runs, anchor_char, font_size))
+        .map(|runs| estimate_prefix_width(runs, anchor_char, font_size, use_face_text_advance))
         .unwrap_or(0.0);
     let anchor_char_width = line_runs
         .get(layout.anchor_line)
-        .and_then(|runs| estimate_anchor_char_width(runs, anchor_char, font_size))
+        .and_then(|runs| {
+            estimate_anchor_char_width(runs, anchor_char, font_size, use_face_text_advance)
+        })
         .unwrap_or(font_size * 0.62);
     let anchor_center_x = anchor_prefix_width + anchor_char_width * 0.5;
     let can_preserve_imported_single_line_box =
@@ -447,48 +458,92 @@ pub(super) fn make_centered_node_label_from_runs(
     );
     let glyph_polygons = &mut glyph_geometry.glyph_polygons;
     if !preserve_measured_box {
-        if let Some(anchor_polygon_index) =
-            label_anchor_polygon_index(&line_runs, layout.anchor_line, anchor_char)
+        let anchor_run = label_run_at(&line_runs, layout.anchor_line, anchor_char);
+        let anchor_font_family = anchor_run
+            .and_then(|run| run.font_family.as_deref())
+            .unwrap_or(font_family);
+        let anchor_font_size = anchor_run
+            .and_then(|run| run.font_size)
+            .unwrap_or(font_size);
+        let anchor_font_weight = anchor_run.and_then(|run| run.font_weight).unwrap_or(400);
+        let anchor_italic = anchor_run
+            .and_then(|run| run.font_style.as_deref())
+            .is_some_and(|style| {
+                matches!(
+                    style.trim().to_ascii_lowercase().as_str(),
+                    "italic" | "oblique"
+                )
+            });
+        let anchor_baseline_offset = crate::chemdraw_molecule_label_baseline_offset(
+            Some(anchor_font_family),
+            anchor_font_size,
+            anchor_font_weight,
+            anchor_italic,
+        );
+        let mut dx = 0.0;
+        let dy = round2(position[1] - (baseline_y - anchor_baseline_offset));
+
+        // ChemDraw anchors labels selected by the node policy at the center of
+        // the selected face's GDI advance cell. That policy includes ordinary
+        // whole-text labels, explicit scripted free endpoints and explicit
+        // zero-hydrogen divalent boron. Script scaling changes the cell but
+        // does not switch the anchor to the ink outline. Glyph outlines remain
+        // authoritative for bond retreat only.
+        // Prime suffixes are the measured exception and attach at their visible
+        // right edge in both metric domains.
+        if label_char_at(&line_runs, layout.anchor_line, anchor_char)
+            .is_some_and(crate::is_prime_anchor_suffix)
         {
             if let Some(current_anchor) =
-                glyph_polygons
-                    .get(anchor_polygon_index)
+                label_anchor_polygon_index(&line_runs, layout.anchor_line, anchor_char)
+                    .and_then(|anchor_polygon_index| glyph_polygons.get(anchor_polygon_index))
                     .and_then(|polygon| {
                         let points: Vec<_> = polygon
                             .iter()
                             .map(|point| Point::new(point[0], point[1]))
                             .collect();
-                        label_anchor_point_for_layout(
-                            &line_runs,
-                            layout.anchor_line,
-                            anchor_char,
+                        prime_suffix_anchor_point(
                             glyph_clip_profile,
                             baseline_y,
-                            font_size,
+                            anchor_baseline_offset,
                             &points,
                         )
                     })
             {
-                let dx = round2(position[0] - current_anchor.x);
-                let dy = round2(position[1] - current_anchor.y);
-                if dx.abs() > crate::EPSILON || dy.abs() > crate::EPSILON {
-                    x1 = round2(x1 + dx);
-                    y1 = round2(y1 + dy);
-                    x2 = round2(x2 + dx);
-                    y2 = round2(y2 + dy);
-                    baseline_y = round2(baseline_y + dy);
-                    for polygon in glyph_polygons.iter_mut() {
-                        for point in polygon {
-                            point[0] = round2(point[0] + dx);
-                            point[1] = round2(point[1] + dy);
-                        }
-                    }
-                    for polygon in &mut glyph_geometry.clip_polygons {
-                        for point in polygon {
-                            point[0] = round2(point[0] + dx);
-                            point[1] = round2(point[1] + dy);
-                        }
-                    }
+                dx = round2(position[0] - current_anchor.x);
+            }
+        } else if !use_face_text_advance {
+            if let Some(current_anchor_x) =
+                label_anchor_polygon_index(&line_runs, layout.anchor_line, anchor_char)
+                    .and_then(|anchor_polygon_index| glyph_polygons.get(anchor_polygon_index))
+                    .and_then(|polygon| {
+                        let points: Vec<_> = polygon
+                            .iter()
+                            .map(|point| Point::new(point[0], point[1]))
+                            .collect();
+                        crate::polygon_anchor_point(&points)
+                    })
+                    .map(|point| point.x)
+            {
+                dx = round2(position[0] - current_anchor_x);
+            }
+        }
+        if dx.abs() > crate::EPSILON || dy.abs() > crate::EPSILON {
+            x1 = round2(x1 + dx);
+            y1 = round2(y1 + dy);
+            x2 = round2(x2 + dx);
+            y2 = round2(y2 + dy);
+            baseline_y = round2(baseline_y + dy);
+            for polygon in glyph_polygons.iter_mut() {
+                for point in polygon {
+                    point[0] = round2(point[0] + dx);
+                    point[1] = round2(point[1] + dy);
+                }
+            }
+            for polygon in &mut glyph_geometry.clip_polygons {
+                for point in polygon {
+                    point[0] = round2(point[0] + dx);
+                    point[1] = round2(point[1] + dy);
                 }
             }
         }
@@ -533,6 +588,7 @@ pub(super) fn make_centered_node_label_from_runs(
         line_advances: Vec::new(),
         glyph_polygons: glyph_geometry.glyph_polygons,
         glyph_clip_polygons: glyph_geometry.clip_polygons,
+        glyph_clip_polygon_owners: glyph_geometry.clip_polygon_owners,
         box_value: Some([x1, y1, x2, y2]),
         meta: Value::Object(meta),
     }
@@ -569,25 +625,18 @@ fn label_anchor_polygon_index(
     None
 }
 
-fn label_anchor_point_for_layout(
-    line_runs: &[Vec<LabelRun>],
-    anchor_line: usize,
-    anchor_char: usize,
+fn prime_suffix_anchor_point(
     glyph_clip_profile: GlyphClipProfile,
     baseline_y: f64,
-    font_size: f64,
+    anchor_baseline_offset: f64,
     polygon: &[Point],
 ) -> Option<Point> {
     let bounds = crate::polygon_bounds(polygon)?;
-    let anchor_y = baseline_y - font_size * crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO;
-    if label_char_at(line_runs, anchor_line, anchor_char).is_some_and(crate::is_prime_anchor_suffix)
-    {
-        return Some(Point::new(
-            bounds[2] - glyph_clip_profile.natural_outset_pt,
-            anchor_y,
-        ));
-    }
-    crate::polygon_anchor_point(polygon).map(|point| Point::new(point.x, anchor_y))
+    let anchor_y = baseline_y - anchor_baseline_offset;
+    Some(Point::new(
+        bounds[2] - glyph_clip_profile.natural_outset_pt,
+        anchor_y,
+    ))
 }
 
 fn label_char_at(
@@ -600,6 +649,22 @@ fn label_char_at(
         .iter()
         .flat_map(|run| run.text.chars())
         .nth(anchor_char)
+}
+
+fn label_run_at(
+    line_runs: &[Vec<LabelRun>],
+    anchor_line: usize,
+    anchor_char: usize,
+) -> Option<&LabelRun> {
+    let mut index = 0usize;
+    for run in line_runs.get(anchor_line)? {
+        let next = index + run.text.chars().count();
+        if anchor_char < next {
+            return Some(run);
+        }
+        index = next;
+    }
+    None
 }
 
 pub(super) fn label_layout_decision_for_text_mode(
@@ -644,6 +709,203 @@ mod label_layout_tests {
         assert!(label_starts_with_metal_element("NoCl2"));
         assert!(!label_starts_with_metal_element("NotAGroup"));
         assert!(!label_starts_with_metal_element("Acetic"));
+    }
+
+    #[test]
+    fn face_text_advance_follows_the_resolved_node_policy() {
+        let plain = vec![vec![LabelRun {
+            text: "HCO".to_string(),
+            script: Some("normal".to_string()),
+            ..LabelRun::default()
+        }]];
+        assert!(uses_face_text_advance(true, &plain));
+        assert!(!uses_face_text_advance(false, &plain));
+
+        let scripted = vec![vec![
+            LabelRun {
+                text: "F".to_string(),
+                script: Some("normal".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "3".to_string(),
+                script: Some("subscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "C".to_string(),
+                script: Some("normal".to_string()),
+                ..LabelRun::default()
+            },
+        ]];
+        assert!(uses_face_text_advance(true, &scripted));
+        assert!(!uses_face_text_advance(false, &scripted));
+    }
+
+    #[test]
+    fn explicit_free_endpoints_and_divalent_boron_use_face_advance() {
+        let mut element = crate::Node::carbon("element".to_string(), Point::new(0.0, 0.0));
+        element.element = "B".to_string();
+        element.atomic_number = 5;
+        assert!(!node_uses_plain_face_text_advance(&element, "B", &[], 2));
+        assert!(!node_uses_plain_face_text_advance(&element, "Cl", &[], 2));
+        element.meta = serde_json::json!({
+            "import": { "cdxml": {
+                "explicitNumHydrogens": 0,
+                "labelDisplay": "Right"
+            } }
+        });
+        assert!(node_uses_plain_face_text_advance(&element, "B", &[], 2));
+        assert!(!node_uses_plain_face_text_advance(&element, "B", &[], 4));
+        assert!(!node_uses_plain_face_text_advance(&element, "Cl", &[], 2));
+
+        let mut placeholder = crate::Node::carbon("placeholder".to_string(), Point::new(0.0, 0.0));
+        placeholder.is_placeholder = true;
+        let scripted = vec![LabelRun {
+            text: "m".to_string(),
+            script: Some("subscript".to_string()),
+            ..LabelRun::default()
+        }];
+        assert!(!node_uses_plain_face_text_advance(
+            &placeholder,
+            "(Aax)m",
+            &scripted,
+            1,
+        ));
+        placeholder.meta = serde_json::json!({
+            "import": { "cdxml": {
+                "labelDisplay": "Right",
+                "nodeType": "Unspecified"
+            } },
+            "labelRecognition": { "status": "invalid" }
+        });
+        assert!(node_uses_plain_face_text_advance(
+            &placeholder,
+            "(Aax)m",
+            &scripted,
+            1,
+        ));
+    }
+
+    #[test]
+    fn face_aware_attachment_uses_the_same_face_for_box_and_anchor_advance() {
+        let runs = vec![LabelRun {
+            text: "ItBu".to_string(),
+            font_family: Some("Times New Roman".to_string()),
+            font_size: Some(10.0),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            script: Some("normal".to_string()),
+            ..LabelRun::default()
+        }];
+        let expected_face_width = runs[0]
+            .text
+            .chars()
+            .map(|character| estimated_run_char_width(&runs[0], character, 10.0, true))
+            .sum::<f64>();
+        assert!(
+            (estimate_line_runs_width(&runs, 10.0, true) - expected_face_width).abs()
+                < crate::EPSILON
+        );
+
+        let generic_anchor =
+            estimate_anchor_char_width(&runs, 0, 10.0, false).expect("generic anchor advance");
+        let face_anchor =
+            estimate_anchor_char_width(&runs, 0, 10.0, true).expect("face anchor advance");
+        assert!((generic_anchor - face_anchor).abs() > crate::EPSILON);
+    }
+
+    #[test]
+    fn authored_edge_anchors_include_subscripts_but_exclude_superscripts() {
+        let runs = vec![
+            LabelRun {
+                text: "(Aax)".to_string(),
+                script: Some("normal".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "n".to_string(),
+                script: Some("subscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "+".to_string(),
+                script: Some("superscript".to_string()),
+                ..LabelRun::default()
+            },
+        ];
+
+        assert_eq!(
+            label_anchor_char_for_runs(&runs, 6, &crate::LabelAnchorPolicy::AuthoredLastGlyph),
+            5,
+            "the final non-superscript glyph is the fixed right attachment"
+        );
+        assert_eq!(
+            label_anchor_char_for_runs(&runs, 6, &crate::LabelAnchorPolicy::LastGlyph),
+            4,
+            "automatic chemical layouts continue to ignore both script kinds"
+        );
+    }
+
+    #[test]
+    fn authored_left_edge_can_anchor_a_leading_subscript() {
+        let runs = vec![
+            LabelRun {
+                text: "+".to_string(),
+                script: Some("superscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "3".to_string(),
+                script: Some("subscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "(Aax)".to_string(),
+                script: Some("normal".to_string()),
+                ..LabelRun::default()
+            },
+        ];
+
+        assert_eq!(
+            label_anchor_char_for_runs(&runs, 0, &crate::LabelAnchorPolicy::AuthoredFirstGlyph),
+            1
+        );
+    }
+
+    #[test]
+    fn styled_isotope_mass_stays_with_its_element_group() {
+        let groups = split_styled_groups(
+            &[
+                LabelRun {
+                    text: "13".to_string(),
+                    script: Some("superscript".to_string()),
+                    ..LabelRun::default()
+                },
+                LabelRun {
+                    text: "CH".to_string(),
+                    script: Some("normal".to_string()),
+                    ..LabelRun::default()
+                },
+                LabelRun {
+                    text: "2".to_string(),
+                    script: Some("subscript".to_string()),
+                    ..LabelRun::default()
+                },
+            ],
+            false,
+        );
+
+        assert_eq!(
+            groups
+                .iter()
+                .map(|group| group.iter().map(|glyph| glyph.ch).collect::<String>())
+                .collect::<Vec<_>>(),
+            vec!["13C", "H2"]
+        );
+        assert_eq!(groups[0][0].run.script.as_deref(), Some("superscript"));
+        assert_eq!(groups[0][2].run.script.as_deref(), Some("normal"));
+        assert_eq!(groups[1][1].run.script.as_deref(), Some("subscript"));
     }
 }
 
@@ -796,46 +1058,17 @@ fn split_styled_glyph_groups(glyphs: &[StyledGlyph], whole_label: bool) -> Vec<V
         return vec![glyphs.to_vec()];
     }
     let compact_text = glyphs.iter().map(|glyph| glyph.ch).collect::<String>();
-    let mut groups = Vec::new();
-    let mut current = Vec::new();
     let mut glyph_index = 0usize;
-    let mut byte_index = 0usize;
-    while glyph_index < glyphs.len() && byte_index < compact_text.len() {
-        let rest = &compact_text[byte_index..];
-        if rest.starts_with('(') {
-            if let Some(prefix_len) = parenthesized_styled_group_len(rest) {
-                if !current.is_empty() {
-                    groups.push(std::mem::take(&mut current));
-                }
-                let char_count = rest[..prefix_len].chars().count();
-                groups.push(glyphs[glyph_index..glyph_index + char_count].to_vec());
-                glyph_index += char_count;
-                byte_index += prefix_len;
-                continue;
-            }
-        }
-        if let Some(prefix_len) = crate::label_group_prefix_len(rest) {
-            if !current.is_empty() {
-                groups.push(std::mem::take(&mut current));
-            }
-            let char_count = rest[..prefix_len].chars().count();
-            groups.push(glyphs[glyph_index..glyph_index + char_count].to_vec());
-            glyph_index += char_count;
-            byte_index += prefix_len;
-            continue;
-        }
-        let glyph = glyphs[glyph_index].clone();
-        if glyph.ch.is_ascii_uppercase() && !current.is_empty() {
-            groups.push(std::mem::take(&mut current));
-        }
-        byte_index += glyph.ch.len_utf8();
-        glyph_index += 1;
-        current.push(glyph);
-    }
-    if !current.is_empty() {
-        groups.push(current);
-    }
-    groups
+    crate::split_label_groups(&compact_text)
+        .into_iter()
+        .map(|group| {
+            let group_len = group.chars().count();
+            let end = glyph_index + group_len;
+            let styled_group = glyphs[glyph_index..end].to_vec();
+            glyph_index = end;
+            styled_group
+        })
+        .collect()
 }
 
 fn reverse_styled_group_for_display(group: Vec<StyledGlyph>) -> Vec<StyledGlyph> {
@@ -864,17 +1097,6 @@ fn reverse_styled_glyph_sequence(glyphs: &[StyledGlyph]) -> Vec<StyledGlyph> {
         .collect()
 }
 
-fn parenthesized_styled_group_len(text: &str) -> Option<usize> {
-    let close = matching_close_paren(text)?;
-    let after_close = close + 1;
-    let suffix_len = text[after_close..]
-        .chars()
-        .take_while(|character| character.is_ascii_digit())
-        .map(char::len_utf8)
-        .sum::<usize>();
-    Some(after_close + suffix_len)
-}
-
 fn parenthesized_styled_group_close_index(glyphs: &[StyledGlyph]) -> Option<usize> {
     if glyphs.first().is_none_or(|glyph| glyph.ch != '(') {
         return None;
@@ -882,23 +1104,6 @@ fn parenthesized_styled_group_close_index(glyphs: &[StyledGlyph]) -> Option<usiz
     let mut depth = 0usize;
     for (index, glyph) in glyphs.iter().enumerate() {
         match glyph.ch {
-            '(' => depth += 1,
-            ')' => {
-                depth = depth.checked_sub(1)?;
-                if depth == 0 {
-                    return Some(index);
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
-fn matching_close_paren(text: &str) -> Option<usize> {
-    let mut depth = 0usize;
-    for (index, character) in text.char_indices() {
-        match character {
             '(' => depth += 1,
             ')' => {
                 depth = depth.checked_sub(1)?;
@@ -957,15 +1162,30 @@ pub(super) fn label_anchor_index_for_layout(
 fn label_anchor_char_for_layout(line_runs: &[Vec<LabelRun>], layout: &crate::LabelLayout) -> usize {
     line_runs
         .get(layout.anchor_line)
-        .map(|runs| label_anchor_char_for_runs(runs, layout.anchor_char))
+        .map(|runs| label_anchor_char_for_runs(runs, layout.anchor_char, &layout.anchor))
         .unwrap_or(layout.anchor_char)
 }
 
-fn label_anchor_char_for_runs(runs: &[LabelRun], default_index: usize) -> usize {
+fn label_anchor_char_for_runs(
+    runs: &[LabelRun],
+    default_index: usize,
+    policy: &crate::LabelAnchorPolicy,
+) -> usize {
+    let authored_edge = matches!(
+        policy,
+        crate::LabelAnchorPolicy::AuthoredFirstGlyph | crate::LabelAnchorPolicy::AuthoredLastGlyph
+    );
     let mut shifted = Vec::new();
     let mut chars = Vec::new();
     for run in runs {
-        let is_shifted = matches!(run.script.as_deref(), Some("subscript" | "superscript"));
+        // ChemDraw treats a subscript at an explicitly fixed left/right edge
+        // as an attachment glyph. Superscripts remain outside the bond axis.
+        // Automatic chemical layouts still ignore both kinds of script.
+        let is_shifted = match run.script.as_deref() {
+            Some("superscript") => true,
+            Some("subscript") => !authored_edge,
+            _ => false,
+        };
         for ch in run.text.chars() {
             chars.push(ch);
             shifted.push(is_shifted);
@@ -998,7 +1218,11 @@ fn label_anchor_char_for_runs(runs: &[LabelRun], default_index: usize) -> usize 
         .unwrap_or(default_index)
 }
 
-pub(super) fn estimate_line_runs_width(runs: &[LabelRun], default_font_size: f64) -> f64 {
+pub(super) fn estimate_line_runs_width(
+    runs: &[LabelRun],
+    default_font_size: f64,
+    use_face_text_advance: bool,
+) -> f64 {
     runs.iter().fold(0.0, |width, run| {
         let run_font_size = run.font_size.unwrap_or(default_font_size)
             * crate::glyph_kernel::shared_script_scale_factor(run.script.as_deref());
@@ -1006,15 +1230,86 @@ pub(super) fn estimate_line_runs_width(runs: &[LabelRun], default_font_size: f64
             + run
                 .text
                 .chars()
-                .map(|ch| estimated_char_width(ch, run_font_size))
+                .map(|ch| estimated_run_char_width(run, ch, run_font_size, use_face_text_advance))
                 .sum::<f64>()
     })
+}
+
+fn uses_face_text_advance(use_face_advance: bool, _line_runs: &[Vec<LabelRun>]) -> bool {
+    use_face_advance
+}
+
+fn node_uses_plain_face_text_advance(
+    node: &crate::Node,
+    label_text: &str,
+    runs: &[LabelRun],
+    connection_count: usize,
+) -> bool {
+    let has_shifted_script = runs.iter().any(|run| {
+        run.script
+            .as_deref()
+            .is_some_and(|script| !matches!(script, "normal" | "baseline"))
+    });
+    let whole_text_node = node.is_placeholder
+        || !node.atom_properties.element_list.is_empty()
+        || !node.atom_properties.generic_list.is_empty();
+    let node_type = node
+        .meta
+        .pointer("/import/cdxml/nodeType")
+        .and_then(Value::as_str);
+    let invalid_label = node
+        .meta
+        .pointer("/labelRecognition/status")
+        .and_then(Value::as_str)
+        == Some("invalid");
+    let display_is_horizontal_edge = node
+        .meta
+        .pointer("/import/cdxml/labelDisplay")
+        .and_then(Value::as_str)
+        .is_some_and(|display| matches!(display, "Left" | "Right"));
+    let scripted_free_endpoint = has_shifted_script
+        && connection_count == 1
+        && node_type == Some("Unspecified")
+        && invalid_label
+        && display_is_horizontal_edge;
+    let explicit_divalent_boron = node.atomic_number == 5
+        && connection_count == 2
+        && node
+            .meta
+            .pointer("/import/cdxml/explicitNumHydrogens")
+            .and_then(Value::as_i64)
+            == Some(0)
+        && display_is_horizontal_edge;
+    (whole_text_node && (!has_shifted_script || scripted_free_endpoint))
+        || (label_text.trim().chars().count() == 1 && explicit_divalent_boron)
+}
+
+fn estimated_run_char_width(
+    run: &LabelRun,
+    character: char,
+    font_size: f64,
+    use_face_text_advance: bool,
+) -> f64 {
+    if use_face_text_advance {
+        crate::glyph_kernel::shared_estimated_char_width_for_face(
+            character,
+            font_size,
+            run.font_family
+                .as_deref()
+                .unwrap_or(DEFAULT_TEXT_FONT_FAMILY),
+            run.font_weight.unwrap_or(400),
+            run.font_style.as_deref(),
+        )
+    } else {
+        estimated_char_width(character, font_size)
+    }
 }
 
 pub(super) fn estimate_prefix_width(
     runs: &[LabelRun],
     char_count: usize,
     default_font_size: f64,
+    use_face_text_advance: bool,
 ) -> f64 {
     let mut remaining = char_count;
     let mut width = 0.0;
@@ -1028,7 +1323,7 @@ pub(super) fn estimate_prefix_width(
             if remaining == 0 {
                 break;
             }
-            width += estimated_char_width(ch, run_font_size);
+            width += estimated_run_char_width(run, ch, run_font_size, use_face_text_advance);
             remaining -= 1;
         }
     }
@@ -1039,6 +1334,7 @@ pub(super) fn estimate_anchor_char_width(
     runs: &[LabelRun],
     char_index: usize,
     default_font_size: f64,
+    use_face_text_advance: bool,
 ) -> Option<f64> {
     let mut current_index = 0usize;
     for run in runs {
@@ -1046,7 +1342,12 @@ pub(super) fn estimate_anchor_char_width(
             * crate::glyph_kernel::shared_script_scale_factor(run.script.as_deref());
         for ch in run.text.chars() {
             if current_index == char_index {
-                return Some(estimated_char_width(ch, run_font_size));
+                return Some(estimated_run_char_width(
+                    run,
+                    ch,
+                    run_font_size,
+                    use_face_text_advance,
+                ));
             }
             current_index += 1;
         }
@@ -1081,6 +1382,51 @@ pub(super) fn adjacent_angles_for_fragment_node(
         ));
     }
     out
+}
+
+fn single_incident_stereobond_angle(
+    fragment: &crate::MoleculeFragment,
+    node_id: &str,
+) -> Option<f64> {
+    let node = fragment.nodes.iter().find(|node| node.id == node_id)?;
+    let node_point = Point::new(node.position[0], node.position[1]);
+    let mut axes = fragment.bonds.iter().filter_map(|bond| {
+        if bond.begin != node_id && bond.end != node_id {
+            return None;
+        }
+        let stereo = bond.stereo.as_ref()?;
+        if !matches!(
+            stereo.kind.as_str(),
+            "solid-wedge" | "hashed-wedge" | "hollow-wedge"
+        ) {
+            return None;
+        }
+        let other_id = if bond.begin == node_id {
+            &bond.end
+        } else {
+            &bond.begin
+        };
+        let other = fragment.nodes.iter().find(|node| &node.id == other_id)?;
+        Some(crate::angle_between(
+            node_point,
+            Point::new(other.position[0], other.position[1]),
+        ))
+    });
+    let axis = axes.next()?;
+    axes.next().is_none().then_some(axis)
+}
+
+fn label_text_matches_node_implicit_hydrogen_formula(text: &str, node: &crate::Node) -> bool {
+    if node.num_hydrogens == 0 || node.is_placeholder {
+        return false;
+    }
+    let compact = crate::compact_label_text(text);
+    let expected = implicit_hydrogen_label_text_for_count(&node.element, node.num_hydrogens);
+    if compact == expected {
+        return true;
+    }
+    let charge_suffix = node_charge_label_suffix(node.charge);
+    !charge_suffix.is_empty() && compact == format!("{expected}{charge_suffix}")
 }
 
 pub(super) fn same_node_label(
@@ -1326,12 +1672,12 @@ pub(super) fn element_valence_is_valid_for_node(
         return true;
     }
     if node.atomic_number == 6 {
-        let connection_order = implicit_hydrogen_connection_order(fragment, node);
+        let connection_order = implicit_hydrogen_valence_usage(fragment, node);
         let radical_count = crate::node_radical_count(node);
         let abs_charge = node.charge.abs();
         return connection_order + radical_count + abs_charge <= 4;
     }
-    let connection_order = implicit_hydrogen_connection_order(fragment, node);
+    let connection_order = implicit_hydrogen_valence_usage(fragment, node);
     let radical_count = crate::node_radical_count(node);
     let charge = node.charge;
     let abs_charge = charge.abs();
@@ -1740,6 +2086,49 @@ fn is_cdxml_imported_centered_attached_label(label: &crate::NodeLabel) -> bool {
         && label.meta.pointer("/import/cdxml/boundingBox").is_some()
 }
 
+fn imported_authored_text_offset(node: &crate::Node, label: &crate::NodeLabel) -> Option<[f64; 2]> {
+    // LabelAlignment is ChemDraw's explicit automatic-layout instruction.
+    // When it is present, ChemDraw recomputes an attached label from the atom
+    // and ignores hand-edited t.p/BoundingBox values. Without it, t.p is the
+    // authored anchor for valid collapsed Fragment/Nickname labels. Invalid
+    // nickname text remains atom-laid-out like ChemDraw's query-style labels.
+    // Ordinary element labels remain atom-laid-out even when the attribute is
+    // absent. Retain the collapsed label's node-relative offset so atom
+    // dragging moves it with the atom instead of pinning it to a page point.
+    let collapsed_node_type = node
+        .meta
+        .pointer("/import/cdxml/nodeType")
+        .and_then(Value::as_str)
+        .is_some_and(|node_type| matches!(node_type, "Fragment" | "Nickname"));
+    let explicitly_invalid = label
+        .meta
+        .pointer("/labelRecognition/status")
+        .or_else(|| node.meta.pointer("/labelRecognition/status"))
+        .and_then(Value::as_str)
+        == Some("invalid");
+    if !node.is_placeholder
+        || !collapsed_node_type
+        || explicitly_invalid
+        || label
+            .meta
+            .pointer("/import/cdxml/labelAlignment")
+            .and_then(Value::as_str)
+            .is_some()
+    {
+        return None;
+    }
+    let values = label
+        .meta
+        .pointer("/import/cdxml/textOffsetFromNode")?
+        .as_array()?;
+    if values.len() != 2 {
+        return None;
+    }
+    let x = values[0].as_f64()?;
+    let y = values[1].as_f64()?;
+    (x.is_finite() && y.is_finite()).then_some([x, y])
+}
+
 fn cdxml_imported_label_layout_override(
     label: &crate::NodeLabel,
 ) -> Option<crate::LabelLayoutDecision> {
@@ -1749,7 +2138,11 @@ fn cdxml_imported_label_layout_override(
         .and_then(serde_json::Value::as_str);
     let normalized = |value: &str| value.trim().to_ascii_lowercase();
     let decision_for_fixed_value = |value: &str| match normalized(value).as_str() {
-        "above" | "left" | "full" => Some(crate::LabelLayoutDecision {
+        "left" | "full" => Some(crate::LabelLayoutDecision {
+            flow: LabelFlow::Preserve,
+            anchor: crate::LabelAnchorPolicy::AuthoredFirstGlyph,
+        }),
+        "above" => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Preserve,
             anchor: crate::LabelAnchorPolicy::FirstGlyph,
         }),
@@ -1759,7 +2152,7 @@ fn cdxml_imported_label_layout_override(
         }),
         "right" => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Preserve,
-            anchor: crate::LabelAnchorPolicy::LastGlyph,
+            anchor: crate::LabelAnchorPolicy::AuthoredLastGlyph,
         }),
         "center" => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Preserve,
@@ -1805,12 +2198,14 @@ pub(super) fn label_layout_decision_for_command_display_mode(
     let mode = mode?;
     match mode {
         TextCommandDisplayMode::ConnectionAuto => None,
-        TextCommandDisplayMode::LeftAuto | TextCommandDisplayMode::PreserveLeft => {
-            Some(crate::LabelLayoutDecision {
-                flow: LabelFlow::Forward,
-                anchor: crate::LabelAnchorPolicy::FirstGlyph,
-            })
-        }
+        TextCommandDisplayMode::LeftAuto => Some(crate::LabelLayoutDecision {
+            flow: LabelFlow::Forward,
+            anchor: crate::LabelAnchorPolicy::FirstGlyph,
+        }),
+        TextCommandDisplayMode::PreserveLeft => Some(crate::LabelLayoutDecision {
+            flow: LabelFlow::Forward,
+            anchor: crate::LabelAnchorPolicy::AuthoredFirstGlyph,
+        }),
         TextCommandDisplayMode::RightAuto => {
             let anchor = if crate::label_text_uses_whole_label_layout(text.trim(), 1) {
                 crate::LabelAnchorPolicy::WholeLabel
@@ -1824,7 +2219,7 @@ pub(super) fn label_layout_decision_for_command_display_mode(
         }
         TextCommandDisplayMode::PreserveRight => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Forward,
-            anchor: crate::LabelAnchorPolicy::LastGlyph,
+            anchor: crate::LabelAnchorPolicy::AuthoredLastGlyph,
         }),
         TextCommandDisplayMode::PreserveCenter => Some(crate::LabelLayoutDecision {
             flow: LabelFlow::Forward,
@@ -1855,6 +2250,37 @@ pub(super) fn set_label_command_display_mode_meta(
 fn glyph_clip_profile_for_label(label: &crate::NodeLabel) -> GlyphClipProfile {
     let _ = label;
     GlyphClipProfile::from_margin_width(crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value())
+}
+
+fn reframe_stacked_attached_label_for_variable_spacing(
+    label: &mut crate::NodeLabel,
+    font_size: f64,
+) {
+    let line_count = label.line_runs.len();
+    if line_count <= 1 || label.line_advances.len() != line_count - 1 {
+        return;
+    }
+    let anchor_line = match label.layout.as_deref() {
+        Some("attached-group-above") => line_count - 1,
+        Some("attached-group-below") => 0,
+        _ => return,
+    };
+    let Some(position) = label.position else {
+        return;
+    };
+    let Some(mut bbox) = label.bbox() else {
+        return;
+    };
+    let anchor_offset = label.line_advances[..anchor_line].iter().sum::<f64>();
+    let default_line_advance = label
+        .line_height
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .expect("resolved variable spacing must have a positive default advance");
+    let block_height = label.line_advances.iter().sum::<f64>() + default_line_advance;
+    bbox[1] = round2(position[1] - anchor_offset - font_size * 0.82);
+    bbox[3] = round2(bbox[1] + block_height);
+    label.box_field = Some(bbox);
+    label.box_value = Some(bbox);
 }
 
 pub(super) fn refreshed_attached_node_label(
@@ -1905,6 +2331,7 @@ pub(super) fn refreshed_attached_node_label(
         );
         next_label.glyph_polygons = geometry.glyph_polygons;
         next_label.glyph_clip_polygons = geometry.clip_polygons;
+        next_label.glyph_clip_polygon_owners = geometry.clip_polygon_owners;
         return Some(next_label);
     }
     let text = if implicit_hydrogen_label_is_user_edited(label) {
@@ -1943,6 +2370,19 @@ pub(super) fn refreshed_attached_node_label(
         &connection_angles,
         layout_as_grouped_attached_label,
     );
+    if interpret_chemically
+        && layout_as_grouped_attached_label
+        && label_text_matches_node_implicit_hydrogen_formula(&text, node)
+    {
+        if let Some(stereobond_angle) = single_incident_stereobond_angle(fragment, node_id) {
+            if let Some(stereobond_decision) = crate::decide_near_trigonal_stereobond_label_layout(
+                &connection_angles,
+                stereobond_angle,
+            ) {
+                decision = stereobond_decision;
+            }
+        }
+    }
     let has_authored_endpoint_attachment = fragment.bonds.iter().any(|bond| {
         (bond.begin == node_id
             && bond
@@ -2030,6 +2470,8 @@ pub(super) fn refreshed_attached_node_label(
         default_chemical: interpret_chemically,
         display_mode,
     };
+    let use_face_text_advance =
+        node_uses_plain_face_text_advance(node, &text, &display_runs, connection_angles.len());
     let mut next_label = make_centered_node_label_from_runs(
         &text,
         local_anchor,
@@ -2043,6 +2485,7 @@ pub(super) fn refreshed_attached_node_label(
         false,
         !interpret_chemically,
         layout_as_grouped_attached_label,
+        use_face_text_advance,
         Some(decision.clone()),
         glyph_clip_profile.unwrap_or_else(|| glyph_clip_profile_for_label(label)),
     );
@@ -2056,6 +2499,16 @@ pub(super) fn refreshed_attached_node_label(
         };
     if let Some(first_advance) = next_label.line_advances.first().copied() {
         next_label.line_height = Some(round2(first_advance));
+    }
+    if next_label.line_height_mode == "variable" {
+        // The stacked label's position is the attached element line's
+        // baseline: the last line for StackAbove and the first for StackBelow.
+        // Variable spacing is resolved after the initial scalar layout, so the
+        // box must be reframed from that semantic anchor before glyph geometry
+        // is rebuilt. Otherwise a fresh import retains the old scalar box and
+        // shifts every rendered line even though their relative advances are
+        // already correct.
+        reframe_stacked_attached_label_for_variable_spacing(&mut next_label, font_size);
     }
     if is_cdxml_imported_centered_attached_label(label) {
         if let Some(mut bbox) = next_label.bbox() {
@@ -2088,6 +2541,20 @@ pub(super) fn refreshed_attached_node_label(
         }
         next_label.align = Some("right".to_string());
         next_label.anchor = Some("end".to_string());
+    }
+    if let (Some(offset), Some(position)) = (
+        imported_authored_text_offset(node, label),
+        next_label.position,
+    ) {
+        let authored_position = [
+            round2(node.position[0] + offset[0]),
+            round2(node.position[1] + offset[1]),
+        ];
+        crate::translate_node_label_geometry(
+            &mut next_label,
+            round2(authored_position[0] - position[0]),
+            round2(authored_position[1] - position[1]),
+        );
     }
     if let Some(import_meta) = label.meta.get("import").cloned() {
         set_meta_object_field(&mut next_label.meta, "import", Some(import_meta));
@@ -2124,6 +2591,11 @@ pub(super) fn refreshed_attached_node_label(
         &mut next_label,
         implicit_hydrogen_label_meta(label).cloned(),
     );
+    for key in ["queryListLabel", "carbonDisplayLabel", "carbonValenceLabel"] {
+        if let Some(meta) = label.meta.get(key).cloned() {
+            set_meta_object_field(&mut next_label.meta, key, Some(meta));
+        }
+    }
     // `make_centered_node_label_from_runs` lays out an edited label from the
     // session's scalar spacing. A geometry-only refresh must instead retain
     // imported variable per-line advances, so rebuild after the final anchor
@@ -2149,6 +2621,7 @@ pub(super) fn refreshed_attached_node_label(
         );
         next_label.glyph_polygons = geometry.glyph_polygons;
         next_label.glyph_clip_polygons = geometry.clip_polygons;
+        next_label.glyph_clip_polygon_owners = geometry.clip_polygon_owners;
     }
     Some(next_label)
 }
@@ -2190,7 +2663,7 @@ pub(super) fn implicit_hydrogen_count(fragment: &crate::MoleculeFragment, node_i
     if node.is_placeholder || node.atomic_number == 1 || node.atomic_number == 6 {
         return 0;
     }
-    let connection_count = implicit_hydrogen_connection_order(fragment, node);
+    let connection_count = implicit_hydrogen_valence_usage(fragment, node);
     let radical_count = crate::node_radical_count(node);
     let charge = node.charge;
     let abs_charge = charge.abs();
@@ -2243,6 +2716,11 @@ fn cdxml_explicit_num_hydrogens(node: &crate::Node) -> Option<u8> {
         .pointer("/import/cdxml/explicitNumHydrogens")
         .and_then(Value::as_u64)
         .map(|value| value.min(u64::from(u8::MAX)) as u8)
+}
+
+fn implicit_hydrogen_valence_usage(fragment: &crate::MoleculeFragment, node: &crate::Node) -> i32 {
+    implicit_hydrogen_connection_order(fragment, node)
+        + i32::from(node.atom_properties.free_sites.unwrap_or(0))
 }
 
 fn implicit_hydrogen_connection_order(
@@ -2341,11 +2819,51 @@ pub(crate) fn formula_hydrogen_count_for_node(
     if node.atomic_number != 6 {
         return implicit_hydrogen_count(fragment, node_id);
     }
+    carbon_valence_hydrogen_count_for_node(fragment, node_id)
+}
+
+pub(crate) fn carbon_valence_hydrogen_count_for_node(
+    fragment: &crate::MoleculeFragment,
+    node_id: &str,
+) -> u8 {
+    let Some(node) = fragment
+        .nodes
+        .iter()
+        .find(|candidate| candidate.id == node_id && candidate.atomic_number == 6)
+    else {
+        return 0;
+    };
     let connection_order_twice: i32 = fragment
         .bonds
         .iter()
-        .filter(|bond| bond.begin == node_id || bond.end == node_id)
-        .map(|bond| {
+        .filter_map(|bond| {
+            let node_is_begin = bond.begin == node_id;
+            let other_id = if node_is_begin {
+                bond.end.as_str()
+            } else if bond.end == node_id {
+                bond.begin.as_str()
+            } else {
+                return None;
+            };
+            let other = fragment
+                .nodes
+                .iter()
+                .find(|candidate| candidate.id == other_id)?;
+            if node_is_begin
+                && bond
+                    .meta
+                    .pointer("/import/cdxml/order")
+                    .and_then(Value::as_str)
+                    .is_some_and(|order| order.eq_ignore_ascii_case("dative"))
+            {
+                return Some(0);
+            }
+            if should_ignore_metal_coordination_for_implicit_hydrogen(
+                node.atomic_number,
+                other.atomic_number,
+            ) {
+                return Some(0);
+            }
             let aromatic = bond
                 .meta
                 .pointer("/chemistry/smiles/kind")
@@ -2357,13 +2875,15 @@ pub(crate) fn formula_hydrogen_count_for_node(
                     .and_then(Value::as_bool)
                     == Some(true);
             if aromatic {
-                3
+                Some(3)
             } else {
-                2 * i32::from(bond.order.max(1))
+                Some(2 * i32::from(bond.order.max(1)))
             }
         })
         .sum();
-    ((8 - connection_order_twice - 2 * node.charge.abs()).clamp(0, 8) / 2) as u8
+    let radical_valence_twice = 2 * crate::node_radical_count(node);
+    ((8 - connection_order_twice - radical_valence_twice - 2 * node.charge.abs()).clamp(0, 8) / 2)
+        as u8
 }
 
 pub(super) fn typical_valence_for_implicit_hydrogen(

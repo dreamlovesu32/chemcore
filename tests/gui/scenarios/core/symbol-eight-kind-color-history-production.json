@@ -1,0 +1,85 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.symbol.eight-kind-color-history.production",
+  "title": "Create every public charge and electron symbol, batch-color, undo, redo, and verify persistence",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "The eight standalone chemical symbol kinds and their batch color/history/persistence behavior had no isolated real-input production evidence.",
+  "capabilities": ["gui.public-input", "editor.symbol.draw", "editor.symbol.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 20,
+  "actions": [
+    { "id": "activate-symbol-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Charge and electron symbols", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"symbol\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-circle-plus", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.23, "y": 0.29 }, "to": { "x": 0.24, "y": 0.30 }, "steps": 3, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-plus", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Plus" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"symbol-kind-plus\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-plus", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.39, "y": 0.29 }, "to": { "x": 0.40, "y": 0.30 }, "steps": 3, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-radical-cation", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Radical cation" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"symbol-kind-radical-cation\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-radical-cation", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.55, "y": 0.29 }, "to": { "x": 0.56, "y": 0.30 }, "steps": 3, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-lone-pair", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Lone pair" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"symbol-kind-lone-pair\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-lone-pair", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.71, "y": 0.29 }, "to": { "x": 0.72, "y": 0.30 }, "steps": 3, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-circle-minus", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Circle minus" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"symbol-kind-circle-minus\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-circle-minus", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.23, "y": 0.57 }, "to": { "x": 0.24, "y": 0.58 }, "steps": 3, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 5, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-minus", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Minus" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"symbol-kind-minus\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-minus", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.39, "y": 0.57 }, "to": { "x": 0.40, "y": 0.58 }, "steps": 3, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 6, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-radical-anion", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Radical anion" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"symbol-kind-radical-anion\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-radical-anion", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.55, "y": 0.57 }, "to": { "x": 0.56, "y": 0.58 }, "steps": 3, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 7, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-electron", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Electron" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"symbol-kind-electron\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-electron", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.71, "y": 0.57 }, "to": { "x": 0.72, "y": 0.58 }, "steps": 3, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 8, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-all-symbols", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 8, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-symbol-menu", "type": "click", "target": { "strategy": "entity-id", "value": "obj_symbol_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"][data-canvas-context-value=\"#008000\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-symbol-color-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Color", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Color\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "make-all-symbols-green", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Green", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-all-green", "type": "click", "target": { "strategy": "entity-id", "value": "obj_symbol_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"][data-canvas-context-value=\"#008000\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-green-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "undo-symbol-color", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 8, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "reselect-after-undo", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 8, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-black-restored", "type": "click", "target": { "strategy": "entity-id", "value": "obj_symbol_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"][data-canvas-context-value=\"#000000\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-black-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-symbol-color", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 8, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "reselect-after-redo", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 8, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-green-redone", "type": "click", "target": { "strategy": "entity-id", "value": "obj_symbol_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"][data-canvas-context-value=\"#008000\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-redone-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "eight-symbol-kinds-remain", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 8 },
+    { "id": "saved-document-has-eight-symbols", "kind": "document-counts", "expected": { "nodes": 0, "bonds": 0, "molecules": 1, "objects": 9 } },
+    { "id": "saved-symbol-kind-and-color-matrix", "kind": "document-symbol-properties", "expected": [
+      { "id": "obj_symbol_1", "kind": "circle-plus", "payloadFill": "#008000", "styleFill": "#008000", "styleKind": "symbol", "symbolStyle": "default" },
+      { "id": "obj_symbol_2", "kind": "plus", "payloadFill": "#008000", "styleFill": "#008000", "styleKind": "symbol", "symbolStyle": "default" },
+      { "id": "obj_symbol_3", "kind": "radical-cation", "payloadFill": "#008000", "styleFill": "#008000", "styleKind": "symbol", "symbolStyle": "default" },
+      { "id": "obj_symbol_4", "kind": "lone-pair", "payloadFill": "#008000", "styleFill": "#008000", "styleKind": "symbol", "symbolStyle": "default" },
+      { "id": "obj_symbol_5", "kind": "circle-minus", "payloadFill": "#008000", "styleFill": "#008000", "styleKind": "symbol", "symbolStyle": "default" },
+      { "id": "obj_symbol_6", "kind": "minus", "payloadFill": "#008000", "styleFill": "#008000", "styleKind": "symbol", "symbolStyle": "default" },
+      { "id": "obj_symbol_7", "kind": "radical-anion", "payloadFill": "#008000", "styleFill": "#008000", "styleKind": "symbol", "symbolStyle": "default" },
+      { "id": "obj_symbol_8", "kind": "electron", "payloadFill": "#008000", "styleFill": "#008000", "styleKind": "symbol", "symbolStyle": "default" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.symbol.draw", "editor.symbol.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["symbol"],
+    "cardinalities": ["1", "2", "many"],
+    "states": ["circle-plus", "plus", "radical-cation", "lone-pair", "circle-minus", "minus", "radical-anion", "electron", "black", "green", "selected", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["symbol.kind", "symbol.payload-fill", "symbol.style-fill", "symbol.style-kind", "symbol.style-metrics"],
+    "persistenceBoundaries": ["runtime", "history", "filesystem", "native-dialog"]
+  }
+}

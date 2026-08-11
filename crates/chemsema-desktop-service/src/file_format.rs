@@ -79,7 +79,7 @@ pub(crate) fn ole_edit_document_text(text: &str) -> Option<String> {
 
 pub(crate) fn document_format_for_path_and_bytes(path: &Path, bytes: &[u8]) -> String {
     let format = document_format_for_path(path);
-    if format != "ccjz" && bytes.starts_with(&[0x1f, 0x8b]) {
+    if format != "ccjz" && (bytes.starts_with(&[0x1f, 0x8b]) || bytes.starts_with(b"PK\x03\x04")) {
         return "ccjz".to_string();
     }
     format
@@ -88,23 +88,4 @@ pub(crate) fn document_format_for_path_and_bytes(path: &Path, bytes: &[u8]) -> S
 pub(crate) fn looks_like_cdxml(text: &str) -> bool {
     let trimmed = text.trim_start();
     trimmed.starts_with("<CDXML") || trimmed.starts_with("<?xml") && trimmed.contains("<CDXML")
-}
-
-pub(crate) fn decompress_gzip_text(bytes: &[u8]) -> Result<String, String> {
-    let mut decoder = GzDecoder::new(bytes);
-    let mut text = String::new();
-    decoder
-        .read_to_string(&mut text)
-        .map_err(|error| format!("Failed to decompress .ccjz data: {error}"))?;
-    Ok(text)
-}
-
-pub(crate) fn compress_gzip_text(text: &str) -> Result<Vec<u8>, String> {
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder
-        .write_all(text.as_bytes())
-        .map_err(|error| format!("Failed to compress .ccjz data: {error}"))?;
-    encoder
-        .finish()
-        .map_err(|error| format!("Failed to finish .ccjz compression: {error}"))
 }

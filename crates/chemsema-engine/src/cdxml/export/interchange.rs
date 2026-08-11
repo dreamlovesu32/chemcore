@@ -5,12 +5,27 @@ pub(super) fn remove_regenerated_scene_objects(
     document: &crate::ChemSemaDocument,
 ) {
     let mut regenerated = std::collections::BTreeSet::new();
+    let regenerated_fragments = document
+        .objects
+        .iter()
+        .flat_map(scene_objects_recursive)
+        .filter(|object| object.object_type == "molecule")
+        .filter_map(|object| {
+            object
+                .meta
+                .pointer("/import/cdxml/fragmentId")
+                .and_then(serde_json::Value::as_str)
+                .map(ToString::to_string)
+        })
+        .collect::<std::collections::BTreeSet<_>>();
     let mut regenerated_idless_curves = std::collections::BTreeSet::new();
+    let mut regenerated_idless_graphics = std::collections::BTreeSet::new();
     for object in &document.objects {
         collect_regenerated_scene_object_ids(
             object,
             &mut regenerated,
             &mut regenerated_idless_curves,
+            &mut regenerated_idless_graphics,
         );
     }
     for area_id in document
@@ -22,36 +37,57 @@ pub(super) fn remove_regenerated_scene_objects(
         regenerated.insert(("ColoredMolecularArea", area_id.clone()));
         regenerated.insert(("coloredmoleculararea", area_id));
     }
-    remove_regenerated_scene_objects_recursive(source, &regenerated, &regenerated_idless_curves);
+    remove_regenerated_scene_objects_recursive(
+        source,
+        &regenerated,
+        &regenerated_fragments,
+        &regenerated_idless_curves,
+        &regenerated_idless_graphics,
+    );
+}
+
+fn scene_objects_recursive(object: &crate::SceneObject) -> Vec<&crate::SceneObject> {
+    let mut objects = vec![object];
+    for child in &object.children {
+        objects.extend(scene_objects_recursive(child));
+    }
+    objects
 }
 
 fn collect_regenerated_scene_object_ids(
     object: &crate::SceneObject,
     out: &mut std::collections::BTreeSet<(&'static str, String)>,
     idless_curves: &mut std::collections::BTreeSet<String>,
+    idless_graphics: &mut std::collections::BTreeSet<String>,
 ) {
     for (meta_key, source_tag) in [
         ("curveId", "curve"),
         ("graphicId", "graphic"),
         ("bioShapeId", "bioshape"),
+        ("textId", "t"),
     ] {
         if let Some(id) = object
             .meta
             .get(meta_key)
             .and_then(serde_json::Value::as_str)
         {
-            let tag = if meta_key == "graphicId"
+            let is_arrow = meta_key == "graphicId"
                 && object
                     .meta
                     .pointer("/import/cdxml/kind")
                     .and_then(serde_json::Value::as_str)
-                    == Some("arrow")
-            {
-                "arrow"
+                    == Some("arrow");
+            if is_arrow {
+                // CDX/CDXML uses both the legacy Graphic+ArrowType form and
+                // the modern Arrow object for the same semantic object. A
+                // native arrow replaces either representation; retaining the
+                // legacy Graphic while appending the modern Arrow would add
+                // one coincident arrow on every save.
+                out.insert(("graphic", id.to_string()));
+                out.insert(("arrow", id.to_string()));
             } else {
-                source_tag
-            };
-            out.insert((tag, id.to_string()));
+                out.insert((source_tag, id.to_string()));
+            }
         }
     }
     if let Some(ids) = object
@@ -76,16 +112,32 @@ fn collect_regenerated_scene_object_ids(
             idless_curves.insert(fingerprint.to_string());
         }
     }
+    if object
+        .meta
+        .get("graphicId")
+        .is_some_and(serde_json::Value::is_null)
+    {
+        if let Some(fingerprint) = object
+            .meta
+            .get("graphicFingerprint")
+            .and_then(serde_json::Value::as_str)
+        {
+            idless_graphics.insert(fingerprint.to_string());
+        }
+    }
     for child in &object.children {
-        collect_regenerated_scene_object_ids(child, out, idless_curves);
+        collect_regenerated_scene_object_ids(child, out, idless_curves, idless_graphics);
     }
 }
 
 fn remove_regenerated_scene_objects_recursive(
     source: &mut crate::InterchangeObject,
     regenerated: &std::collections::BTreeSet<(&'static str, String)>,
+    regenerated_fragments: &std::collections::BTreeSet<String>,
     regenerated_idless_curves: &std::collections::BTreeSet<String>,
+    regenerated_idless_graphics: &std::collections::BTreeSet<String>,
 ) {
+    let is_embedded_fragment_owner = source.name == "n";
     source.children.retain(|child| {
         let represented_by_id = child.id.as_ref().is_some_and(|id| {
             regenerated
@@ -98,11 +150,45 @@ fn remove_regenerated_scene_objects_recursive(
                 .properties
                 .get("CurvePoints")
                 .is_some_and(|property| regenerated_idless_curves.contains(&property.value));
-        !represented_by_id && !represented_idless_curve
+        let represented_idless_graphic = child.name == "graphic"
+            && child.id.is_none()
+            && idless_graphic_fingerprint(child)
+                .is_some_and(|fingerprint| regenerated_idless_graphics.contains(&fingerprint));
+        let regenerated_embedded_fragment = is_embedded_fragment_owner
+            && child.name == "fragment"
+            && child
+                .id
+                .as_ref()
+                .is_some_and(|id| regenerated_fragments.contains(id));
+        !represented_by_id
+            && !represented_idless_curve
+            && !represented_idless_graphic
+            && !regenerated_embedded_fragment
     });
     for child in &mut source.children {
-        remove_regenerated_scene_objects_recursive(child, regenerated, regenerated_idless_curves);
+        remove_regenerated_scene_objects_recursive(
+            child,
+            regenerated,
+            regenerated_fragments,
+            regenerated_idless_curves,
+            regenerated_idless_graphics,
+        );
     }
+}
+
+fn idless_graphic_fingerprint(source: &crate::InterchangeObject) -> Option<String> {
+    let property = |name: &str| {
+        source
+            .properties
+            .get(name)
+            .map(|value| value.value.as_str())
+    };
+    Some(format!(
+        "{}|{}|{}",
+        property("GraphicType")?,
+        property("SymbolType")?,
+        property("BoundingBox")?,
+    ))
 }
 
 pub(super) fn merge_interchange_tree(
@@ -197,10 +283,34 @@ pub(super) fn merge_interchange_tree(
         let exact = remaining
             .iter()
             .position(|child| interchange_xml_exact_match(source_child, child));
-        let match_index = exact.or_else(|| {
-            if matches!(
+        let renumbered_fragment = exact
+            .is_none()
+            .then(|| unique_renumbered_fragment_match(source_child, &remaining))
+            .flatten();
+        let match_index = exact.or(renumbered_fragment).or_else(|| {
+            if source_child.id.is_some()
+                && matches!(source_child.name.as_str(), "fragment" | "group")
+            {
+                // Fragment and group IDs define ownership boundaries. If an
+                // identified source boundary has no exact generated peer, it
+                // must never be grafted onto the next nearby boundary.
+                //
+                // Nodes and bonds are different: CDXML permits their IDs to
+                // overlap, while our regenerated tree uses globally unique
+                // IDs. They can therefore be renumbered even inside the same
+                // matched fragment and must retain ordered matching there.
+                None
+            } else if matches!(source_child.name.as_str(), "n" | "b") {
+                remaining.iter().position(|candidate| {
+                    source_child.name == candidate.name
+                        && !source
+                            .children
+                            .iter()
+                            .any(|peer| interchange_xml_exact_match(peer, candidate))
+                })
+            } else if matches!(
                 source_child.name.as_str(),
-                "page" | "fragment" | "n" | "b" | "t" | "s" | "group"
+                "page" | "fragment" | "t" | "s" | "group"
             ) {
                 remaining
                     .iter()
@@ -237,6 +347,121 @@ pub(super) fn merge_interchange_tree(
     }
     ordered.append(&mut remaining);
     generated.children = ordered;
+}
+
+fn unique_renumbered_fragment_match(
+    source: &crate::InterchangeObject,
+    generated: &[crate::cdxml::xml::XmlNode],
+) -> Option<usize> {
+    if source.name != "fragment" || source.id.is_none() {
+        return None;
+    }
+    let source_shape = direct_fragment_graph_shape_from_interchange(source)?;
+    let source_centroid = direct_fragment_node_centroid_from_interchange(source);
+    let mut matches = generated.iter().enumerate().filter(|(_, candidate)| {
+        candidate.name == "fragment"
+            && direct_fragment_graph_shape_from_xml(candidate) == Some(source_shape)
+            && fragment_centroids_match(
+                source_centroid,
+                direct_fragment_node_centroid_from_xml(candidate),
+            )
+    });
+    let first = matches.next().map(|(index, _)| index);
+    if matches.next().is_none() {
+        first
+    } else {
+        None
+    }
+}
+
+fn fragment_centroids_match(source: Option<(f64, f64)>, generated: Option<(f64, f64)>) -> bool {
+    match (source, generated) {
+        (Some((source_x, source_y)), Some((generated_x, generated_y))) => {
+            let dx = source_x - generated_x;
+            let dy = source_y - generated_y;
+            dx * dx + dy * dy <= 0.05_f64.powi(2)
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn direct_fragment_graph_shape_from_interchange(
+    fragment: &crate::InterchangeObject,
+) -> Option<(usize, usize)> {
+    let shape = (
+        fragment
+            .children
+            .iter()
+            .filter(|child| child.name == "n")
+            .count(),
+        fragment
+            .children
+            .iter()
+            .filter(|child| child.name == "b")
+            .count(),
+    );
+    (shape.0 + shape.1 > 0).then_some(shape)
+}
+
+fn direct_fragment_node_centroid_from_interchange(
+    fragment: &crate::InterchangeObject,
+) -> Option<(f64, f64)> {
+    point_centroid(fragment.children.iter().filter_map(|child| {
+        (child.name == "n")
+            .then(|| child.properties.get("p"))
+            .flatten()
+            .and_then(|property| parse_cdxml_point(&property.value))
+    }))
+}
+
+fn direct_fragment_node_centroid_from_xml(
+    fragment: &crate::cdxml::xml::XmlNode,
+) -> Option<(f64, f64)> {
+    point_centroid(
+        fragment
+            .children
+            .iter()
+            .filter_map(|child| (child.name == "n").then(|| child.attr("p")).flatten())
+            .filter_map(parse_cdxml_point),
+    )
+}
+
+fn parse_cdxml_point(value: &str) -> Option<(f64, f64)> {
+    let mut values = value
+        .split_whitespace()
+        .filter_map(|part| part.parse().ok());
+    Some((values.next()?, values.next()?))
+}
+
+fn point_centroid(points: impl Iterator<Item = (f64, f64)>) -> Option<(f64, f64)> {
+    let mut count = 0_u32;
+    let mut x = 0.0;
+    let mut y = 0.0;
+    for (point_x, point_y) in points {
+        count += 1;
+        x += point_x;
+        y += point_y;
+    }
+    (count > 0).then(|| (x / f64::from(count), y / f64::from(count)))
+}
+
+fn direct_fragment_graph_shape_from_xml(
+    fragment: &crate::cdxml::xml::XmlNode,
+) -> Option<(usize, usize)> {
+    let shape = (
+        fragment
+            .children
+            .iter()
+            .filter(|child| child.name == "n")
+            .count(),
+        fragment
+            .children
+            .iter()
+            .filter(|child| child.name == "b")
+            .count(),
+    );
+    (shape.0 + shape.1 > 0).then_some(shape)
 }
 
 pub(super) fn retain_native_annotations(
@@ -421,4 +646,154 @@ pub(super) fn write_xml_node(node: &crate::cdxml::xml::XmlNode, out: &mut String
         }
     }
     write!(out, "</{}>", node.name).expect("write XML end tag");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renumbered_fragment_matches_only_by_unique_direct_graph_shape() {
+        let source_xml = crate::cdxml::parse_xml_tree(
+            r#"<page><fragment id="3" SourceTag="kept">
+                <n id="2" p="10 10" SourceNodeTag="kept"/><n id="4" p="20 10"/>
+                <n id="6" p="20 20"/><n id="8" p="30 10"/>
+                <b id="5" B="2" E="4"/><b id="7" B="4" E="6"/><b id="9" B="4" E="8"/>
+            </fragment></page>"#,
+        )
+        .expect("source XML parses");
+        let source = crate::cdxml::interchange_object_from_xml(&source_xml);
+        let mut generated = crate::cdxml::parse_xml_tree(
+            r#"<page><fragment id="27">
+                <n id="28" p="10.01 10"/><n id="29" p="20.01 10"/>
+                <n id="30" p="20.01 20"/><n id="31" p="30.01 10"/>
+                <b id="32" B="28" E="29"/><b id="33" B="29" E="30"/><b id="34" B="29" E="31"/>
+            </fragment><fragment id="35">
+                <n id="36" p="110 110"/><n id="37" p="120 110"/>
+                <n id="38" p="120 120"/><n id="39" p="130 110"/>
+                <b id="40" B="36" E="37"/><b id="41" B="37" E="38"/><b id="42" B="37" E="39"/>
+            </fragment></page>"#,
+        )
+        .expect("generated XML parses");
+
+        merge_interchange_tree(&mut generated, &source);
+
+        let fragments = generated
+            .children
+            .iter()
+            .filter(|child| child.name == "fragment")
+            .collect::<Vec<_>>();
+        assert_eq!(fragments.len(), 2);
+        assert_eq!(fragments[0].attr("id"), Some("27"));
+        assert_eq!(fragments[0].attr("SourceTag"), Some("kept"));
+        assert_eq!(
+            fragments[0]
+                .children
+                .iter()
+                .filter(|child| child.name == "n")
+                .count(),
+            4
+        );
+        assert_eq!(
+            fragments[0]
+                .children
+                .iter()
+                .find(|child| child.attr("id") == Some("28"))
+                .and_then(|child| child.attr("SourceNodeTag")),
+            Some("kept")
+        );
+    }
+
+    #[test]
+    fn unmatched_graph_child_cannot_consume_a_later_exact_identity() {
+        let source_xml = crate::cdxml::parse_xml_tree(
+            r#"<page><fragment id="3">
+                <n id="invalid-source-id" SourceNodeTag="unmodeled"/>
+                <n id="4" p="20 10" SourceNodeTag="exact"/>
+                <b id="invalid-bond-id" B="missing" E="4"/>
+                <b id="5" B="4" E="4" SourceBondTag="exact"/>
+            </fragment></page>"#,
+        )
+        .expect("source XML parses");
+        let source = crate::cdxml::interchange_object_from_xml(&source_xml);
+        let mut generated = crate::cdxml::parse_xml_tree(
+            r#"<page><fragment id="3">
+                <n id="4" p="20 10"/>
+                <b id="5" B="4" E="4"/>
+            </fragment></page>"#,
+        )
+        .expect("generated XML parses");
+
+        merge_interchange_tree(&mut generated, &source);
+
+        let fragment = generated
+            .children
+            .iter()
+            .find(|child| child.attr("id") == Some("3"))
+            .expect("fragment remains");
+        assert_eq!(
+            fragment
+                .children
+                .iter()
+                .filter(|child| child.attr("id") == Some("4"))
+                .count(),
+            1
+        );
+        assert_eq!(
+            fragment
+                .children
+                .iter()
+                .find(|child| child.attr("id") == Some("4"))
+                .and_then(|child| child.attr("SourceNodeTag")),
+            Some("exact")
+        );
+        assert_eq!(
+            fragment
+                .children
+                .iter()
+                .filter(|child| child.attr("id") == Some("5"))
+                .count(),
+            1
+        );
+        assert_eq!(
+            fragment
+                .children
+                .iter()
+                .find(|child| child.attr("id") == Some("5"))
+                .and_then(|child| child.attr("SourceBondTag")),
+            Some("exact")
+        );
+    }
+
+    #[test]
+    fn structurally_different_fragment_boundary_is_not_grafted() {
+        let source_xml = crate::cdxml::parse_xml_tree(
+            r#"<page><fragment id="20" SourceTag="wrapper"><n id="21"/></fragment></page>"#,
+        )
+        .expect("source XML parses");
+        let source = crate::cdxml::interchange_object_from_xml(&source_xml);
+        let mut generated = crate::cdxml::parse_xml_tree(
+            r#"<page><fragment id="30">
+                <n id="31"/><n id="32"/><b id="33" B="31" E="32"/>
+            </fragment></page>"#,
+        )
+        .expect("generated XML parses");
+
+        merge_interchange_tree(&mut generated, &source);
+
+        assert_eq!(
+            generated
+                .children
+                .iter()
+                .filter(|child| child.name == "fragment")
+                .count(),
+            2
+        );
+        let regenerated = generated
+            .children
+            .iter()
+            .find(|child| child.attr("id") == Some("30"))
+            .expect("regenerated fragment remains separate");
+        assert_eq!(regenerated.attr("SourceTag"), None);
+    }
 }

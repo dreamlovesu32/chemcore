@@ -1,0 +1,66 @@
+{
+  "schema": "chemsema-nomenclature/chemical-graph/2",
+  "semantics": {
+    "profile": "molecular-fragment",
+    "aromaticityModel": "explicit-aromatic-bonds",
+    "hydrogenModel": "resolved-counts",
+    "valenceModel": "chem-sema2026",
+    "normalization": "chemsema-chemical-graph-normalization/1"
+  },
+  "atoms": [
+    {
+      "id": "c1",
+      "atomicNumber": 6,
+      "isotope": null,
+      "formalCharge": 0,
+      "radical": "none",
+      "implicitHydrogens": 3
+    },
+    {
+      "id": "c2",
+      "atomicNumber": 6,
+      "isotope": null,
+      "formalCharge": 0,
+      "radical": "none",
+      "implicitHydrogens": 1
+    },
+    {
+      "id": "c3",
+      "atomicNumber": 6,
+      "isotope": null,
+      "formalCharge": 0,
+      "radical": "none",
+      "implicitHydrogens": 3
+    }
+  ],
+  "bonds": [
+    {
+      "id": "b1",
+      "atoms": ["c1", "c2"],
+      "kind": "single",
+      "dativeDirection": null
+    },
+    {
+      "id": "b2",
+      "atoms": ["c2", "c3"],
+      "kind": "single",
+      "dativeDirection": null
+    }
+  ],
+  "freeValences": [
+    {
+      "atom": "c2",
+      "order": "single"
+    }
+  ],
+  "stereo": [],
+  "components": [
+    {
+      "id": "component-1",
+      "atoms": ["c1", "c2", "c3"],
+      "count": 1
+    }
+  ],
+  "assumptions": [],
+  "interactions": []
+}

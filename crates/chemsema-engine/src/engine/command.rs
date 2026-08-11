@@ -1,8 +1,8 @@
 use crate::{
     ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BondAnchor,
-    BondLineWeights, BondVariant, BracketKind, ChemSemaDocument, DoubleBondPlacement, LabelRun,
-    LinkPolicy, ObjectSettings, OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, SceneObject,
-    ShapeKind, ShapeStyle,
+    BondLineWeights, BondVariant, BracketKind, ChemSemaDocument, DoubleBondPlacement,
+    ImageCropRect, LabelRun, LinkPolicy, ObjectSettings, OrbitalPhase, OrbitalStyle,
+    OrbitalTemplate, Point, SceneObject, ShapeKind, ShapeStyle,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -401,6 +401,12 @@ pub enum EditorCommand {
         #[serde(default, alias = "sourceName", skip_serializing_if = "Option::is_none")]
         source_name: Option<String>,
     },
+    SetImageCrop {
+        #[serde(alias = "objectId")]
+        object_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        crop: Option<ImageCropRect>,
+    },
     SetTextRuns {
         #[serde(alias = "objectId")]
         object_id: String,
@@ -449,12 +455,30 @@ pub enum EditorCommand {
         no_go: ArrowNoGo,
         variant: ArrowVariant,
     },
+    ApplyArrowEndpoints {
+        #[serde(default, alias = "objectIds")]
+        object_ids: Vec<String>,
+        #[serde(default, alias = "headStyle", skip_serializing_if = "Option::is_none")]
+        head_style: Option<ArrowEndpointStyle>,
+        #[serde(default, alias = "tailStyle", skip_serializing_if = "Option::is_none")]
+        tail_style: Option<ArrowEndpointStyle>,
+    },
+    ApplyArrowStylePatch {
+        #[serde(default, alias = "objectIds")]
+        object_ids: Vec<String>,
+        patch: ArrowStylePatch,
+    },
     CycleBondStyle {
         #[serde(alias = "bondId")]
         bond_id: String,
         variant: BondVariant,
     },
     DeleteSelection,
+    SetObjectsLocked {
+        #[serde(default, alias = "objectIds")]
+        object_ids: Vec<String>,
+        locked: bool,
+    },
     DeleteTargets {
         targets: CommandTargetSet,
     },
@@ -658,6 +682,19 @@ pub enum EditorCommand {
         reaction_step_id: Option<String>,
         policy: LinkPolicy,
     },
+    SetLogicalObject {
+        kind: String,
+        value: Value,
+    },
+    DeleteLogicalObject {
+        kind: String,
+        id: String,
+    },
+    ReorderLogicalObject {
+        kind: String,
+        id: String,
+        index: usize,
+    },
     SetLinkPolicy {
         #[serde(default, alias = "objectIds")]
         object_ids: Vec<String>,
@@ -805,6 +842,37 @@ pub struct AnnotationPropertiesPatch {
     pub italic: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub underline: Option<bool>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArrowStylePatch {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<ArrowVariant>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub head_size: Option<ArrowHeadSize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub curve: Option<ArrowCurve>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub head_style: Option<ArrowEndpointStyle>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tail_style: Option<ArrowEndpointStyle>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bold: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub no_go: Option<ArrowNoGo>,
+}
+
+impl ArrowStylePatch {
+    pub fn is_empty(self) -> bool {
+        self.variant.is_none()
+            && self.head_size.is_none()
+            && self.curve.is_none()
+            && self.head_style.is_none()
+            && self.tail_style.is_none()
+            && self.bold.is_none()
+            && self.no_go.is_none()
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]

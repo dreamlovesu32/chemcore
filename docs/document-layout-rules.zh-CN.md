@@ -50,7 +50,7 @@ ChemSema 把文档布局拆成三个明确上下文，不用隐式回退互相�
 - **CCJS/CCJZ**：显式保存全部布局字段，包括空字符串、空数组和 `null`，不依赖省略字段推断语义。
 - **SVG/EMF 与 Office 剪贴板预览**：仍是单画布/单对象输出，不伪造多页容器；分页语义由 PDF、CCJS、CDX 和 CDXML 承载。
 
-页眉、页脚支持 `&l`、`&c`、`&r` 分区，以及 `&f` 文件名、`&p` 页码、`&d` 日期、`&t` 时间。纸张视图和 PDF 复用同一套解释规则。
+页眉、页脚支持 `&l`、`&c`、`&r` 分区，以及 `&f` 文件名、`&p` 页码、`&d` 日期、`&t` 时间。纸张视图和 PDF 复用同一个页面装饰模块；裁切标记也由该模块给出每页 8 条位于物理页范围内的线段，避免屏幕预览画在纸外而 PDF 裁掉的分叉。
 
 ## 6. 参数与作用域
 
@@ -67,16 +67,24 @@ ChemSema 把文档布局拆成三个明确上下文，不用隐式回退互相�
 | `header`, `footer` | `Header`, `Footer` | 页眉页脚文本 |
 | `headerPosition`, `footerPosition` | 同名字段 | 页眉页脚基线位置 |
 | `magnificationPercent` | `Magnification` | 保存的文档视图缩放；CDX/CDXML 数值为百分数的十倍 |
-| `splitterPositions` | `SplitterPositions` | 保存的分割视图位置 |
+| `pageDefinition` | `PageDefinition` | 页面格式枚举；缺省为 `Undefined` |
+| `splitters[].id` | `<splitter id>` | Splitter 对象的全局唯一身份 |
+| `splitters[].position` | `<splitter p>` | Splitter 对象的文档坐标 |
+| `splitters[].pageDefinition` | `<splitter PageDefinition>` | Splitter 自身的格式枚举 |
+| `legacySplitterPositionIds` | `SplitterPositions` | ChemDraw 6 旧式对象 ID 数组；只保真，不解释成坐标 |
 | `fixInPlaceExtent` | `FixInPlaceExtent` | OLE 原位编辑尺寸 |
 | `fixInPlaceGap` | `FixInPlaceGap` | OLE 原位编辑留白 |
 
-所有数值均以文档点为单位，只有 `magnificationPercent` 使用百分数。
+所有几何数值均以文档点为单位，只有 `magnificationPercent` 使用百分数。
+`SplitterPositions` 的官方二进制类型是 `CDXObjectIDArray`，其中的数字是对象 ID，
+不是点值。该字段从 ChemDraw 7 起已由 Splitter 子对象取代；两种表示没有冲突时
+可以同时保留。
 
 ## 7. 交互与保存
 
 - 文档布局对话框由内核提供字段契约和纸型预设，前端只负责呈现和提交完整值。
-- 纸型、方向、页数、原始页面坐标、页边距、重叠、页眉页脚、缩放、分割位置和 OLE 参数均可编辑。
+- 纸型、方向、页数、原始页面坐标、页边距、重叠、页眉页脚、缩放、页面定义、
+  Splitter 对象、旧式 Splitter ID 数组和 OLE 参数均可编辑。
 - 打开文档时应用保存的 `magnificationPercent`；用户改变缩放后，在保存或导出前把当前缩放同步回文档。
 - 纸张视图状态属于标签页视图状态，不进入 CDX/CDXML；文档的分页参数和页面锚点属于文档状态。
 - 所有布局修改经过统一命令历史，可撤销/重做。
@@ -92,3 +100,7 @@ ChemSema 把文档布局拆成三个明确上下文，不用隐式回退互相�
 - CDXML 和 CDX 全字段往返；
 - 多页 PDF 页数与每页 `MediaBox`；
 - 40 px 底栏、两个按钮及纸张右键菜单的 GUI 路径。
+
+NR-014 与 NR-016 的联合关闭门禁为 `npm run gate:native:biodraw-layout`；它依次运行
+BioShape Rust 行为测试、参数化几何门禁、21 类绝对视觉门禁、布局单元门禁、
+BioDraw/属性编辑浏览器回归和分页真实 GUI 回归。

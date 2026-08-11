@@ -3,9 +3,10 @@
 ## Scope
 
 `chemsema-nomenclature/chemical-graph/2` is ChemSema's presentation-independent
-semantic graph for determined molecular entities and discrete integer
-compositions. It is the shared input boundary for nomenclature, NMR prediction,
-identity comparison, and external-format adapters.
+semantic graph for determined molecular entities, molecular fragments, and
+discrete integer compositions. It is the shared input boundary for
+nomenclature, NMR prediction, identity comparison, and external-format
+adapters.
 
 It is not a drawing document, query language, reaction model, polymer model, or
 general substance formulation. Coordinates, fonts, colors, captions, selection
@@ -22,7 +23,8 @@ Normative positive and negative examples live in
 
 Every newly emitted graph declares:
 
-- `profile`: `molecular-entity` or `discrete-composition`;
+- `profile`: `molecular-entity`, `molecular-fragment`, or
+  `discrete-composition`;
 - `aromaticityModel`: currently `explicit-aromatic-bonds`;
 - `hydrogenModel`: currently `resolved-counts`;
 - `valenceModel`: currently `chem-sema2026`;
@@ -40,6 +42,11 @@ supported aromaticity model before constructing V2. Resolved implicit hydrogen
 counts participate in identity.
 
 `molecular-entity` requires exactly one connected component with count one.
+`molecular-fragment` also requires one connected component with count one and
+at least one structured `freeValences` entry. Each entry identifies the atom
+and the missing bond order (`single`, `double`, or `triple`). Equal repeated
+entries are significant: two single free valences are not collapsed into one
+double free valence.
 `discrete-composition` allows multiple connected components with positive
 integer counts. Fractional occupancy, nonstoichiometric solids, Markush/query
 structures, polymers, and reactions are explicit unsupported boundaries rather
@@ -60,7 +67,51 @@ identifier.
 attributes, resolved hydrogens, pairwise bond kind and dative direction,
 components and counts, stereo elements and enhanced groups, and multicenter
 interactions. Source ids, array order, component/interaction ids, and audit
-assumptions do not affect identity.
+assumptions do not affect identity. Free-valence atom placement, order, and
+multiplicity do affect identity.
+
+Consequently, V2 does not promise that one molecule has only one JSON text, and
+it does not treat a SMILES string as an identity key. Two different SMILES can
+map to isomorphic V2 graphs only after the importing adapter has resolved them
+under the declared aromaticity, hydrogen, valence, charge, and stereo semantics.
+Applications that need a database key must use graph isomorphism or a separately
+versioned canonical-identity algorithm; hashing `normalized()` JSON is not
+sufficient because source atom ids are preserved.
+
+## Molecular-fragment example
+
+The `propan-2-yl` fragment stores the carbon skeleton normally and puts its one
+free single valence on the central carbon:
+
+```json
+{
+  "schema": "chemsema-nomenclature/chemical-graph/2",
+  "semantics": {
+    "profile": "molecular-fragment",
+    "aromaticityModel": "explicit-aromatic-bonds",
+    "hydrogenModel": "resolved-counts",
+    "valenceModel": "chem-sema2026",
+    "normalization": "chemsema-chemical-graph-normalization/1"
+  },
+  "atoms": [
+    {"id":"c1","atomicNumber":6,"isotope":null,"formalCharge":0,"radical":"none","implicitHydrogens":3},
+    {"id":"c2","atomicNumber":6,"isotope":null,"formalCharge":0,"radical":"none","implicitHydrogens":1},
+    {"id":"c3","atomicNumber":6,"isotope":null,"formalCharge":0,"radical":"none","implicitHydrogens":3}
+  ],
+  "bonds": [
+    {"id":"b1","atoms":["c1","c2"],"kind":"single","dativeDirection":null},
+    {"id":"b2","atoms":["c2","c3"],"kind":"single","dativeDirection":null}
+  ],
+  "freeValences": [{"atom":"c2","order":"single"}],
+  "stereo": [],
+  "components": [{"id":"component-1","atoms":["c1","c2","c3"],"count":1}],
+  "assumptions": [],
+  "interactions": []
+}
+```
+
+The complete normative fixture is
+[`fixtures/chemical-graph-v2/valid/propan-2-yl.json`](../fixtures/chemical-graph-v2/valid/propan-2-yl.json).
 
 ## Stereo and multicenter interactions
 
@@ -100,6 +151,8 @@ are not stored as drawing strings.
 
 Nomenclature and NMR providers must reject a schema or normalization contract
 they do not understand. They must not ignore unknown identity-relevant fields.
+NMR requests are for complete molecular entities; molecular-fragment graphs are
+intended for nomenclature and structure-editing boundaries.
 
 ## Adapter loss policy
 
@@ -121,3 +174,6 @@ Imported CCJS documents can preserve existing CDXML MultiAttachment proxy
 geometry during source round-trip. A graph-only CDX/CDXML mapping cannot assume
 that presentation geometry exists, so the mapping report rejects coordination
 interactions until an adapter explicitly constructs that document encoding.
+The current CDX/CDXML, SMILES, and SDF V2000 mapping reports likewise reject a
+fragment as lossless until that adapter has a verified structured-free-valence
+encoding.

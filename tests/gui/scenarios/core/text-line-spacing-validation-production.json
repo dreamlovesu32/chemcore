@@ -1,0 +1,63 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.text.line-spacing-validation.production",
+  "title": "Create multiline text and validate line spacing, rejection, cancel, history, and persistence",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "The public line-spacing dialog lacked a named dialog role and a uniquely named input, so guarded black-box input could not qualify valid, invalid, cancel, history, or saved-document behavior.",
+  "capabilities": ["gui.public-input", "editor.text.create", "editor.text.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 18,
+  "actions": [
+    { "id": "activate-text-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Text", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"text\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-text-editor", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "at": { "x": 0.42, "y": 0.40 }, "completion": { "kind": "dom-count", "selector": ".text-editor-input", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-first-line", "type": "text", "target": { "strategy": "role", "value": "textbox", "name": "text editor input" }, "text": "First line", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "insert-line-break", "type": "key", "target": { "strategy": "role", "value": "textbox", "name": "text editor input" }, "key": "Enter", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-second-line", "type": "text", "target": { "strategy": "role", "value": "textbox", "name": "text editor input" }, "text": "Second line", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "commit-multiline-text", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-text\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-multiline-text", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-line-spacing-menu-invalid", "type": "click", "target": { "strategy": "entity-id", "value": "obj_text_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"text-line-spacing\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-line-spacing-dialog-invalid", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Line Spacing...", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".numeric-dialog [role=\"dialog\"][aria-label=\"Line Spacing\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-invalid-line-spacing", "type": "text", "target": { "strategy": "role", "value": "textbox", "name": "Line Spacing" }, "text": "-1", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "reject-invalid-line-spacing", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Apply" }, "completion": { "kind": "dom-count", "selector": ".numeric-dialog input[name=\"value\"].is-invalid", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-invalid-line-spacing", "type": "key", "target": { "strategy": "role", "value": "textbox", "name": "Line Spacing" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-valid-line-spacing", "type": "text", "target": { "strategy": "role", "value": "textbox", "name": "Line Spacing" }, "text": "20", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "apply-valid-line-spacing", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Apply" }, "completion": { "kind": "dom-count", "selector": ".numeric-dialog", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "undo-line-spacing", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-line-spacing-menu-after-undo", "type": "click", "target": { "strategy": "entity-id", "value": "obj_text_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"text-line-spacing\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-line-spacing-after-undo", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Line Spacing...", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".numeric-dialog input[name=\"value\"][value=\"12\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "cancel-undo-verification", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Cancel" }, "completion": { "kind": "dom-count", "selector": ".numeric-dialog", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "redo-line-spacing", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-line-spacing-menu-after-redo", "type": "click", "target": { "strategy": "entity-id", "value": "obj_text_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"text-line-spacing\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-line-spacing-after-redo", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Line Spacing...", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".numeric-dialog input[name=\"value\"][value=\"20\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "cancel-redo-verification", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Cancel" }, "completion": { "kind": "dom-count", "selector": ".numeric-dialog", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "one-multiline-text-object-remains", "kind": "dom-distinct-count", "selector": "[data-role=\"document-text\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1 },
+    { "id": "saved-line-spacing-property", "kind": "document-text-properties", "expected": [
+      { "id": "obj_text_1", "text": "First line\nSecond line", "lineHeight": 20, "lineHeightMode": "fixed" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.text.create", "editor.text.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["text"],
+    "cardinalities": ["1"],
+    "states": ["editing", "multiline", "committed", "selected", "dialog-invalid", "dialog-cancelled", "line-spacing-fixed", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "text", "modal-dialog", "native-dialog"],
+    "properties": ["text.content.multiline", "text.line-spacing"],
+    "persistenceBoundaries": ["runtime", "history", "filesystem", "native-dialog"]
+  }
+}

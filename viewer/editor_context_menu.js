@@ -1,5 +1,79 @@
+export function contextMenuViewportBounds(metrics = {}) {
+  const innerWidth = Math.max(0, Number(metrics.innerWidth) || 0);
+  const innerHeight = Math.max(0, Number(metrics.innerHeight) || 0);
+  const screenX = Number(metrics.screenX) || 0;
+  const screenY = Number(metrics.screenY) || 0;
+  const availLeft = Number(metrics.availLeft);
+  const availTop = Number(metrics.availTop);
+  const availWidth = Number(metrics.availWidth);
+  const availHeight = Number(metrics.availHeight);
+  const hasScreenWorkArea = [availLeft, availTop, availWidth, availHeight]
+    .every(Number.isFinite) && availWidth > 0 && availHeight > 0;
+  const left = hasScreenWorkArea ? Math.max(0, availLeft - screenX) : 0;
+  const top = hasScreenWorkArea ? Math.max(0, availTop - screenY) : 0;
+  const right = hasScreenWorkArea
+    ? Math.min(innerWidth, availLeft + availWidth - screenX)
+    : innerWidth;
+  const bottom = hasScreenWorkArea
+    ? Math.min(innerHeight, availTop + availHeight - screenY)
+    : innerHeight;
+  return {
+    left: Math.min(left, right),
+    top: Math.min(top, bottom),
+    right: Math.max(left, right),
+    bottom: Math.max(top, bottom),
+  };
+}
+
+export function contextSubmenuPlacement(entryRect, submenuRect, bounds, margin = 6) {
+  let offsetTop = -4;
+  if (submenuRect.bottom > bounds.bottom - margin) {
+    offsetTop -= submenuRect.bottom - (bounds.bottom - margin);
+  }
+  if (entryRect.top + offsetTop < bounds.top + margin) {
+    offsetTop += bounds.top + margin - (entryRect.top + offsetTop);
+  }
+  return {
+    offsetTop,
+    openLeft: submenuRect.right > bounds.right - margin,
+  };
+}
+
 export function createCanvasContextMenuHost(options) {
   let activeContextMenuState = null;
+
+  function availableViewportBounds() {
+    return contextMenuViewportBounds({
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      screenX: window.screenX,
+      screenY: window.screenY,
+      availLeft: window.screen?.availLeft,
+      availTop: window.screen?.availTop,
+      availWidth: window.screen?.availWidth,
+      availHeight: window.screen?.availHeight,
+    });
+  }
+
+  function positionSubmenu(entry) {
+    const submenu = entry?.querySelector?.(":scope > .canvas-context-submenu");
+    if (!submenu) {
+      return;
+    }
+    submenu.style.left = "";
+    submenu.style.right = "";
+    submenu.style.top = "-4px";
+    const placement = contextSubmenuPlacement(
+      entry.getBoundingClientRect(),
+      submenu.getBoundingClientRect(),
+      availableViewportBounds(),
+    );
+    submenu.style.top = `${placement.offsetTop}px`;
+    if (placement.openLeft) {
+      submenu.style.left = "auto";
+      submenu.style.right = "calc(100% - 2px)";
+    }
+  }
 
   function uniformValue(values) {
     const normalized = values.filter((value) => value != null && value !== "");
@@ -54,13 +128,25 @@ export function createCanvasContextMenuHost(options) {
     });
     menu.addEventListener("click", (event) => {
       const item = event.target.closest("[data-canvas-context-command]");
-      if (!item || item.disabled || item.dataset.hasSubmenu === "true") {
+      if (!item || item.disabled) {
+        return;
+      }
+      if (item.dataset.hasSubmenu === "true") {
+        positionSubmenu(item.closest(".canvas-context-menu-entry"));
         return;
       }
       const command = item.dataset.canvasContextCommand;
       const value = item.dataset.canvasContextValue || "";
       void runCanvasContextMenuCommand(command, value);
     });
+    const scheduleSubmenuPosition = (event) => {
+      const entry = event.target.closest?.(".canvas-context-menu-entry.has-submenu");
+      if (entry) {
+        requestAnimationFrame(() => positionSubmenu(entry));
+      }
+    };
+    menu.addEventListener("focusin", scheduleSubmenuPosition);
+    menu.addEventListener("pointerover", scheduleSubmenuPosition);
 
     return menu;
   }
@@ -119,6 +205,10 @@ export function createCanvasContextMenuHost(options) {
     button.dataset.hasSubmenu = item.submenu?.length ? "true" : "false";
     button.disabled = !!item.disabled;
     button.setAttribute("role", "menuitem");
+    button.setAttribute("aria-label", item.label || "");
+    if (item.submenu?.length) {
+      button.setAttribute("aria-haspopup", "menu");
+    }
     if (item.checked) {
       button.classList.add("is-checked");
       button.setAttribute("aria-checked", "true");
@@ -182,8 +272,9 @@ export function createCanvasContextMenuHost(options) {
     const margin = 6;
     const width = canvasContextMenu.offsetWidth;
     const height = canvasContextMenu.offsetHeight;
-    const left = Math.max(margin, Math.min(event.clientX, window.innerWidth - width - margin));
-    const top = Math.max(margin, Math.min(event.clientY, window.innerHeight - height - margin));
+    const bounds = availableViewportBounds();
+    const left = Math.max(bounds.left + margin, Math.min(event.clientX, bounds.right - width - margin));
+    const top = Math.max(bounds.top + margin, Math.min(event.clientY, bounds.bottom - height - margin));
     canvasContextMenu.style.left = `${left}px`;
     canvasContextMenu.style.top = `${top}px`;
     canvasContextMenu.querySelector("button:not(:disabled):not([data-has-submenu='true'])")?.focus?.({ preventScroll: true });
@@ -391,6 +482,28 @@ export function createCanvasContextMenuHost(options) {
       );
       return { handled: true, changed };
     }
+    if (command === "image-crop-dialog") {
+      let spec = null;
+      try {
+        spec = JSON.parse(value || "null");
+      } catch {
+        spec = null;
+      }
+      const decision = await options.imageCropDialogHost?.choose(spec);
+      if (!decision) {
+        return { handled: true, changed: false };
+      }
+      const payload = {
+        type: "set-image-crop",
+        objectId: decision.objectId,
+        crop: decision.crop,
+      };
+      const changed = await executeDocumentCommand(
+        payload,
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify(payload)),
+      );
+      return { handled: true, changed };
+    }
     if (command === "text-line-spacing") {
       await options.numericDialogHost.choose("line-height");
       return { handled: true, changed: false };
@@ -420,6 +533,10 @@ export function createCanvasContextMenuHost(options) {
         );
         return { handled: true, changed };
       }
+      return { handled: true, changed: false };
+    }
+    if (command === "logical-objects-dialog") {
+      await options.logicalObjectsDialogHost?.open();
       return { handled: true, changed: false };
     }
     if (command === "create-annotation") {
@@ -519,6 +636,12 @@ export function createCanvasContextMenuHost(options) {
     }
     if (["cut", "copy", "paste", "delete", "select-all"].includes(command)) {
       changed = await options.runEditorCommand(command);
+    } else if (command === "image-crop-reset") {
+      const payload = { type: "set-image-crop", objectId: value, crop: null };
+      changed = await executeDocumentCommand(
+        payload,
+        () => options.state().editorEngine?.executeCommandJson?.(JSON.stringify(payload)),
+      );
     } else if (command === "insert-image") {
       options.openImageFilePickerAt?.(activeContextMenuState?.point || null);
       await finishTemporaryContextSelection();
@@ -537,6 +660,12 @@ export function createCanvasContextMenuHost(options) {
       changed = await executeDocumentCommand("group-selection", () => options.state().editorEngine?.groupSelection?.());
     } else if (command === "ungroup") {
       changed = await executeDocumentCommand("ungroup-selection", () => options.state().editorEngine?.ungroupSelection?.());
+    } else if (command === "set-selection-locked") {
+      changed = await executeDocumentCommand({
+        type: "set-objects-locked",
+        objectIds: [],
+        locked: value === "true",
+      });
     } else if (command === "link") {
       changed = await executeDocumentCommand("link-selection", () => options.state().editorEngine?.linkSelection?.());
     } else if (command === "link-policy") {
@@ -708,24 +837,43 @@ export function createCanvasContextMenuHost(options) {
     } else if (command === "arrow-bold") {
       syncEditorArrowStateFromSelectedLine();
       options.editorState().arrowBold = selectedUniformLineStyle() !== "bold";
-      changed = await options.applyArrowOptionsToSelection();
+      changed = await options.applyArrowOptionsToSelection({ bold: options.editorState().arrowBold });
+    } else if (command === "arrow-property") {
+      const separatorIndex = value.indexOf(":");
+      const property = separatorIndex >= 0 ? value.slice(0, separatorIndex) : "";
+      const propertyValue = separatorIndex >= 0 ? value.slice(separatorIndex + 1) : "";
+      if (!["variant", "headSize", "curve", "noGo"].includes(property) || !propertyValue) {
+        throw new Error(`Unsupported arrow property action ${value}.`);
+      }
+      const patch = { [property]: propertyValue };
+      if (property === "variant" && (propertyValue === "curved" || propertyValue === "curved-mirror")) {
+        patch.curve = "270";
+      }
+      changed = await options.applyArrowOptionsToSelection(patch);
     } else if (command === "arrow-endpoint") {
       syncEditorArrowStateFromSelectedLine();
       const [endpoint, style] = value.split(":");
       const nextStyle = style || "none";
+      let headStyle = "";
+      let tailStyle = "";
       if (isEquilibriumArrowType(options.editorState().arrowType) && (nextStyle === "left" || nextStyle === "right")) {
-        options.editorState().arrowHeadStyle = nextStyle;
-        options.editorState().arrowTailStyle = nextStyle;
-        options.editorState().arrowHead = true;
-        options.editorState().arrowTail = true;
+        headStyle = nextStyle;
+        tailStyle = nextStyle;
       } else if (endpoint === "head") {
-        options.editorState().arrowHeadStyle = selectedUniformArrowEndpoint("head") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
-        options.editorState().arrowHead = options.editorState().arrowHeadStyle !== "none";
+        headStyle = selectedUniformArrowEndpoint("head") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
       } else {
-        options.editorState().arrowTailStyle = selectedUniformArrowEndpoint("tail") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
-        options.editorState().arrowTail = options.editorState().arrowTailStyle !== "none";
+        tailStyle = selectedUniformArrowEndpoint("tail") === endpointStylePayloadName(nextStyle) ? "none" : nextStyle;
       }
-      changed = await options.applyArrowOptionsToSelection();
+      changed = await executeDocumentCommand(
+        {
+          type: "apply-arrow-endpoints",
+          payload: {
+            ...(headStyle ? { headStyle } : {}),
+            ...(tailStyle ? { tailStyle } : {}),
+          },
+        },
+        () => options.state().editorEngine?.applyArrowEndpointPatchToSelection?.(headStyle, tailStyle),
+      );
     }
     if (!changed) {
       options.renderEditorOverlay();

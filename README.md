@@ -191,6 +191,7 @@ browser demo is published through GitHub Pages:
 
 - **CDXML/CDX import and export**: The Rust engine parses and writes ChemDraw-oriented formats, maps them into the ChemSema document model, and keeps enough drawing information for re-rendering and round trips.
 - **Unified document and rendering model**: The document model, runtime scene, hit testing, selection state, and render primitives are defined in the engine while the front end focuses on events and display.
+- **Scalable native documents**: CCJS 0.2 keeps flat entities with explicit hierarchy/relations; CCJZ adds hashed chunks, visible-region loading, unchanged-entry and attachment reuse, browser Zip64, and structured chemical/round-trip validation.
 - **Complex bond geometry**: Single, double, triple, bold, dashed, solid wedge, hashed wedge, label clipping, bond joins, crossing gaps, and ChemDraw-style template parameters are implemented.
 - **Arrows and graphical objects**: Reaction arrows, equilibrium arrows, hollow arrows, curved arrows, brackets, lines, shapes, and symbols are supported and continue to be aligned with ChemDraw interaction details.
 - **Selection, drag, rotation, and arrangement**: Object-level and partial molecule selection, multi-select drag preview, rotation, flip, alignment, distribution, color application, and undoable command history are available.
@@ -312,7 +313,9 @@ chemsema/
 - Rust stable with the MSVC toolchain on Windows
 - Node.js and npm
 - Python 3 for local static serving and some optional analysis scripts
-- `wasm-pack` is installed automatically by `npm run build:engine-wasm` when needed
+- the exact `wasm-pack` version declared in `tools/wasm-pack.json`; the build
+  fails closed on a missing or different version, and CI verifies the pinned
+  Windows archive SHA-256 before use
 - Windows is required for the desktop shell and Office/OLE integration paths
 
 ## Quick Start
@@ -444,7 +447,11 @@ also reads [CITATION.cff](./CITATION.cff) for its **Cite this repository** entry
 - CLI protocol contracts: [docs/protocol](./docs/protocol/README.md)
 - Document commit contract: [English](./docs/document-commit-contract.md) / [中文](./docs/document-commit-contract.zh-CN.md)
 - Editor command history: [English](./docs/editor-command-history.md) / [中文](./docs/editor-command-history.zh-CN.md)
-- Format v0.1: [English](./docs/format-v0.1.md) / [中文](./docs/format-v0.1.zh-CN.md)
+- Current CCJS format v0.2: [English](./docs/format-v0.2.md) / [中文](./docs/format-v0.2.zh-CN.md)
+- CCJS architecture, comparison, and rationale: [中文](./docs/ccjs-architecture-and-format-rationale.zh-CN.md)
+- CCJS v0.2 implementation status and stable-release gates: [中文](./docs/ccjs-v0.2-stability-architecture.zh-CN.md)
+- CCJZ container, Document Patch, and Recovery Journal contracts: [docs/protocol](./docs/protocol/README.md)
+- Legacy format v0.1: [English](./docs/format-v0.1.md) / [中文](./docs/format-v0.1.zh-CN.md)
 - Glyph clipping rules: [English](./docs/glyph-clip-polygons.md) / [中文](./docs/glyph-clip-polygons.zh-CN.md)
 - Glyph kernel: [English](./docs/glyph-kernel.md) / [中文](./docs/glyph-kernel.zh-CN.md)
 - Implicit hydrogen rules: [English](./docs/implicit-hydrogen-rules.md) / [中文](./docs/implicit-hydrogen-rules.zh-CN.md)
@@ -454,6 +461,7 @@ also reads [CITATION.cff](./CITATION.cff) for its **Cite this repository** entry
 - Text symbols and glyph profiles: [English](./docs/text-symbol-glyph-profile-rules.md) / [中文](./docs/text-symbol-glyph-profile-rules.zh-CN.md)
 - Valence-driven label recognition: [English](./docs/valence-label-recognition-rules.md) / [中文](./docs/valence-label-recognition-rules.zh-CN.md)
 - Windows desktop and Office architecture: [English](./docs/windows-desktop-office-architecture.md) / [中文](./docs/windows-desktop-office-architecture.zh-CN.md)
+- GUI test platform and demo reliability architecture: [English](./docs/gui-test-platform-and-demo-reliability.md) / [中文](./docs/gui-test-platform-and-demo-reliability.zh-CN.md)
 - Release quality matrix: [English](./docs/release-quality.md) / [中文](./docs/release-quality.zh-CN.md)
 - Release notes: [CHANGELOG.md](./CHANGELOG.md) / [中文](./CHANGELOG.zh-CN.md)
 - Roadmap: [English](./ROADMAP.md) / [中文](./ROADMAP.zh-CN.md)

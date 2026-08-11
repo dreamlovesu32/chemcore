@@ -1,6 +1,6 @@
 ---
 name: chemsema-cli
-description: Use ChemSema CLI for chemical document inspection, editing, capture, conversion, label queries, Office payload debugging, and JSONL sessions. Trigger this skill when working with ChemSema documents or formats such as CCJS, CCJZ, CDXML, CDX, SDF, SVG, PNG, Office clipboard payloads, ChemSema command scripts, selectors, molecule targets, label-query, plan-bond, plan-template, capture, context, detail, targets, new, run, convert, export, or session workflows.
+description: Use ChemSema CLI for chemical document inspection, editing, capture, conversion, validation, canonicalization, migration, conformance, SMILES insertion, chemical identifiers, Office payload debugging, and JSONL sessions. Trigger this skill when working with ChemSema documents or formats such as CCJS, CCJZ, CDXML, CDX, SDF, SVG, PNG, EMF, chemical-graph-v2, SMILES, InChI, InChIKey, Office clipboard payloads, ChemSema command scripts, selectors, molecule targets, label-query, plan-bond, plan-template, capture, context, detail, targets, new, run, convert, export, validate, canonicalize, migrate, conformance, insert-smiles, chemistry, or session workflows.
 ---
 
 # ChemSema CLI
@@ -27,21 +27,25 @@ Use this order for document work:
 
 1. `about`, `examples`, `guide`, `schema`, and `capabilities` to discover the
    installed runtime.
-2. `inspect` for whole-document summaries.
-3. `targets` to discover stable selectors.
-4. `context` to inspect neighborhoods and selection boxes.
-5. `detail` to expand one object, molecule, node, or bond.
-6. `capture` for deterministic SVG/PNG crops.
-7. `bundle` when one selector needs detail, context, capture, editable subset,
+2. `validate` for structural, chemical, or actual round-trip checks;
+   `canonicalize`, `migrate`, and `conformance` for governed CCJS/CCJZ work.
+3. `inspect` for whole-document summaries.
+4. `targets` to discover stable selectors.
+5. `context` to inspect neighborhoods and selection boxes.
+6. `detail` to expand one object, molecule, node, or bond.
+7. `capture` for deterministic SVG/PNG crops.
+8. `bundle` when one selector needs detail, context, capture, editable subset,
    identity map, provenance, and manifest artifacts together.
-8. `new` or `run` with command scripts for edits; use
+9. `new`, `run`, or `insert-smiles` for edits; use
    `chemsema.command-transaction.v1` envelopes for scoped dry-runs or atomic
    guarded edits.
-9. `diff` to compare before/after editable documents by structured IDs.
-10. `convert` or `export` for whole-document output, or target-only editable
+10. `chemistry` for `chemical-graph-v2`, canonical `smiles`, `inchi`, or
+    `inchi-key` analysis of one complete molecule.
+11. `diff` to compare before/after editable documents by structured IDs.
+12. `convert` or `export` for whole-document output, or target-only editable
    subset output with `--target`/`--targets`.
-11. `copy` for Windows Office/OLE clipboard payloads.
-12. `session` for repeated work on one document.
+13. `copy` for Windows Office/OLE clipboard payloads.
+14. `session` for repeated work on one document.
 
 ## Read References As Needed
 
@@ -52,7 +56,9 @@ Use this order for document work:
 - For `new`, `run`, `session execute`, command JSON, selection state, target
   editing, arrange/group/link/style commands, `plan-bond`, and `plan-template`,
   read `references/command-scripts.md`.
-- For `convert`, `export`, editable formats, and raster/vector output, read
+- For `validate`, `canonicalize`, `migrate`, `conformance`, `insert-smiles`,
+  `chemistry`, `convert`, `export`, editable formats, chemical identifiers,
+  and raster/vector output, read
   `references/formats-conversion.md`.
 - For chemical text, visible text, reverse labels, anchors, and
   `defaultChemical:false`, read `references/label-query.md`.

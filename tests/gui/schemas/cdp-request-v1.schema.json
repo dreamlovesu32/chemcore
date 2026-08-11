@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chemsema.gui.cdp-request.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "id", "requestBase64"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.cdp-request.v1" },
+    "id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "requestBase64": { "type": "string", "minLength": 4 }
+  }
+}

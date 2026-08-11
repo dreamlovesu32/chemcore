@@ -216,7 +216,22 @@ impl Engine {
     }
 
     pub(super) fn refresh_symbol_chemistry(&mut self) -> bool {
-        let mut changed = crate::refresh_attached_electron_symbols(&mut self.state.document);
+        self.refresh_symbol_chemistry_with_mode(true)
+    }
+
+    pub(super) fn refresh_loaded_symbol_chemistry(&mut self) -> bool {
+        self.refresh_symbol_chemistry_with_mode(false)
+    }
+
+    fn refresh_symbol_chemistry_with_mode(&mut self, allow_new_spatial_auto_links: bool) -> bool {
+        let refresh = |document: &mut crate::ChemSemaDocument| {
+            if allow_new_spatial_auto_links {
+                crate::refresh_attached_electron_symbols(document)
+            } else {
+                crate::refresh_loaded_electron_symbols(document)
+            }
+        };
+        let mut changed = refresh(&mut self.state.document);
         if changed {
             if let Some(mut entry) = self.state.document.editable_fragment_mut() {
                 refresh_attached_node_label_geometry_for_all_nodes(
@@ -226,7 +241,7 @@ impl Engine {
                 );
                 entry.update_bounds();
             }
-            changed |= crate::refresh_attached_electron_symbols(&mut self.state.document);
+            changed |= refresh(&mut self.state.document);
             changed |= refresh_repeating_units(&mut self.state.document);
         }
         changed

@@ -58,6 +58,16 @@ impl Engine {
         self.state.document.document.layout = layout;
         true
     }
+
+    pub(super) fn validate_document_layout_candidate(
+        &self,
+        layout: &crate::DocumentLayout,
+    ) -> Result<(), String> {
+        let mut document = self.state.document.clone();
+        document.document.layout = layout.clone();
+        let json = serde_json::to_string(&document).map_err(|error| error.to_string())?;
+        crate::parse_document_json(&json).map(|_| ())
+    }
 }
 
 #[cfg(test)]
@@ -101,12 +111,57 @@ mod tests {
             "footer",
             "footerPosition",
             "magnificationPercent",
-            "splitterPositions",
+            "pageDefinition",
+            "splitters",
+            "legacySplitterPositionIds",
             "fixInPlaceExtent",
             "fixInPlaceGap",
         ] {
             assert!(data.get(key).is_some(), "missing {key}");
         }
+    }
+
+    #[test]
+    fn legacy_numeric_splitter_positions_migrate_to_explicit_object_ids() {
+        let layout: crate::DocumentLayout = serde_json::from_value(json!({
+            "splitterPositions": [101, 202.5]
+        }))
+        .unwrap();
+        assert_eq!(
+            layout.legacy_splitter_position_ids,
+            ["101".to_string(), "202.5".to_string()]
+        );
+        let serialized = serde_json::to_value(layout).unwrap();
+        assert!(serialized.get("splitterPositions").is_none());
+        assert_eq!(
+            serialized["legacySplitterPositionIds"],
+            json!(["101", "202.5"])
+        );
+    }
+
+    #[test]
+    fn layout_command_rejects_splitter_ids_that_collide_with_document_entities() {
+        let mut engine = Engine::new();
+        let mut layout = engine.state.document.document.layout.clone();
+        layout.splitters.push(crate::PageSplitter {
+            id: "obj_editor_molecule".to_string(),
+            position: None,
+            page_definition: crate::PageDefinition::Undefined,
+        });
+        let error = engine
+            .execute_command(crate::engine::EditorCommand::SetDocumentLayout { layout })
+            .unwrap_err();
+        assert!(error.contains("collides"), "{error}");
+    }
+
+    #[test]
+    fn cdxml_rejects_unknown_page_definitions_instead_of_falling_back() {
+        let error = crate::parse_cdxml_document(
+            r#"<CDXML><page PageDefinition="FutureLayout"/></CDXML>"#,
+            None,
+        )
+        .unwrap_err();
+        assert!(error.contains("unsupported PageDefinition"), "{error}");
     }
 
     #[test]
@@ -155,7 +210,20 @@ mod tests {
             footer: "&c&d &t".to_string(),
             footer_position: 25.0,
             magnification_percent: 150.0,
-            splitter_positions: vec![101.0, 202.0],
+            page_definition: crate::PageDefinition::Reaction1,
+            splitters: vec![
+                crate::PageSplitter {
+                    id: "301".to_string(),
+                    position: Some([101.0, 202.0]),
+                    page_definition: crate::PageDefinition::Center,
+                },
+                crate::PageSplitter {
+                    id: "302".to_string(),
+                    position: None,
+                    page_definition: crate::PageDefinition::UserDefined,
+                },
+            ],
+            legacy_splitter_position_ids: vec!["301".to_string(), "302".to_string()],
             fix_in_place_extent: Some([320.0, 240.0]),
             fix_in_place_gap: Some([8.0, 9.0]),
         };
@@ -169,7 +237,10 @@ mod tests {
             "HeaderPosition=\"24\"",
             "FooterPosition=\"25\"",
             "Magnification=\"1500\"",
-            "SplitterPositions=\"101 202\"",
+            "PageDefinition=\"Reaction1\"",
+            "SplitterPositions=\"301 302\"",
+            "<splitter id=\"301\" p=\"101 202\" PageDefinition=\"Center\"/>",
+            "<splitter id=\"302\" PageDefinition=\"UserDefined\"/>",
             "FixInPlaceExtent=\"320 240\"",
             "FixInPlaceGap=\"8 9\"",
         ] {
@@ -186,7 +257,12 @@ mod tests {
         assert_eq!(actual.header, "&lChemSema&c&f&r&p");
         assert_eq!(actual.footer, "&c&d &t");
         assert_eq!(actual.magnification_percent, 150.0);
-        assert_eq!(actual.splitter_positions, vec![101.0, 202.0]);
+        assert_eq!(actual.page_definition, crate::PageDefinition::Reaction1);
+        assert_eq!(actual.splitters, document.document.layout.splitters);
+        assert_eq!(
+            actual.legacy_splitter_position_ids,
+            vec!["301".to_string(), "302".to_string()]
+        );
         assert_eq!(actual.fix_in_place_extent, Some([320.0, 240.0]));
         assert_eq!(actual.fix_in_place_gap, Some([8.0, 9.0]));
         assert_eq!(actual.page_origin, Some([42.0, 48.0]));
@@ -207,7 +283,12 @@ mod tests {
         assert_eq!(cdx_layout.header, "&lChemSema&c&f&r&p");
         assert_eq!(cdx_layout.footer, "&c&d &t");
         assert_eq!(cdx_layout.magnification_percent, 150.0);
-        assert_eq!(cdx_layout.splitter_positions, vec![101.0, 202.0]);
+        assert_eq!(cdx_layout.page_definition, crate::PageDefinition::Reaction1);
+        assert_eq!(cdx_layout.splitters, document.document.layout.splitters);
+        assert_eq!(
+            cdx_layout.legacy_splitter_position_ids,
+            vec!["301".to_string(), "302".to_string()]
+        );
         assert_eq!(cdx_layout.fix_in_place_extent, Some([320.0, 240.0]));
         assert_eq!(cdx_layout.fix_in_place_gap, Some([8.0, 9.0]));
         assert_eq!(cdx_layout.page_origin, Some([42.0, 48.0]));

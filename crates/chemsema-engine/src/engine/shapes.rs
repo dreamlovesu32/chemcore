@@ -1266,7 +1266,7 @@ fn shape_object_kind(object: &SceneObject) -> Option<ShapeObjectKind> {
         "circle" => Some(ShapeObjectKind::Circle),
         "ellipse" => Some(ShapeObjectKind::Ellipse),
         "roundRect" | "round-rect" => Some(ShapeObjectKind::RoundRect),
-        "rect" => Some(ShapeObjectKind::Rect),
+        "rect" | "tlcPlate" | "gelPlate" => Some(ShapeObjectKind::Rect),
         "orbital" => Some(ShapeObjectKind::Orbital),
         "plasmidMap" | "plasmid-map" => Some(ShapeObjectKind::PlasmidMap),
         "bioShape" | "bio-shape" => Some(ShapeObjectKind::BioShape),

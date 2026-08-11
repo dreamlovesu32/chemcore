@@ -17,12 +17,21 @@ import {
   looksLikeCdxFile,
   looksLikeCdxmlFile,
   looksLikeSdfFile,
+  openChemSemaViewportSession,
   saveFormatFromFileName,
 } from "./file_io.js";
 import {
   pdfPreviewBase64FromSvg,
   pdfPreviewBase64FromSvgPages,
 } from "./export_preview.js";
+import {
+  pageTextAnnotations,
+  pageTrimMarkSegments,
+} from "./document_page_decorations.js";
+import {
+  canonicalChemSemaDocumentForSave,
+  inflateChemSemaDocument,
+} from "./engine_bridge.js";
 
 export function createDocumentFlow(options) {
   function traceEvent(event, detail = null) {
@@ -40,9 +49,9 @@ export function createDocumentFlow(options) {
     }
     const compressed = path.toLowerCase().endsWith(CHEMSEMA_COMPRESSED_EXTENSION);
     const text = compressed
-      ? await decompressChemSemaText(await response.arrayBuffer())
+      ? await decompressChemSemaText(await response.blob())
       : await response.text();
-    return JSON.parse(text);
+    return inflateChemSemaDocument(JSON.parse(text));
   }
 
   function validateChemSemaJsonDocument(documentData) {
@@ -52,8 +61,12 @@ export function createDocumentFlow(options) {
     if (!documentData.document || typeof documentData.document !== "object") {
       throw new Error("Missing document section.");
     }
-    if (!Array.isArray(documentData.objects)) {
-      throw new Error("Missing objects array.");
+    const hasLegacyScene = Array.isArray(documentData.objects);
+    const hasNormalizedScene = documentData.format?.version === "0.2"
+      && Array.isArray(documentData.entities?.scene)
+      && Array.isArray(documentData.hierarchy?.roots);
+    if (!hasLegacyScene && !hasNormalizedScene) {
+      throw new Error("Missing CCJS scene entities and hierarchy.");
     }
     if (!documentData.resources || typeof documentData.resources !== "object") {
       throw new Error("Missing resources section.");
@@ -79,6 +92,7 @@ export function createDocumentFlow(options) {
   async function replaceEditorDocumentEngine(engine, fileName, filePath, titleFallback) {
     traceEvent("documentFlow.replaceEngine.begin", { fileName, filePath, titleFallback });
     const previousEngine = options.state.editorEngine;
+    options.state.ccjzViewportSession = null;
     options.state.currentPath = null;
     options.state.currentFileName = fileName;
     options.state.currentFilePath = filePath;
@@ -117,13 +131,19 @@ export function createDocumentFlow(options) {
     await waitForRuntimeReady();
     validateChemSemaJsonDocument(documentData);
     await options.finishActiveTextEditor(false);
-    const json = JSON.stringify(documentData);
+    const recovery = await options.recoverDocument?.(documentData, fileName, filePath);
+    const recoveredDocument = recovery?.document || documentData;
+    validateChemSemaJsonDocument(recoveredDocument);
+    const json = JSON.stringify(recoveredDocument);
     const engine = await createLoadedEditorEngine(
       "json",
       (nextEngine) => nextEngine.loadDocumentJson(json),
       { jsonLength: json.length, fileName, filePath },
     );
     await replaceEditorDocumentEngine(engine, fileName, filePath, "Untitled");
+    if (recovery?.recovered) {
+      options.markCurrentDocumentRecovered?.(recovery);
+    }
   }
 
   async function currentDocumentJsonForSave() {
@@ -137,11 +157,23 @@ export function createDocumentFlow(options) {
     if (!options.state.currentDocument) {
       throw new Error("No document to save.");
     }
-    return `${JSON.stringify(options.state.currentDocument, null, 2)}\n`;
+    return `${JSON.stringify(
+      canonicalChemSemaDocumentForSave(options.state.currentDocument),
+      null,
+      2,
+    )}\n`;
   }
 
   async function prepareCurrentDocumentForOutput() {
     await options.finishActiveTextEditor(true);
+    const session = options.state.ccjzViewportSession;
+    const engine = options.state.editorEngine;
+    if (session && engine?.hydrateDocumentJson && engine?.documentJson) {
+      session.mergeEditedDocument(JSON.parse(await engine.documentJson()));
+      const complete = await session.materialize();
+      await engine.hydrateDocumentJson(JSON.stringify(complete));
+      await options.syncDocumentFromEngine?.();
+    }
     await options.documentLayoutHost?.storeMagnificationPercent?.(
       options.getZoomPercent?.(),
     );
@@ -288,6 +320,7 @@ export function createDocumentFlow(options) {
       options.state.currentFileName = handle.name || suggestedName;
       options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
       options.markCurrentDocumentSaved?.();
+      await options.compactRecoveryJournal?.();
       return true;
     }
     const payload = await savePayloadForFormat("ccjz");
@@ -495,6 +528,7 @@ export function createDocumentFlow(options) {
         options.state.currentFileName = handle.name || options.state.currentFileName;
         options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
         options.markCurrentDocumentSaved?.();
+        await options.compactRecoveryJournal?.();
       }
       return true;
     }
@@ -547,6 +581,7 @@ export function createDocumentFlow(options) {
       options.viewerTitle.textContent = options.state.currentDocument?.document?.title || options.state.currentFileName || "Untitled";
       updateDocumentMeta();
       options.markCurrentDocumentSaved?.();
+      await options.compactRecoveryJournal?.();
     } else {
       options.refreshCommandAvailability?.();
     }
@@ -561,14 +596,47 @@ export function createDocumentFlow(options) {
       await loadCdxDocumentIntoEditor(new Uint8Array(await file.arrayBuffer()), file.name || null, null);
       return;
     }
-    const text = looksLikeCompressedChemSemaFile(file)
-      ? await decompressChemSemaText(await file.arrayBuffer())
-      : await file.text();
+    if (looksLikeCompressedChemSemaFile(file)) {
+      if (file instanceof Blob) {
+        const header = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+        if (!(header[0] === 0x1f && header[1] === 0x8b)) {
+          const session = await openChemSemaViewportSession(file);
+          const visible = options.visibleWorldRect?.();
+          const initialBounds = Array.isArray(visible)
+            ? visible
+            : visible && [visible.minX, visible.minY, visible.maxX, visible.maxY].every(Number.isFinite)
+              ? [visible.minX, visible.minY, visible.maxX, visible.maxY]
+              : session.documentBounds;
+          const initial = await session.loadRegion(initialBounds);
+          await loadJsonDocumentIntoEditor(initial.document, file.name || null, null);
+          options.state.ccjzViewportSession = session;
+          return;
+        }
+      }
+      const text = await decompressChemSemaText(file);
+      await loadJsonDocumentIntoEditor(JSON.parse(text), file.name || null, null);
+      return;
+    }
+    const text = await file.text();
     if (looksLikeSdfFile(file, text)) {
       await loadSdfDocumentIntoEditor(text, file.name || null, null);
       return;
     }
     await openDocumentText(text, file.name || null, null, looksLikeCdxmlFile(file, text) ? "cdxml" : saveFormatFromFileName(file.name));
+  }
+
+  async function hydrateVisibleCcjzRegion(bounds) {
+    const session = options.state.ccjzViewportSession;
+    const engine = options.state.editorEngine;
+    if (!session || !engine?.hydrateDocumentJson || !engine?.documentJson) return false;
+    const current = JSON.parse(await engine.documentJson());
+    session.mergeEditedDocument(current);
+    const loaded = await session.loadRegion(bounds);
+    if (!loaded.newlyLoadedChunks) return false;
+    await engine.hydrateDocumentJson(JSON.stringify(loaded.document));
+    await options.syncDocumentFromEngine?.();
+    options.renderDocument?.();
+    return true;
   }
 
   async function openDocumentText(text, fileName = null, filePath = null, format = null) {
@@ -737,6 +805,7 @@ export function createDocumentFlow(options) {
     loadJsonDocumentIntoEditor,
     openDocumentText,
     openDocumentFile,
+    hydrateVisibleCcjzRegion,
     openDocumentPath,
     saveCurrentDocument,
     saveCurrentDocumentAs,
@@ -785,56 +854,24 @@ function pagedSvgDocuments(sourceSvg, documentData, layout, resolved) {
 }
 
 function pageHeaderFooterSvg(documentData, layout, page) {
-  const now = new Date();
-  const dynamic = {
-    f: documentData?.document?.title || "Untitled",
-    p: String(page.pageNumber),
-    d: new Intl.DateTimeFormat(undefined, { dateStyle: "short" }).format(now),
-    t: new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(now),
-  };
-  let svg = "";
-  for (const [text, baseline] of [
-    [layout.header, page.y + Number(layout.headerPosition || 0)],
-    [layout.footer, page.y + page.height - Number(layout.footerPosition || 0)],
-  ]) {
-    if (!text) continue;
-    const sections = splitHeaderFooter(text, dynamic);
-    for (const [anchor, value, position] of [
-      ["start", sections.left, page.x + 6],
-      ["middle", sections.center, page.x + page.width / 2],
-      ["end", sections.right, page.x + page.width - 6],
-    ]) {
-      if (value) {
-        svg += `<text x="${formatSvgNumber(position)}" y="${formatSvgNumber(baseline)}" text-anchor="${anchor}" font-family="Arial, sans-serif" font-size="9" fill="#333333">${escapeXml(value)}</text>`;
-      }
-    }
-  }
-  return svg;
-}
-
-function splitHeaderFooter(source, dynamic) {
-  const sections = { left: "", center: "", right: "" };
-  let target = "left";
-  for (const chunk of String(source).split(/(&[lcr])/i)) {
-    if (/^&[lcr]$/i.test(chunk)) {
-      target = { l: "left", c: "center", r: "right" }[chunk[1].toLowerCase()];
-    } else {
-      sections[target] += chunk.replace(/&([fpdt])/gi, (_, token) => dynamic[token.toLowerCase()] || "");
-    }
-  }
-  return sections;
+  return pageTextAnnotations(documentData, layout, page)
+    .map((annotation) => (
+      `<text x="${formatSvgNumber(annotation.x)}" y="${formatSvgNumber(annotation.y)}" ` +
+      `text-anchor="${annotation.anchor}" font-family="Arial, sans-serif" font-size="9" ` +
+      `fill="#333333" data-page-annotation="${annotation.role}" ` +
+      `data-page-number="${annotation.pageNumber}">${escapeXml(annotation.text)}</text>`
+    ))
+    .join("");
 }
 
 function pageTrimMarksSvg(x, y, width, height) {
-  const inset = 3;
-  const length = 8;
-  const lines = [
-    [x + inset, y, x + inset + length, y], [x, y + inset, x, y + inset + length],
-    [x + width - inset - length, y, x + width - inset, y], [x + width, y + inset, x + width, y + inset + length],
-    [x + inset, y + height, x + inset + length, y + height], [x, y + height - inset - length, x, y + height - inset],
-    [x + width - inset - length, y + height, x + width - inset, y + height], [x + width, y + height - inset - length, x + width, y + height - inset],
-  ];
-  return lines.map(([x1, y1, x2, y2]) => `<line x1="${formatSvgNumber(x1)}" y1="${formatSvgNumber(y1)}" x2="${formatSvgNumber(x2)}" y2="${formatSvgNumber(y2)}" stroke="#333333" stroke-width="0.55"/>`).join("");
+  return pageTrimMarkSegments(x, y, width, height)
+    .map(([x1, y1, x2, y2]) => (
+      `<line x1="${formatSvgNumber(x1)}" y1="${formatSvgNumber(y1)}" ` +
+      `x2="${formatSvgNumber(x2)}" y2="${formatSvgNumber(y2)}" ` +
+      `stroke="#333333" stroke-width="0.55" data-page-trim-mark="true"/>`
+    ))
+    .join("");
 }
 
 function formatSvgNumber(value) {

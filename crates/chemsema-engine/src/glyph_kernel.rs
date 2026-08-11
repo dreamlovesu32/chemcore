@@ -98,6 +98,18 @@ struct GlyphOutlineCommandJson {
 #[derive(Debug, Clone, Deserialize)]
 struct GlyphOutlineFaceJson {
     glyphs: HashMap<String, GlyphOutlineJson>,
+    #[serde(default)]
+    kerning: HashMap<String, HashMap<String, f64>>,
+    #[serde(rename = "labelAnchorMetrics")]
+    label_anchor_metrics: LabelAnchorMetricsJson,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LabelAnchorMetricsJson {
+    logical_height_max: u32,
+    character_ascent_runs: Vec<[u32; 2]>,
+    unhinted_descent_em: f64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -110,6 +122,23 @@ struct SharedGlyphOutlinesJson {
     version: u32,
     aliases: HashMap<String, String>,
     families: HashMap<String, GlyphOutlineFamilyJson>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct TextAdvanceFaceJson {
+    advances: HashMap<String, f64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct TextAdvanceFamilyJson {
+    faces: HashMap<String, TextAdvanceFaceJson>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct SharedTextAdvancesJson {
+    version: u32,
+    aliases: HashMap<String, String>,
+    families: HashMap<String, TextAdvanceFamilyJson>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -196,6 +225,12 @@ struct GlyphPlacement {
 }
 
 #[derive(Debug, Clone, Copy)]
+struct AxisContactGlyph {
+    bounds: [f64; 4],
+    baseline_y: f64,
+}
+
+#[derive(Debug, Clone, Copy)]
 struct LabelAnchor {
     valid: bool,
     glyph_index: usize,
@@ -224,15 +259,17 @@ struct RowRender {
 
 static SHARED_GLYPH_PROFILES: OnceLock<SharedGlyphProfiles> = OnceLock::new();
 static SHARED_GLYPH_OUTLINES: OnceLock<SharedGlyphOutlinesJson> = OnceLock::new();
+static SHARED_TEXT_ADVANCES: OnceLock<SharedTextAdvancesJson> = OnceLock::new();
 const LABEL_GLYPH_CLIP_PAD_SCALE: f64 = 0.25;
 const GLYPH_CURVE_STEPS: usize = 12;
 const GLYPH_CIRCLE_STEPS: usize = 20;
-const GLYPH_AXIS_HALF_SECTOR_DEG: f64 = 10.0;
+pub(crate) const GLYPH_AXIS_HALF_SECTOR_DEG: f64 = 10.0;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct LabelGlyphGeometry {
     pub glyph_polygons: Vec<Vec<[f64; 2]>>,
     pub clip_polygons: Vec<Vec<[f64; 2]>>,
+    pub clip_polygon_owners: Vec<Option<usize>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -258,10 +295,6 @@ pub(crate) fn variable_text_line_advances(
         .map(|line| {
             let mut top = f64::INFINITY;
             let mut bottom = f64::NEG_INFINITY;
-            let mut max_size = default_font_size;
-            for run in line {
-                max_size = max_size.max(run.font_size.unwrap_or(default_font_size));
-            }
             for placement in glyph_placements_for_runs(line, 0.0, 0.0, default_font_size) {
                 top = top.min(placement.ink_box_px[1]);
                 bottom = bottom.max(placement.ink_box_px[3]);
@@ -270,18 +303,22 @@ pub(crate) fn variable_text_line_advances(
                 top = -default_font_size * 0.73;
                 bottom = default_font_size * 0.16;
             }
-            (top, bottom, max_size)
+            (top, bottom)
         })
         .collect::<Vec<_>>();
     bounds
         .windows(2)
         .map(|pair| {
-            let (_, previous_bottom, previous_size) = pair[0];
-            let (next_top, _, next_size) = pair[1];
-            // ChemDraw's Variable mode packs consecutive glyph ink boxes and
-            // leaves about one tenth of an em between them. The glyph bounds
-            // already include face, size and script baseline shifts.
-            (previous_bottom - next_top + previous_size.max(next_size) * 0.1).max(0.1)
+            let (_, previous_bottom) = pair[0];
+            let (next_top, _) = pair[1];
+            let next_ascent = (-next_top).max(0.0);
+            // ChemDraw Variable mode is directional. It places the next
+            // baseline one previous-line descent plus 7/6 of the next line's
+            // actual ascent below the current baseline. The extra 1/6 ascent
+            // is the interline clearance; it is not a fixed fraction of the
+            // largest font size. This single rule covers font, size, face,
+            // script, and glyph overshoot without document-specific offsets.
+            (previous_bottom + next_ascent * (7.0 / 6.0)).max(0.1)
         })
         .collect()
 }
@@ -324,7 +361,7 @@ pub fn build_label_glyph_geometry_with_profile(
         .unwrap_or(position[1] - default_font_size * 0.82);
 
     let mut geometry = LabelGlyphGeometry::default();
-    let mut outline_bounds: Option<[f64; 4]> = None;
+    let mut contact_glyphs = Vec::new();
     for (line_index, line) in lines.iter().enumerate() {
         let baseline_y = if lines.len() == 1 {
             position[1]
@@ -338,17 +375,29 @@ pub fn build_label_glyph_geometry_with_profile(
             let Some(glyph_geometry) = glyph_geometry_with_profile(&placement, profile) else {
                 continue;
             };
-            include_bounds(&mut outline_bounds, placement.ink_box_px);
+            let glyph_index = geometry.glyph_polygons.len();
+            contact_glyphs.push(AxisContactGlyph {
+                bounds: placement.ink_box_px,
+                baseline_y: placement.baseline_y_px,
+            });
             geometry.glyph_polygons.push(glyph_geometry.glyph_polygon);
+            geometry.clip_polygon_owners.extend(std::iter::repeat_n(
+                Some(glyph_index),
+                glyph_geometry.clip_polygons.len(),
+            ));
             geometry.clip_polygons.extend(glyph_geometry.clip_polygons);
         }
     }
-    if let Some(bounds) = outline_bounds {
-        geometry.clip_polygons.extend(axis_contact_polygons(
-            bounds,
+    if !contact_glyphs.is_empty() {
+        let contacts = localized_axis_contact_polygons(
+            &contact_glyphs,
             retreat_origin,
             profile.natural_outset_pt,
-        ));
+        );
+        for (polygon, owner) in contacts {
+            geometry.clip_polygons.push(polygon);
+            geometry.clip_polygon_owners.push(owner);
+        }
     }
     geometry
 }
@@ -483,6 +532,7 @@ fn glyph_placements_for_runs(
 ) -> Vec<GlyphPlacement> {
     let mut placements = Vec::new();
     let mut cursor_x = start_x;
+    let mut previous: Option<(char, ScriptKind, String, u32, bool, f64)> = None;
 
     for run in runs {
         let font_size = run
@@ -510,6 +560,31 @@ fn glyph_placements_for_runs(
         );
         let italic = run.font_style.as_deref() == Some("italic");
         for character in run.text.chars() {
+            if let Some((
+                previous_character,
+                previous_script,
+                previous_family,
+                previous_weight,
+                previous_italic,
+                previous_size,
+            )) = previous.as_ref()
+            {
+                if *previous_script == script
+                    && previous_family == font_family
+                    && *previous_weight == font_weight
+                    && *previous_italic == italic
+                    && (*previous_size - font_size).abs() <= crate::EPSILON
+                {
+                    cursor_x += lookup_glyph_kerning_em(
+                        font_family,
+                        font_weight,
+                        italic,
+                        *previous_character,
+                        character,
+                    ) * font_size
+                        * script_scale(config, script);
+                }
+            }
             let placement = layout_glyph(
                 character,
                 script,
@@ -524,6 +599,14 @@ fn glyph_placements_for_runs(
             );
             cursor_x += placement.advance_px;
             placements.push(placement);
+            previous = Some((
+                character,
+                script,
+                font_family.to_string(),
+                font_weight,
+                italic,
+                font_size,
+            ));
         }
     }
 
@@ -611,7 +694,20 @@ fn layout_glyph_run(
 ) -> Vec<GlyphPlacement> {
     let mut placements = Vec::with_capacity(glyphs.len());
     let mut cursor_x = start_x_px;
+    let mut previous = None;
     for glyph in glyphs {
+        if let Some((previous_character, previous_script)) = previous {
+            if previous_script == glyph.script {
+                cursor_x += lookup_glyph_kerning_em(
+                    "Arial",
+                    400,
+                    false,
+                    previous_character,
+                    glyph.codepoint,
+                ) * config.font_size_px
+                    * script_scale(config, glyph.script);
+            }
+        }
         let placement = layout_glyph(
             glyph.codepoint,
             glyph.script,
@@ -626,6 +722,7 @@ fn layout_glyph_run(
         );
         cursor_x += placement.advance_px;
         placements.push(placement);
+        previous = Some((glyph.codepoint, glyph.script));
     }
     placements
 }
@@ -909,7 +1006,17 @@ fn shared_glyph_outlines() -> &'static SharedGlyphOutlinesJson {
             .expect("shared glyph outline manifest must decompress");
         let manifest: SharedGlyphOutlinesJson =
             serde_json::from_str(&json).expect("shared glyph outline manifest must be valid JSON");
-        assert_eq!(manifest.version, 2, "unsupported glyph outline manifest");
+        assert_eq!(manifest.version, 4, "unsupported glyph outline manifest");
+        manifest
+    })
+}
+
+fn shared_text_advances() -> &'static SharedTextAdvancesJson {
+    SHARED_TEXT_ADVANCES.get_or_init(|| {
+        let manifest: SharedTextAdvancesJson =
+            serde_json::from_str(include_str!("../../../shared/text_advances.json"))
+                .expect("shared text advance manifest must be valid JSON");
+        assert_eq!(manifest.version, 1, "unsupported text advance manifest");
         manifest
     })
 }
@@ -921,6 +1028,97 @@ fn glyph_face_key(font_weight: u32, italic: bool) -> &'static str {
         (false, true) => "italic",
         (true, true) => "boldItalic",
     }
+}
+
+pub(crate) fn resolved_chemdraw_font_family(font_family: &str) -> &str {
+    shared_glyph_outlines()
+        .aliases
+        .get(font_family)
+        .map(String::as_str)
+        .unwrap_or(font_family)
+}
+
+fn lookup_glyph_face(
+    font_family: &str,
+    font_weight: u32,
+    italic: bool,
+) -> Option<&'static GlyphOutlineFaceJson> {
+    let manifest = shared_glyph_outlines();
+    let resolved_family = manifest
+        .aliases
+        .get(font_family)
+        .map(String::as_str)
+        .unwrap_or(font_family);
+    manifest
+        .families
+        .get(resolved_family)
+        // CDXML maps unavailable font families to Arial before layout.
+        .or_else(|| manifest.families.get("Arial"))
+        .and_then(|family| {
+            family
+                .faces
+                .get(glyph_face_key(font_weight, italic))
+                // Single-face families synthesize emphasis without changing
+                // their vertical GDI character metrics.
+                .or_else(|| family.faces.get("regular"))
+        })
+}
+
+/// ChemDraw positions a single-line molecule label so that the atom lies at
+/// half of the selected GDI face's character ascent. CDXML point sizes become
+/// negative GDI logical heights in twentieths of a point; dividing the integer
+/// character ascent by 40 applies both conversions and the half-ascent anchor.
+pub(crate) fn chemdraw_molecule_label_baseline_offset(
+    font_family: Option<&str>,
+    font_size: f64,
+    font_weight: u32,
+    italic: bool,
+) -> f64 {
+    let finite_size = if font_size.is_finite() && font_size > 0.0 {
+        font_size
+    } else {
+        crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT
+    };
+    let logical_height = (finite_size * 20.0).round().clamp(1.0, u32::MAX as f64) as u32;
+    let face = lookup_glyph_face(font_family.unwrap_or("Arial"), font_weight, italic)
+        .expect("Arial label anchor metrics must exist");
+    let metrics = &face.label_anchor_metrics;
+    let character_ascent = if logical_height <= metrics.logical_height_max {
+        let index = metrics
+            .character_ascent_runs
+            .partition_point(|run| run[0] <= logical_height)
+            .saturating_sub(1);
+        metrics.character_ascent_runs[index][1]
+    } else {
+        let descent = (logical_height as f64 * metrics.unhinted_descent_em).round() as u32;
+        logical_height.saturating_sub(descent)
+    };
+    character_ascent as f64 / 40.0
+}
+
+pub(crate) fn node_label_anchor_baseline_offset(label: &crate::NodeLabel) -> f64 {
+    let runs = label.runs.iter().chain(label.line_runs.iter().flatten());
+    let anchor_run = runs
+        .clone()
+        .find(|run| !matches!(run.script.as_deref(), Some("subscript" | "superscript")))
+        .or_else(|| runs.into_iter().next());
+    let font_family = anchor_run
+        .and_then(|run| run.font_family.as_deref())
+        .or(label.font_family.as_deref());
+    let font_size = anchor_run
+        .and_then(|run| run.font_size)
+        .or(label.font_size)
+        .unwrap_or(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
+    let font_weight = anchor_run.and_then(|run| run.font_weight).unwrap_or(400);
+    let italic = anchor_run
+        .and_then(|run| run.font_style.as_deref())
+        .is_some_and(|style| {
+            matches!(
+                style.trim().to_ascii_lowercase().as_str(),
+                "italic" | "oblique"
+            )
+        });
+    chemdraw_molecule_label_baseline_offset(font_family, font_size, font_weight, italic)
 }
 
 fn lookup_glyph_outline(
@@ -960,6 +1158,59 @@ fn lookup_glyph_outline(
     };
     let key = character.to_string();
     lookup_character(&key).or_else(|| (character != '□').then(|| lookup_character("□")).flatten())
+}
+
+fn lookup_nominal_text_advance_em(
+    font_family: &str,
+    font_weight: u32,
+    italic: bool,
+    character: char,
+) -> Option<f64> {
+    let manifest = shared_text_advances();
+    let resolved_family = manifest
+        .aliases
+        .get(font_family)
+        .map(String::as_str)
+        .unwrap_or(font_family);
+    let family = manifest
+        .families
+        .get(resolved_family)
+        // CDXML maps unavailable font families to Arial before rendering.
+        .or_else(|| manifest.families.get("Arial"))?;
+    let face = family
+        .faces
+        .get(glyph_face_key(font_weight, italic))
+        // Families such as Arial Black and SimSun expose one authored face;
+        // ChemDraw synthesizes requested emphasis without changing advances.
+        .or_else(|| family.faces.get("regular"))?;
+    face.advances.get(&character.to_string()).copied()
+}
+
+fn lookup_glyph_kerning_em(
+    font_family: &str,
+    font_weight: u32,
+    italic: bool,
+    left: char,
+    right: char,
+) -> f64 {
+    let manifest = shared_glyph_outlines();
+    let resolved_family = manifest
+        .aliases
+        .get(font_family)
+        .map(String::as_str)
+        .unwrap_or(font_family);
+    let left = left.to_string();
+    let right = right.to_string();
+    manifest
+        .families
+        .get(resolved_family)
+        .and_then(|family| family.faces.get(glyph_face_key(font_weight, italic)))
+        // Kerning never crosses the explicit font-substitution boundary.
+        .filter(|face| face.glyphs.contains_key(&left) && face.glyphs.contains_key(&right))
+        .and_then(|face| face.kerning.get(&left))
+        .and_then(|pairs| pairs.get(&right))
+        .copied()
+        .unwrap_or(0.0)
 }
 
 fn flatten_glyph_contours(
@@ -1155,29 +1406,68 @@ fn capsule_polygon(start: [f64; 2], end: [f64; 2], radius: f64) -> Option<Vec<[f
     Some(points)
 }
 
-fn include_bounds(bounds: &mut Option<[f64; 4]>, next: [f64; 4]) {
-    *bounds = Some(match *bounds {
-        Some(current) => [
-            current[0].min(next[0]),
-            current[1].min(next[1]),
-            current[2].max(next[2]),
-            current[3].max(next[3]),
-        ],
-        None => next,
-    });
-}
+fn localized_axis_contact_polygons(
+    glyphs: &[AxisContactGlyph],
+    origin: [f64; 2],
+    margin: f64,
+) -> Vec<(Vec<[f64; 2]>, Option<usize>)> {
+    let margin = margin.max(0.0);
+    // ChemDraw treats a horizontal text run as one left/right envelope:
+    // scripts on the attachment-facing end still contribute their X extent.
+    // Vertical contacts are column-local, so a script beside the attachment
+    // column cannot deepen a top/bottom retreat.
+    let right = glyphs
+        .iter()
+        .map(|glyph| glyph.bounds[2] + margin - origin[0])
+        .filter(|extent| *extent > crate::EPSILON)
+        .max_by(f64::total_cmp);
+    let left = glyphs
+        .iter()
+        .map(|glyph| origin[0] - glyph.bounds[0] + margin)
+        .filter(|extent| *extent > crate::EPSILON)
+        .max_by(f64::total_cmp);
 
-fn axis_contact_polygons(bounds: [f64; 4], origin: [f64; 2], margin: f64) -> Vec<Vec<[f64; 2]>> {
-    let contacts = [
-        (0.0, bounds[2] + margin - origin[0]),
-        (90.0, bounds[3] + margin - origin[1]),
-        (180.0, origin[0] - bounds[0] + margin),
-        (270.0, origin[1] - bounds[1] + margin),
-    ];
+    let vertical_candidates = glyphs
+        .iter()
+        .enumerate()
+        .filter(|(_, glyph)| {
+            origin[0] + crate::EPSILON >= glyph.bounds[0] - margin
+                && origin[0] - crate::EPSILON <= glyph.bounds[2] + margin
+        })
+        .collect::<Vec<_>>();
+    let mut contacts = Vec::new();
+    if let Some(extent) = right {
+        contacts.push((0.0, extent, None));
+    }
+    for (index, glyph) in &vertical_candidates {
+        // ChemDraw's baseline-facing contact uses the descent envelope of the
+        // whole same-baseline run. A normal "Tyr" therefore inherits the y
+        // descender even when the bond crosses T, while a shifted formula
+        // subscript remains a separate baseline group.
+        let down = glyphs
+            .iter()
+            .filter(|peer| (peer.baseline_y - glyph.baseline_y).abs() <= crate::EPSILON)
+            .map(|peer| peer.bounds[3] + margin - origin[1])
+            .filter(|extent| *extent > crate::EPSILON)
+            .max_by(f64::total_cmp);
+        if let Some(extent) = down {
+            contacts.push((90.0, extent, Some(*index)));
+        }
+    }
+    if let Some(extent) = left {
+        contacts.push((180.0, extent, None));
+    }
+    for (index, glyph) in vertical_candidates {
+        // The cap-facing contact remains column-local: distant capitals in a
+        // run do not deepen a bond that meets a shorter glyph such as y.
+        let extent = origin[1] - glyph.bounds[1] + margin;
+        if extent > crate::EPSILON {
+            contacts.push((270.0, extent, Some(index)));
+        }
+    }
     contacts
         .into_iter()
-        .filter(|(_, extent)| *extent > crate::EPSILON)
-        .map(|(axis_deg, extent)| {
+        .map(|(axis_deg, extent, owner)| {
             let mut polygon = Vec::with_capacity(7);
             polygon.push(origin);
             for index in 0..=5 {
@@ -1191,7 +1481,7 @@ fn axis_contact_polygons(bounds: [f64; 4], origin: [f64; 2], margin: f64) -> Vec
                     origin[1] + radius * angle.sin(),
                 ]);
             }
-            polygon
+            (polygon, owner)
         })
         .collect()
 }
@@ -1446,38 +1736,194 @@ pub(crate) fn shared_estimated_char_width(character: char, font_size: f64) -> f6
     lookup_glyph_profile(character).advance_em * font_size
 }
 
-pub(crate) fn shared_estimated_text_width(
+pub(crate) fn shared_estimated_char_width_for_face(
+    character: char,
+    font_size: f64,
+    font_family: &str,
+    font_weight: u32,
+    font_style: Option<&str>,
+) -> f64 {
+    let italic = font_style.is_some_and(|style| {
+        matches!(
+            style.trim().to_ascii_lowercase().as_str(),
+            "italic" | "oblique"
+        )
+    });
+    let advance_em = lookup_glyph_outline(font_family, font_weight, italic, character)
+        .map(|outline| outline.advance_em)
+        .unwrap_or_else(|| lookup_glyph_profile(character).advance_em);
+    advance_em * font_size
+}
+
+pub(crate) fn shared_text_horizontal_ink_bounds(
     text: &str,
     runs: &[crate::LabelRun],
     default_font_size: f64,
-) -> f64 {
-    if !runs.is_empty() {
-        let mut max_width = 0.0;
-        let mut line_width = 0.0;
-        for run in runs {
-            let font_size = run.font_size.unwrap_or(default_font_size)
-                * shared_script_scale_factor(run.script.as_deref());
-            for character in run.text.chars() {
-                match character {
-                    '\n' => {
-                        max_width = f64::max(max_width, line_width);
-                        line_width = 0.0;
-                    }
-                    '\r' => {}
-                    _ => line_width += shared_estimated_char_width(character, font_size),
+    default_font_family: Option<&str>,
+    text_anchor: Option<&str>,
+) -> [f64; 2] {
+    let mut min_x = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    for line in resolved_text_lines(text, runs, default_font_family) {
+        let (advance, [ink_left, ink_right]) =
+            text_line_horizontal_metrics(&line, default_font_size);
+        let anchor_shift = match text_anchor {
+            Some("middle") => -advance * 0.5,
+            Some("end") => -advance,
+            _ => 0.0,
+        };
+        min_x = min_x.min(anchor_shift + ink_left);
+        max_x = max_x.max(anchor_shift + ink_right);
+    }
+    if min_x.is_finite() && max_x.is_finite() {
+        [min_x, max_x]
+    } else {
+        [0.0, 0.0]
+    }
+}
+
+pub(crate) fn shared_text_advance_and_ink_bounds(
+    text: &str,
+    runs: &[crate::LabelRun],
+    default_font_size: f64,
+    default_font_family: Option<&str>,
+) -> (f64, [f64; 4]) {
+    let default_font_family = default_font_family.unwrap_or("Arial");
+    let resolved = resolved_text_lines(text, runs, Some(default_font_family));
+    let line = resolved.first().map(Vec::as_slice).unwrap_or_default();
+    let placements = glyph_placements_for_runs(line, 0.0, 0.0, default_font_size);
+    let advance = placements
+        .last()
+        .map(|placement| placement.origin_x_px + placement.advance_px)
+        .unwrap_or(0.0);
+    let mut bounds = [
+        f64::INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::NEG_INFINITY,
+    ];
+    for placement in placements.iter().filter(|placement| placement.visible) {
+        bounds[0] = bounds[0].min(placement.ink_box_px[0]);
+        bounds[1] = bounds[1].min(placement.ink_box_px[1]);
+        bounds[2] = bounds[2].max(placement.ink_box_px[2]);
+        bounds[3] = bounds[3].max(placement.ink_box_px[3]);
+    }
+    if bounds.iter().all(|value| value.is_finite()) {
+        (advance, bounds)
+    } else {
+        (advance, [0.0, -default_font_size * 0.75, advance, 0.0])
+    }
+}
+
+fn resolved_text_lines(
+    text: &str,
+    runs: &[crate::LabelRun],
+    default_font_family: Option<&str>,
+) -> Vec<Vec<crate::LabelRun>> {
+    let default_font_family = default_font_family.unwrap_or("Arial");
+    if runs.is_empty() {
+        return text
+            .split('\n')
+            .map(|line| {
+                vec![crate::LabelRun {
+                    text: line.trim_end_matches('\r').to_string(),
+                    font_family: Some(default_font_family.to_string()),
+                    ..crate::LabelRun::default()
+                }]
+            })
+            .collect();
+    }
+
+    let mut lines = vec![Vec::new()];
+    for run in runs {
+        let segments = run.text.split('\n').collect::<Vec<_>>();
+        for (index, segment) in segments.iter().enumerate() {
+            let segment = segment.trim_end_matches('\r');
+            if !segment.is_empty() {
+                let mut line_run = run.clone();
+                line_run.text = segment.to_string();
+                if line_run.font_family.is_none() {
+                    line_run.font_family = Some(default_font_family.to_string());
                 }
+                lines
+                    .last_mut()
+                    .expect("resolved text always has one line")
+                    .push(line_run);
+            }
+            if index + 1 < segments.len() {
+                lines.push(Vec::new());
             }
         }
-        return f64::max(max_width, line_width);
     }
-    text.lines()
-        .map(|line| {
-            line.chars()
-                .filter(|character| *character != '\r')
-                .map(|character| shared_estimated_char_width(character, default_font_size))
-                .sum()
-        })
-        .fold(0.0, f64::max)
+    lines
+}
+
+fn text_line_horizontal_metrics(
+    runs: &[crate::LabelRun],
+    default_font_size: f64,
+) -> (f64, [f64; 2]) {
+    let placements = glyph_placements_for_runs(runs, 0.0, 0.0, default_font_size);
+    let advance = placements
+        .last()
+        .map(|placement| placement.origin_x_px + placement.advance_px)
+        .unwrap_or(0.0);
+    let mut ink_left = f64::INFINITY;
+    let mut ink_right = f64::NEG_INFINITY;
+    for placement in placements.iter().filter(|placement| placement.visible) {
+        ink_left = ink_left.min(placement.ink_box_px[0]);
+        ink_right = ink_right.max(placement.ink_box_px[2]);
+    }
+    if ink_left.is_finite() && ink_right.is_finite() {
+        (advance, [ink_left, ink_right])
+    } else {
+        (advance, [0.0, advance])
+    }
+}
+
+/// Returns the authored start position of every text run and the complete
+/// ChemDraw/GDI line advance.
+///
+/// SVG must not ask the browser to recompute these positions for preserved
+/// ChemDraw text. ChemDraw centers the line with nominal desktop font advances
+/// without kerning and then emits independently positioned word/style chunks.
+/// Browser shaping remains responsible for the ink inside each chunk, but not
+/// for the chunk starts or the line anchor.
+pub(crate) fn chemdraw_text_run_position_metrics(
+    runs: &[crate::LabelRun],
+    default_font_size: f64,
+    default_font_family: Option<&str>,
+) -> (Vec<f64>, f64) {
+    let default_font_family = default_font_family.unwrap_or("Arial");
+    let mut advance = 0.0;
+    let mut starts = Vec::with_capacity(runs.len());
+    for run in runs {
+        starts.push(advance);
+        let font_size = run.font_size.unwrap_or(default_font_size);
+        let script_scale = shared_script_scale_factor(run.script.as_deref());
+        let font_family = run.font_family.as_deref().unwrap_or(default_font_family);
+        let font_weight = run.font_weight.unwrap_or(400);
+        for character in run.text.chars() {
+            let italic = run.font_style.as_deref().is_some_and(|style| {
+                matches!(
+                    style.trim().to_ascii_lowercase().as_str(),
+                    "italic" | "oblique"
+                )
+            });
+            let advance_em =
+                lookup_nominal_text_advance_em(font_family, font_weight, italic, character)
+                    .unwrap_or_else(|| {
+                        shared_estimated_char_width_for_face(
+                            character,
+                            1.0,
+                            font_family,
+                            font_weight,
+                            run.font_style.as_deref(),
+                        )
+                    });
+            advance += advance_em * font_size * script_scale;
+        }
+    }
+    (starts, advance)
 }
 
 pub(crate) fn shared_estimated_text_line_count(text: &str, runs: &[crate::LabelRun]) -> usize {
@@ -1668,6 +2114,84 @@ fn is_math_or_arrow_symbol(character: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn plain_line(text: &str, family: &str) -> Vec<LabelRun> {
+        vec![LabelRun {
+            text: text.to_string(),
+            font_family: Some(family.to_string()),
+            font_size: Some(10.0),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            script: Some("normal".to_string()),
+            ..LabelRun::default()
+        }]
+    }
+
+    #[test]
+    fn nominal_text_advance_manifest_covers_whitespace_and_punctuation_by_face() {
+        let cases = [
+            ("Arial", 0.277_832_03),
+            ("Times New Roman", 0.25),
+            ("Calibri", 0.226_074_22),
+            ("Courier New", 0.600_097_66),
+        ];
+        for (family, expected_em) in cases {
+            let actual = lookup_nominal_text_advance_em(family, 400, false, ' ')
+                .expect("every measured face has an ASCII space advance");
+            assert!((actual - expected_em).abs() < 1e-6, "{family}: {actual}");
+        }
+
+        let phrase = plain_line("(1.1 ", "Arial");
+        let (_, advance) = chemdraw_text_run_position_metrics(&phrase, 10.0, Some("Arial"));
+        assert!(
+            (advance - 20.009_765_6).abs() < 1e-6,
+            "Arial GDI-compatible phrase advance: {advance}"
+        );
+
+        let words = ["HATU ", "(1.2 ", "eq)"]
+            .map(|text| plain_line(text, "Arial").remove(0))
+            .to_vec();
+        let (starts, advance) = chemdraw_text_run_position_metrics(&words, 10.0, Some("Arial"));
+        assert_eq!(starts.len(), 3);
+        assert!((starts[1] - 30.0).abs() < 1e-6, "{starts:?}");
+        assert!((starts[2] - 50.009_765_6).abs() < 1e-6, "{starts:?}");
+        assert!((advance - 64.462_890_5).abs() < 1e-6, "{advance}");
+
+        let caution = plain_line("Caution: ", "Helvetica");
+        let (_, advance) = chemdraw_text_run_position_metrics(&caution, 10.0, Some("Helvetica"));
+        assert!(
+            (advance - 40.024_414).abs() < 1e-6,
+            "Helvetica must follow the explicit Arial alias used by ChemDraw: {advance}"
+        );
+    }
+
+    #[test]
+    fn variable_line_spacing_uses_next_ascent_instead_of_a_fixed_em_gap() {
+        let cases = [
+            ("Arial", [6.1834, 10.5584]),
+            ("Times New Roman", [5.3667, 10.0250]),
+            ("Calibri", [5.5333, 9.2667]),
+        ];
+        for (family, expected) in cases {
+            let lines = ["A", "g", "Q"]
+                .map(|text| plain_line(text, family))
+                .to_vec();
+            let advances = variable_text_line_advances(&lines, 10.0);
+            for (actual, expected) in advances.iter().zip(expected) {
+                assert!(
+                    (actual - expected).abs() < 0.055,
+                    "{family}: {advances:?} versus {expected:?}"
+                );
+            }
+        }
+
+        let directional = ["g", "A", "g"]
+            .map(|text| plain_line(text, "Arial"))
+            .to_vec();
+        let advances = variable_text_line_advances(&directional, 10.0);
+        assert!((advances[0] - 10.4417).abs() < 0.055, "{advances:?}");
+        assert!((advances[1] - 6.1834).abs() < 0.055, "{advances:?}");
+    }
 
     #[test]
     fn script_baseline_shifts_follow_measured_chemdraw_face_rules() {
@@ -1860,12 +2384,30 @@ mod tests {
     #[test]
     fn outline_manifest_contains_measured_families_and_faces() {
         let manifest = shared_glyph_outlines();
-        assert_eq!(manifest.version, 2);
+        assert_eq!(manifest.version, 4);
         for family in ["Arial", "Times New Roman", "Calibri", "Cambria"] {
             let family = manifest.families.get(family).expect("measured family");
             for face in ["regular", "bold", "italic", "boldItalic"] {
                 assert!(family.faces.contains_key(face), "missing {face}");
             }
+        }
+    }
+
+    #[test]
+    fn molecule_label_baseline_uses_gdi_character_ascent() {
+        for (family, size, expected) in [
+            ("Arial", 8.0, 3.15),
+            ("Helvetica", 9.95, 3.9),
+            ("Arial", 14.45, 5.7),
+            ("Times New Roman", 8.0, 3.075),
+            ("Times New Roman", 9.95, 3.85),
+            ("Times New Roman", 14.45, 5.65),
+        ] {
+            let actual = chemdraw_molecule_label_baseline_offset(Some(family), size, 400, false);
+            assert!(
+                (actual - expected).abs() < 1e-9,
+                "{family} {size}: expected {expected}, got {actual}"
+            );
         }
     }
 
@@ -1915,6 +2457,98 @@ mod tests {
     }
 
     #[test]
+    fn face_aware_advance_matches_times_new_roman_label_width() {
+        let width = "HCO"
+            .chars()
+            .map(|character| {
+                shared_estimated_char_width_for_face(
+                    character,
+                    7.0,
+                    "Times New Roman",
+                    400,
+                    Some("normal"),
+                )
+            })
+            .sum::<f64>();
+        assert!(
+            (width - 14.78).abs() < 0.02,
+            "ChemDraw's 7 pt Times New Roman HCO advance is 14.78 pt, got {width}"
+        );
+        let generic_width = "HCO"
+            .chars()
+            .map(|character| shared_estimated_char_width(character, 7.0))
+            .sum::<f64>();
+        assert!(
+            (generic_width - width).abs() > 0.5,
+            "the generic profile must not silently replace face metrics"
+        );
+    }
+
+    #[test]
+    fn text_ink_bounds_use_face_kerning_and_real_terminal_glyph_bounds() {
+        let font_size = 9.33333;
+        let text = "3-methoxy-4-((4-(trifluoromethyl)benzyl)oxy)benzaldehyde";
+        let runs = vec![crate::LabelRun {
+            text: text.to_string(),
+            font_family: Some("Arial".to_string()),
+            font_size: Some(font_size),
+            font_weight: Some(700),
+            font_style: Some("normal".to_string()),
+            ..crate::LabelRun::default()
+        }];
+        let start =
+            shared_text_horizontal_ink_bounds(text, &runs, font_size, Some("Arial"), Some("start"));
+        assert!((start[0] - 0.350911).abs() < 1.0e-5, "{start:?}");
+        assert!((start[1] - 257.386626).abs() < 1.0e-5, "{start:?}");
+
+        let centered = shared_text_horizontal_ink_bounds(
+            text,
+            &runs,
+            font_size,
+            Some("Arial"),
+            Some("middle"),
+        );
+        let advance = 27.61425767 * font_size;
+        assert!((centered[0] - (start[0] - advance * 0.5)).abs() < 1.0e-5);
+        assert!((centered[1] - (start[1] - advance * 0.5)).abs() < 1.0e-5);
+
+        let kerned = vec![crate::LabelRun {
+            text: "Ty".to_string(),
+            font_family: Some("Times New Roman".to_string()),
+            font_size: Some(10.0),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            ..crate::LabelRun::default()
+        }];
+        let kerned_bounds = shared_text_horizontal_ink_bounds(
+            "Ty",
+            &kerned,
+            10.0,
+            Some("Times New Roman"),
+            Some("start"),
+        );
+        assert!((kerned_bounds[1] - 10.3515624).abs() < 1.0e-6);
+    }
+
+    #[test]
+    fn manifest_kerning_matches_times_new_roman_face_pairs() {
+        assert!(
+            (lookup_glyph_kerning_em("Times New Roman", 400, false, 'T', 'y') - (-143.0 / 2048.0))
+                .abs()
+                < 1.0e-7
+        );
+        assert!(
+            (lookup_glyph_kerning_em("Times New Roman", 400, false, 'L', 'y') - (-113.0 / 2048.0))
+                .abs()
+                < 1.0e-7
+        );
+        assert_eq!(
+            lookup_glyph_kerning_em("Times New Roman", 400, false, 'G', 'l'),
+            0.0
+        );
+    }
+
+    #[test]
     fn feature_margin_is_capped_at_quarter_em() {
         let placement = test_placement('A', "Arial", 8.0, 400, false);
         let two = glyph_geometry_with_profile(&placement, GlyphClipProfile::from_margin_width(2.0))
@@ -1930,15 +2564,90 @@ mod tests {
 
     #[test]
     fn axial_contact_sectors_are_limited_to_ten_degrees() {
-        let polygons = axis_contact_polygons([-2.0, -4.0, 5.0, 3.0], [0.0, 0.0], 1.0);
+        let polygons = localized_axis_contact_polygons(
+            &[AxisContactGlyph {
+                bounds: [-2.0, -4.0, 5.0, 3.0],
+                baseline_y: 0.0,
+            }],
+            [0.0, 0.0],
+            1.0,
+        );
         assert_eq!(polygons.len(), 4);
-        let right = &polygons[0];
+        let (right, owner) = &polygons[0];
+        assert_eq!(*owner, None, "horizontal run envelopes stay shared");
         let angles: Vec<f64> = right[1..]
             .iter()
             .map(|point| point[1].atan2(point[0]).to_degrees())
             .collect();
         assert!((angles[0] + 10.0).abs() < 1e-9);
         assert!((angles[angles.len() - 1] - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn axial_contact_uses_only_glyphs_crossing_the_attachment_axis() {
+        let glyphs = [
+            AxisContactGlyph {
+                bounds: [9.46, 1.18, 15.79, 8.58],
+                baseline_y: 7.4,
+            },
+            AxisContactGlyph {
+                bounds: [16.98, 1.30, 22.60, 8.46],
+                baseline_y: 7.4,
+            },
+            AxisContactGlyph {
+                bounds: [23.73, 5.27, 27.23, 10.76],
+                baseline_y: 10.4,
+            },
+        ];
+        let origin = [12.62, 4.56];
+        let polygons = localized_axis_contact_polygons(&glyphs, origin, 1.6);
+        let (down, owner) = polygons
+            .iter()
+            .find(|(polygon, _)| polygon.iter().skip(1).all(|point| point[1] > origin[1]))
+            .expect("downward axial sector");
+        assert_eq!(*owner, Some(0), "the crossed C-like glyph owns the contact");
+        let maximum_y = down
+            .iter()
+            .map(|point| point[1])
+            .max_by(f64::total_cmp)
+            .expect("downward extent");
+
+        assert!((maximum_y - 10.17315498123).abs() < 1.0e-9, "{maximum_y}");
+        assert!(
+            maximum_y < glyphs[2].bounds[3] + 1.6,
+            "the distant subscript must not deepen the attachment column"
+        );
+    }
+
+    #[test]
+    fn horizontal_axial_contact_keeps_the_whole_text_run_envelope() {
+        let glyphs = [
+            AxisContactGlyph {
+                bounds: [0.0, -4.0, 4.0, 3.0],
+                baseline_y: 0.0,
+            },
+            AxisContactGlyph {
+                bounds: [8.0, 4.0, 12.0, 8.0],
+                baseline_y: 4.0,
+            },
+        ];
+        let origin = [2.0, 0.0];
+        let polygons = localized_axis_contact_polygons(&glyphs, origin, 1.0);
+        let (right, owner) = polygons
+            .iter()
+            .find(|(polygon, _)| polygon.iter().skip(1).all(|point| point[0] > origin[0]))
+            .expect("rightward axial sector");
+        assert_eq!(*owner, None, "the horizontal run envelope is shared");
+        let maximum_x = right
+            .iter()
+            .map(|point| point[0])
+            .max_by(f64::total_cmp)
+            .expect("rightward extent");
+
+        assert!(
+            maximum_x > 12.9,
+            "an off-baseline glyph on the attachment-facing end remains in the horizontal envelope: {maximum_x}"
+        );
     }
 
     #[test]

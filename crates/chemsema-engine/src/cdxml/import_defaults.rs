@@ -154,49 +154,30 @@ pub(super) fn cdxml_font_table(root: &XmlNode) -> BTreeMap<String, String> {
 
 pub(super) fn display_fragments(root: &XmlNode) -> Vec<&XmlNode> {
     let mut fragments = Vec::new();
-    let include_exported_singletons = root
-        .attr("CreationProgram")
-        .is_some_and(|value| value.eq_ignore_ascii_case("ChemSema"));
-    collect_display_fragments(root, false, include_exported_singletons, &mut fragments);
+    collect_display_fragments(root, false, &mut fragments);
     fragments
 }
 
 pub(super) fn collect_display_fragments<'a>(
     node: &'a XmlNode,
-    inside_placeholder_node: bool,
-    include_exported_singletons: bool,
+    inside_display_fragment: bool,
     fragments: &mut Vec<&'a XmlNode>,
 ) {
-    if !inside_placeholder_node && cdxml_node_is_display_fragment(node, include_exported_singletons)
-    {
+    let is_display_fragment = !inside_display_fragment && cdxml_node_is_display_fragment(node);
+    if is_display_fragment {
         fragments.push(node);
     }
-    let next_inside_placeholder =
-        inside_placeholder_node || cdxml_node_owns_embedded_fragment(node);
+    let next_inside_display_fragment = inside_display_fragment || is_display_fragment;
     for child in &node.children {
-        collect_display_fragments(
-            child,
-            next_inside_placeholder,
-            include_exported_singletons,
-            fragments,
-        );
+        collect_display_fragments(child, next_inside_display_fragment, fragments);
     }
 }
 
-pub(super) fn cdxml_node_is_display_fragment(
-    node: &XmlNode,
-    include_exported_singletons: bool,
-) -> bool {
+pub(super) fn cdxml_node_is_display_fragment(node: &XmlNode) -> bool {
     if !node.is("fragment") {
         return false;
     }
     let has_bond = node.direct_children("b").next().is_some();
-    let has_chemical_node = node
-        .direct_children("n")
-        .any(|child| child.attr("Element").is_some());
-    if node.attr("BoundingBox").is_none() {
-        return has_bond || has_chemical_node;
-    }
     let has_node = node.direct_children("n").next().is_some();
-    has_bond || has_chemical_node || (include_exported_singletons && has_node)
+    has_bond || has_node
 }

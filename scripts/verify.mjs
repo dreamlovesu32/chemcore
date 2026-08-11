@@ -48,16 +48,37 @@ function run(command, args, options = {}) {
 
 run("cargo", ["build", "-p", "chemsema-office", "-p", "chemsema-cli", "--release"]);
 run("cargo", ["test"]);
+run(process.execPath, ["scripts/ccjz-conformance.mjs"]);
+run("cargo", [
+  "run",
+  "--release",
+  "--quiet",
+  "-p",
+  "chemsema-container",
+  "--example",
+  "ccjz_performance",
+]);
 run(process.execPath, ["scripts/check-cdx-cdxml-field-ledger.mjs"]);
 const generatedBefore = generatedEngineSnapshot();
 run(process.execPath, ["scripts/build-engine-wasm.mjs"]);
+run(process.execPath, ["scripts/desktop-hybrid-latency-regression.mjs"]);
 run(process.execPath, ["--check", "viewer/app.js"]);
 run(process.execPath, [
   "--test",
+  "scripts/tests/ccjz-container.test.mjs",
+  "scripts/tests/recovery-journal.test.mjs",
+  "scripts/tests/ccjs-v02-view.test.mjs",
   "scripts/tests/link-interaction.test.mjs",
   "scripts/tests/nmr-prediction-host.test.mjs",
   "scripts/tests/nmr-prediction-provider.test.mjs",
   "scripts/tests/nmr-prediction-e2e.test.mjs",
+  "scripts/tests/public-cdxml-failure-ledger.test.mjs",
+  "scripts/tests/public-cdxml-impact.test.mjs",
+  "scripts/tests/public-cdxml-visual-gate.test.mjs",
+  "scripts/tests/wasm-pack-toolchain.test.mjs",
+  "packages/gui-test/tests/protocol.test.mjs",
+  "packages/gui-test/tests/runner.test.mjs",
+  "packages/gui-test/tests/hyperv.test.mjs",
 ]);
 
 const generatedAfter = generatedEngineSnapshot();

@@ -89,7 +89,7 @@ class DesktopHybridEngineHost extends WasmEngineHost {
   }
 }
 
-class TauriEngineSession {
+export class TauriEngineSession {
   constructor(invoke, options = {}) {
     this.invoke = invoke;
     this.sessionId = options.sessionId || null;
@@ -454,6 +454,26 @@ class TauriEngineSession {
     return this.invokeMutation("desktop_engine_load_document_json", { json }, { refresh: "document" });
   }
 
+  async hydrateDocumentJson(json) {
+    if (this.layoutEngine?.hydrateDocumentJson) {
+      this.layoutEngine.hydrateDocumentJson(json);
+    }
+    const result = await this.invokeMutation(
+      "desktop_engine_hydrate_document_json",
+      { json },
+      // Both engines hydrate the same cumulative snapshot. A native full
+      // snapshot refresh would call loadDocumentJson on the layout engine and
+      // destroy the undo history that hydration is specifically preserving.
+      { refresh: "exports" },
+    );
+    this.syncCacheFromLayout({ document: true, interaction: true });
+    if (this.layoutEngine?.renderListJson) {
+      this.cache.renderListJson = this.layoutEngine.renderListJson();
+    }
+    this.cache.renderBoundsJson.clear();
+    return result;
+  }
+
   async loadDocumentCdxml(cdxml) {
     const result = await this.invokeMutation("desktop_engine_load_document_cdxml", { cdxml }, { refresh: "document" });
     this.syncLayoutDocumentJson();
@@ -740,7 +760,28 @@ class TauriEngineSession {
     return this.cache.lastCommandResultJson || "null";
   }
 
+  documentPatchJson() {
+    if (this.layoutEngine?.documentPatchJson) {
+      return this.layoutEngine.documentPatchJson();
+    }
+    return "null";
+  }
+
   executeCommandJson(commandJson) {
+    if (this.layoutEngine?.executeCommandJson) {
+      const result = this.layoutEngine.executeCommandJson(commandJson);
+      const parsed = safeJsonParse(result, null);
+      this.syncCacheFromLayout({ interaction: true });
+      if (parsed?.changed) {
+        this.markExportsDirty();
+        this.runNativeMutationInBackground(
+          "desktop_engine_execute_command_json",
+          { commandJson },
+          { refresh: "document", dirtyExports: true },
+        );
+      }
+      return result;
+    }
     return this.invokeMutation("desktop_engine_execute_command_json", { commandJson }, { refresh: "document" });
   }
 
@@ -1073,6 +1114,14 @@ class TauriEngineSession {
   async contextMenuJson(hitJson, hasPaste) {
     await this.ready();
     return this.invoke("desktop_engine_context_menu_json", { sessionId: this.sessionId, hitJson, hasPaste });
+  }
+
+  async logicalObjectsDialogJson() {
+    await this.ready();
+    if (this.layoutEngine?.logicalObjectsDialogJson) {
+      return this.layoutEngine.logicalObjectsDialogJson();
+    }
+    return this.invoke("desktop_engine_logical_objects_dialog_json", { sessionId: this.sessionId });
   }
 
   selectionContainsPoint(x, y) {
@@ -1507,10 +1556,22 @@ class TauriEngineSession {
   }
 
   undo() {
+    if (this.layoutEngine?.undo) {
+      const result = this.layoutEngine.undo();
+      this.syncLocalMutationState({ dirtyExports: true });
+      this.runNativeMutationInBackground("desktop_engine_undo");
+      return result;
+    }
     return this.invokeMutation("desktop_engine_undo");
   }
 
   redo() {
+    if (this.layoutEngine?.redo) {
+      const result = this.layoutEngine.redo();
+      this.syncLocalMutationState({ dirtyExports: true });
+      this.runNativeMutationInBackground("desktop_engine_redo");
+      return result;
+    }
     return this.invokeMutation("desktop_engine_redo");
   }
 

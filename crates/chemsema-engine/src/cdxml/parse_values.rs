@@ -32,12 +32,137 @@ pub(super) fn page_from_objects(objects: &[SceneObject], background: &str) -> Pa
 }
 
 pub(super) fn parse_xy(value: Option<&str>) -> Option<[f64; 2]> {
-    let mut parts = value?.split_whitespace();
-    Some([parts.next()?.parse().ok()?, parts.next()?.parse().ok()?])
+    let mut remaining = value?;
+    Some([
+        parse_chemdraw_coordinate_component(&mut remaining),
+        parse_chemdraw_coordinate_component(&mut remaining),
+    ])
+}
+
+fn parse_chemdraw_coordinate_component(remaining: &mut &str) -> f64 {
+    *remaining = remaining.trim_start_matches([' ', '\t', '\r', '\n']);
+    let Some((consumed, value)) = chemdraw_coordinate_number_prefix(remaining) else {
+        // ChemDraw's CDXPoint2D reader leaves the scanner at an invalid token
+        // and returns zero. Consequently, if the first component is invalid,
+        // the second component sees the same token and is also zero.
+        return 0.0;
+    };
+    *remaining = &remaining[consumed..];
+    value
+}
+
+fn chemdraw_coordinate_number_prefix(value: &str) -> Option<(usize, f64)> {
+    let bytes = value.as_bytes();
+    let mut index = usize::from(matches!(bytes.first(), Some(b'+') | Some(b'-')));
+    if index >= bytes.len() {
+        return None;
+    }
+
+    let unsigned = &bytes[index..];
+    let non_finite_length = if unsigned
+        .get(..8)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b"infinity"))
+    {
+        Some(8)
+    } else if unsigned
+        .get(..3)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b"inf"))
+    {
+        Some(3)
+    } else if unsigned
+        .get(..3)
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(b"nan"))
+    {
+        Some(3)
+    } else {
+        None
+    };
+    if let Some(length) = non_finite_length {
+        // ChemDraw accepts C-style non-finite spellings, then serializes the
+        // non-finite fixed-point coordinate as +0.25 pt.
+        return Some((index + length, 0.25));
+    }
+
+    let mut digits = 0;
+    while index < bytes.len() && bytes[index].is_ascii_digit() {
+        index += 1;
+        digits += 1;
+    }
+    if index < bytes.len() && bytes[index] == b'.' {
+        index += 1;
+        while index < bytes.len() && bytes[index].is_ascii_digit() {
+            index += 1;
+            digits += 1;
+        }
+    }
+    if digits == 0 {
+        return None;
+    }
+
+    let exponent_start = index;
+    if index < bytes.len() && matches!(bytes[index], b'e' | b'E') {
+        index += 1;
+        if index < bytes.len() && matches!(bytes[index], b'+' | b'-') {
+            index += 1;
+        }
+        let exponent_digits_start = index;
+        while index < bytes.len() && bytes[index].is_ascii_digit() {
+            index += 1;
+        }
+        if index == exponent_digits_start {
+            index = exponent_start;
+        }
+    }
+
+    let parsed = value[..index].parse::<f64>().ok()?;
+    Some((index, if parsed.is_finite() { parsed } else { 0.25 }))
 }
 
 pub(super) fn parse_xyz2(value: Option<&str>) -> Option<[f64; 2]> {
     parse_xy(value)
+}
+
+#[cfg(test)]
+mod point_lexical_tests {
+    use super::parse_xy;
+
+    #[test]
+    fn point_components_follow_chemdraws_sequential_numeric_scanner() {
+        for (source, expected) in [
+            ("150 100", [150.0, 100.0]),
+            ("150 foofoo", [150.0, 0.0]),
+            ("foofoo 100", [0.0, 0.0]),
+            ("150", [150.0, 0.0]),
+            ("", [0.0, 0.0]),
+            ("150 100 extra", [150.0, 100.0]),
+            ("150foo 100", [150.0, 0.0]),
+            ("150 100foo", [150.0, 100.0]),
+            ("1.5e2 1e2", [150.0, 100.0]),
+            ("+150 -20", [150.0, -20.0]),
+            ("1e 100", [1.0, 0.0]),
+            (".5 100", [0.5, 100.0]),
+            ("150,100", [150.0, 0.0]),
+        ] {
+            assert_eq!(parse_xy(Some(source)), Some(expected), "{source:?}");
+        }
+        assert_eq!(parse_xy(None), None);
+    }
+
+    #[test]
+    fn point_non_finite_and_overflow_components_use_chemdraws_quarter_point_value() {
+        for source in [
+            "NaN 100",
+            "nan 100",
+            "Infinity 100",
+            "-Infinity 100",
+            "inf 100",
+            "1e999 100",
+        ] {
+            assert_eq!(parse_xy(Some(source)), Some([0.25, 100.0]), "{source:?}");
+        }
+        assert_eq!(parse_xy(Some("150 NaN")), Some([150.0, 0.25]));
+        assert_eq!(parse_xy(Some("1e-999 100")), Some([0.0, 100.0]));
+    }
 }
 
 pub(super) fn parse_bbox(value: Option<&str>) -> Option<[f64; 4]> {

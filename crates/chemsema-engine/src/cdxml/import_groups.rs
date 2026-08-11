@@ -1,5 +1,111 @@
 use super::*;
 
+pub(super) fn normalize_repeated_text_objects(root: &mut XmlNode) -> Result<(), String> {
+    normalize_repeated_text_children(root)
+}
+
+fn normalize_repeated_text_children(parent: &mut XmlNode) -> Result<(), String> {
+    for child in &mut parent.children {
+        normalize_repeated_text_children(child)?;
+    }
+
+    let mut normalized = Vec::<XmlNode>::with_capacity(parent.children.len());
+    let mut text_index_by_id = BTreeMap::<String, usize>::new();
+    for child in std::mem::take(&mut parent.children) {
+        let repeated_text_index = child
+            .is("t")
+            .then(|| child.attr("id"))
+            .flatten()
+            .filter(|id| !matches!(id.trim(), "" | "0"))
+            .and_then(|id| text_index_by_id.get(id).copied());
+        if let Some(index) = repeated_text_index {
+            merge_repeated_text_part(&mut normalized[index], child)?;
+            continue;
+        }
+        if child.is("t") {
+            if let Some(id) = child.attr("id").filter(|id| !matches!(id.trim(), "" | "0")) {
+                text_index_by_id.insert(id.to_string(), normalized.len());
+            }
+        }
+        normalized.push(child);
+    }
+    parent.children = normalized;
+    Ok(())
+}
+
+fn merge_repeated_text_part(target: &mut XmlNode, mut part: XmlNode) -> Result<(), String> {
+    let text_id = target.attr("id").unwrap_or("<missing>").to_string();
+    if !target.children.is_empty() && target.text.trim().is_empty() {
+        target.text.clear();
+    }
+    if !part.children.is_empty() && part.text.trim().is_empty() {
+        part.text.clear();
+    }
+    for (name, value) in &part.attrs {
+        if name == "UTF8Text" {
+            continue;
+        }
+        if let Some(target_value) = target.attrs.get(name) {
+            if target_value != value {
+                return Err(format!(
+                    "CDXML text id '{text_id}' is repeated in one container with conflicting \
+                     '{name}' values ('{target_value}' and '{value}')"
+                ));
+            }
+        } else {
+            target.attrs.insert(name.clone(), value.clone());
+        }
+    }
+
+    let target_utf8 = target.attrs.get("UTF8Text").cloned();
+    let part_utf8 = part.attrs.remove("UTF8Text");
+    let target_has_children = !target.children.is_empty();
+    let part_has_children = !part.children.is_empty();
+    let target_has_direct_text = !target.text.trim().is_empty();
+    let part_has_direct_text = !part.text.trim().is_empty();
+    let target_has_content = target_has_children
+        || target_has_direct_text
+        || target_utf8.as_deref().is_some_and(|s| !s.is_empty());
+    let part_has_content = part_has_children
+        || part_has_direct_text
+        || part_utf8.as_deref().is_some_and(|s| !s.is_empty());
+
+    if !part_has_content {
+        return Ok(());
+    }
+    if !target_has_content {
+        target.text = part.text;
+        target.children = part.children;
+        if let Some(value) = part_utf8 {
+            target.attrs.insert("UTF8Text".to_string(), value);
+        }
+        return Ok(());
+    }
+
+    match (target_utf8, part_utf8) {
+        (Some(mut first), Some(second))
+            if !target_has_children
+                && !part_has_children
+                && !target_has_direct_text
+                && !part_has_direct_text =>
+        {
+            first.push_str(&second);
+            target.attrs.insert("UTF8Text".to_string(), first);
+        }
+        (None, None) => {
+            target.text.push_str(&part.text);
+            target.children.append(&mut part.children);
+        }
+        _ => {
+            return Err(format!(
+                "CDXML text id '{text_id}' mixes UTF8Text and child-style representations across \
+                 repeated parts"
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn interchange_object_from_xml(node: &XmlNode) -> InterchangeObject {
     InterchangeObject {
         name: node.name.clone(),

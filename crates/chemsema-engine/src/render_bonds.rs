@@ -1,5 +1,170 @@
 use super::*;
 
+pub(super) struct BondBodyGeometry {
+    pub actual_start: Point,
+    pub actual_finish: Point,
+    pub start: Point,
+    pub finish: Point,
+    pub begin_box: Option<RectBox>,
+    pub end_box: Option<RectBox>,
+    pub begin_has_label: bool,
+    pub end_has_label: bool,
+}
+
+pub(super) fn bond_label_clipped_body_geometry(
+    document: &ChemSemaDocument,
+    object: &SceneObject,
+    begin: &Node,
+    end: &Node,
+    bond: &Bond,
+) -> Option<BondBodyGeometry> {
+    let stroke_width = bond_stroke_width(document, object, bond);
+    let actual_start = bond_endpoint_world(object, begin, bond, "begin");
+    let actual_finish = bond_endpoint_world(object, end, bond, "end");
+    let start = retreat_segment_endpoint(
+        actual_start,
+        actual_finish,
+        external_connection_endpoint_retreat(document, begin, actual_start, actual_finish),
+    );
+    let finish = retreat_segment_endpoint(
+        actual_finish,
+        actual_start,
+        external_connection_endpoint_retreat(document, end, actual_finish, actual_start),
+    );
+    let begin_box = label_box_world(begin, object);
+    let end_box = label_box_world(end, object);
+    let begin_has_label = begin
+        .label
+        .as_ref()
+        .is_some_and(|label| label.has_visible_text());
+    let end_has_label = end
+        .label
+        .as_ref()
+        .is_some_and(|label| label.has_visible_text());
+    let (begin_half_width, end_half_width) =
+        if bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy {
+            let half_width = wavy_bond_amplitude_for_bond(bond, stroke_width) + stroke_width * 0.5;
+            (half_width, half_width)
+        } else if bond.order == 1 && bond_main_line_pattern(bond) == BondLinePattern::Hash {
+            let half_width = line_pattern_visual_width_for_bond(
+                bond,
+                stroke_width,
+                BondLinePattern::Hash,
+                bond.line_weights.main,
+            ) * 0.5;
+            (half_width, half_width)
+        } else {
+            bond_stereo_kind(bond).map_or((stroke_width * 0.5, stroke_width * 0.5), |stereo| {
+                wedge_endpoint_half_widths(bond, stereo, stroke_width)
+            })
+        };
+    let is_wavy = bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy;
+    let begin_wavy_strip = is_wavy && wavy_label_uses_strip_contact(start, finish);
+    let end_wavy_strip = is_wavy && wavy_label_uses_strip_contact(finish, start);
+    let (begin_polygons, end_polygons) = if is_wavy {
+        (
+            if begin_wavy_strip {
+                label_clip_polygons_world_for_cardinal_strip(
+                    begin,
+                    object,
+                    start,
+                    finish,
+                    begin_half_width,
+                )
+            } else {
+                label_clip_polygons_world_for_segment(
+                    begin,
+                    object,
+                    start,
+                    finish,
+                    begin_half_width,
+                )
+            },
+            if end_wavy_strip {
+                label_clip_polygons_world_for_cardinal_strip(
+                    end,
+                    object,
+                    finish,
+                    start,
+                    end_half_width,
+                )
+            } else {
+                label_clip_polygons_world_for_segment(end, object, finish, start, end_half_width)
+            },
+        )
+    } else if bond.order >= 2 {
+        (
+            label_clip_polygons_world(begin, object),
+            label_clip_polygons_world(end, object),
+        )
+    } else {
+        (
+            label_clip_polygons_world_for_segment(begin, object, start, finish, begin_half_width),
+            label_clip_polygons_world_for_segment(end, object, finish, start, end_half_width),
+        )
+    };
+    let (start, finish) = if bond.order >= 2 {
+        // A multiple bond is not a single centerline. ChemDraw keeps the
+        // algebraically retreated axis even when both endpoint labels overlap;
+        // each parallel rail is clipped later at its own lateral offset.
+        let (start, finish, _, _) = algebraic_body_segment_after_label_retreats(
+            start,
+            finish,
+            begin_box,
+            &begin_polygons,
+            begin_half_width,
+            end_box,
+            &end_polygons,
+            end_half_width,
+        )?;
+        (start, finish)
+    } else if is_wavy {
+        clip_wavy_body_segment_out_of_label_geometry(
+            start,
+            finish,
+            &begin_polygons,
+            begin_half_width,
+            begin_wavy_strip,
+            &end_polygons,
+            end_half_width,
+            end_wavy_strip,
+        )?
+    } else {
+        clip_body_segment_out_of_label_geometry(
+            start,
+            finish,
+            begin_box,
+            &begin_polygons,
+            begin_half_width,
+            end_box,
+            &end_polygons,
+            end_half_width,
+        )?
+    };
+    Some(BondBodyGeometry {
+        actual_start,
+        actual_finish,
+        start,
+        finish,
+        begin_box,
+        end_box,
+        begin_has_label,
+        end_has_label,
+    })
+}
+
+fn wavy_label_uses_strip_contact(endpoint: Point, other: Point) -> bool {
+    let direction = Vector::new(other.x - endpoint.x, other.y - endpoint.y);
+    if direction.length() <= EPSILON {
+        return false;
+    }
+    let direction = direction.normalized();
+    let cardinal_sector = crate::glyph_kernel::GLYPH_AXIS_HALF_SECTOR_DEG
+        .to_radians()
+        .sin();
+    direction.x.abs() <= cardinal_sector
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn render_fragment_bond(
     out: &mut Vec<RenderPrimitive>,
@@ -20,63 +185,22 @@ pub(super) fn render_fragment_bond(
     };
     let stroke = bond.stroke.as_deref().unwrap_or(stroke);
     let stroke_width = bond_stroke_width(document, object, bond);
-    let actual_start = bond_endpoint_world(object, begin, bond, "begin");
-    let actual_finish = bond_endpoint_world(object, end, bond, "end");
-    let mut start = retreat_segment_endpoint(
-        actual_start,
-        actual_finish,
-        external_connection_endpoint_retreat(document, begin, actual_start, actual_finish),
-    );
-    let mut finish = retreat_segment_endpoint(
-        actual_finish,
-        actual_start,
-        external_connection_endpoint_retreat(document, end, actual_finish, actual_start),
-    );
-    let begin_box = label_box_world(begin, object);
-    let end_box = label_box_world(end, object);
-    let begin_polygons = label_clip_polygons_world(begin, object);
-    let end_polygons = label_clip_polygons_world(end, object);
-    let begin_has_label = begin
-        .label
-        .as_ref()
-        .is_some_and(|label| label.has_visible_text());
-    let end_has_label = end
-        .label
-        .as_ref()
-        .is_some_and(|label| label.has_visible_text());
-
-    let stereo = bond_stereo_kind(bond);
-    let clipped_segment = if let Some(stereo) = stereo {
-        let (begin_half_width, end_half_width) =
-            wedge_endpoint_half_widths(bond, stereo, stroke_width);
-        clip_body_segment_out_of_label_geometry(
-            start,
-            finish,
-            begin_box,
-            &begin_polygons,
-            begin_half_width,
-            end_box,
-            &end_polygons,
-            end_half_width,
-        )
-    } else {
-        clip_body_segment_out_of_label_geometry(
-            start,
-            finish,
-            begin_box,
-            &begin_polygons,
-            stroke_width * 0.5,
-            end_box,
-            &end_polygons,
-            stroke_width * 0.5,
-        )
-    };
-    let Some((clipped_start, clipped_finish)) = clipped_segment else {
+    let Some(geometry) = bond_label_clipped_body_geometry(document, object, begin, end, bond)
+    else {
         return;
     };
-    start = clipped_start;
-    finish = clipped_finish;
+    let BondBodyGeometry {
+        actual_start,
+        actual_finish,
+        start,
+        finish,
+        begin_box,
+        end_box,
+        begin_has_label,
+        end_has_label,
+    } = geometry;
 
+    let stereo = bond_stereo_kind(bond);
     if let Some(stereo) = stereo {
         let direction = Vector::new(finish.x - start.x, finish.y - start.y);
         if direction.x * direction.x + direction.y * direction.y <= EPSILON {
@@ -102,13 +226,32 @@ pub(super) fn render_fragment_bond(
         return;
     }
 
-    if bond.order == 1 && bond.line_styles.main == crate::BondLinePattern::Wavy {
-        render_wavy_bond(out, bond, start, finish, stroke, stroke_width, object_id);
+    if bond.order == 1 && bond_main_line_pattern(bond) == crate::BondLinePattern::Wavy {
+        let template_bond_length = document
+            .style
+            .defaults
+            .get("bondLength")
+            .copied()
+            .unwrap_or(crate::DEFAULT_BOND_LENGTH);
+        render_wavy_bond(
+            out,
+            bond,
+            start,
+            finish,
+            stroke,
+            stroke_width,
+            template_bond_length,
+            begin_has_label || end_has_label,
+            object_id,
+        );
         return;
     }
 
     if imported_cdxml_dative_bond(bond) {
-        render_fragment_line(
+        let Some(geometry) = dative_bond_geometry(start, finish, stroke_width) else {
+            return;
+        };
+        render_fragment_line_with_profiles(
             out,
             document,
             object,
@@ -117,17 +260,24 @@ pub(super) fn render_fragment_bond(
             node_map,
             bond,
             start,
-            finish,
+            geometry.shaft_end,
             begin_box,
-            end_box,
+            None,
             true,
             stroke,
             stroke_width,
+            BondLinePattern::Solid,
             Vec::new(),
             bond.line_weights.main,
             object_id.clone(),
+            false,
+            true,
+            false,
+            false,
+            contact_kernel.endpoint_profile(&bond.id, &bond.begin),
+            None,
         );
-        render_dative_bond_head(out, bond, start, finish, stroke, stroke_width, object_id);
+        render_dative_bond_head(out, bond, geometry, stroke, object_id);
         return;
     }
 
@@ -194,7 +344,8 @@ pub(super) fn render_fragment_bond(
         true,
         stroke,
         stroke_width,
-        line_pattern_dash_array_for_bond(bond, stroke_width, bond.line_styles.main),
+        bond_main_line_pattern(bond),
+        line_pattern_dash_array_for_bond(bond, stroke_width, bond_main_line_pattern(bond)),
         bond.line_weights.main,
         object_id,
     );
@@ -262,53 +413,66 @@ fn retreat_segment_endpoint(from: Point, to: Point, distance: f64) -> Point {
     )
 }
 
-fn imported_cdxml_dative_bond(bond: &Bond) -> bool {
+pub(super) fn imported_cdxml_dative_bond(bond: &Bond) -> bool {
     bond.meta
         .pointer("/import/cdxml/order")
         .and_then(JsonValue::as_str)
         .is_some_and(|order| order.eq_ignore_ascii_case("dative"))
 }
 
-fn render_dative_bond_head(
-    out: &mut Vec<RenderPrimitive>,
-    bond: &Bond,
-    start: Point,
-    end: Point,
-    fill: &str,
-    stroke_width: f64,
-    object_id: Option<String>,
-) {
+struct DativeBondGeometry {
+    shaft_end: Point,
+    head_points: Vec<Point>,
+}
+
+fn dative_bond_geometry(start: Point, end: Point, stroke_width: f64) -> Option<DativeBondGeometry> {
     let axis = Vector::new(end.x - start.x, end.y - start.y);
     let length = axis.length();
-    if length <= EPSILON {
-        return;
+    if length <= EPSILON || stroke_width <= EPSILON {
+        return None;
     }
     let unit = axis.normalized();
     let normal = Vector::new(-unit.y, unit.x);
-    let head_length = (length * 0.28)
-        .clamp(stroke_width * 5.0, stroke_width * 10.0)
-        .min(length * 0.45);
-    let half_width = (head_length * 0.58).max(stroke_width * 2.0);
+    let head_length = (stroke_width * 10.0).min(length * (2.0 / 3.0));
+    let half_width = head_length * 0.25;
     let base = end.translated(unit.scaled(-head_length));
-    let notch = end.translated(unit.scaled(-head_length * 0.42));
+    let shaft_end = end.translated(unit.scaled(-head_length * 0.875));
+    Some(DativeBondGeometry {
+        shaft_end,
+        head_points: vec![
+            end,
+            base.translated(normal.scaled(half_width)),
+            shaft_end,
+            base.translated(normal.scaled(-half_width)),
+        ],
+    })
+}
+
+fn render_dative_bond_head(
+    out: &mut Vec<RenderPrimitive>,
+    bond: &Bond,
+    geometry: DativeBondGeometry,
+    fill: &str,
+    object_id: Option<String>,
+) {
     out.push(RenderPrimitive::Polygon {
         role: RenderRole::DocumentBond,
         object_id,
         node_id: None,
         bond_id: Some(bond.id.clone()),
-        points: vec![
-            end,
-            base.translated(normal.scaled(half_width)),
-            notch,
-            base.translated(normal.scaled(-half_width)),
-        ],
+        points: geometry.head_points,
         fill: fill.to_string(),
         stroke: fill.to_string(),
         stroke_width: 0.0,
     });
 }
 
-fn bond_endpoint_world(object: &SceneObject, node: &Node, bond: &Bond, endpoint: &str) -> Point {
+pub(super) fn bond_endpoint_world(
+    object: &SceneObject,
+    node: &Node,
+    bond: &Bond,
+    endpoint: &str,
+) -> Point {
     bond.meta
         .pointer(&format!("/endpointAttachments/{endpoint}"))
         .and_then(|attachment| attachment.get("characterIndex"))
@@ -362,13 +526,26 @@ fn render_double_bond(
                 bond,
                 actual_start,
                 actual_end,
-                stroke_width,
                 &[
-                    (0.0, bond.line_weights.main),
-                    (side * double_offset, outer_line_weight(bond, side)),
+                    (
+                        0.0,
+                        line_weight_stroke_width_for_bond(
+                            bond,
+                            stroke_width,
+                            bond.line_weights.main,
+                        ) * 0.5,
+                    ),
+                    (
+                        side * double_offset,
+                        line_weight_stroke_width_for_bond(
+                            bond,
+                            stroke_width,
+                            outer_line_weight(bond, side),
+                        ) * 0.5,
+                    ),
                 ],
             );
-            let (main_start, main_end) = apply_segment_endpoint_retreats(
+            let (main_start, main_end) = apply_label_endpoint_retreats(
                 actual_start,
                 actual_end,
                 shared_label_retreats.0,
@@ -389,7 +566,8 @@ fn render_double_bond(
                 true,
                 stroke,
                 stroke_width,
-                line_pattern_dash_array_for_bond(bond, stroke_width, bond.line_styles.main),
+                bond_main_line_pattern(bond),
+                line_pattern_dash_array_for_bond(bond, stroke_width, bond_main_line_pattern(bond)),
                 bond.line_weights.main,
                 object_id.clone(),
                 false,
@@ -462,8 +640,7 @@ fn shared_parallel_label_retreats(
     bond: &Bond,
     actual_start: Point,
     actual_end: Point,
-    stroke_width: f64,
-    lines: &[(f64, BondLineWeight)],
+    lines: &[(f64, f64)],
 ) -> (f64, f64) {
     let (normal_x, normal_y) = unit_normal(actual_start, actual_end);
     let begin_polygons = node_map
@@ -482,7 +659,7 @@ fn shared_parallel_label_retreats(
         .and_then(|node| label_box_world(node, object));
     let mut shared_start_retreat: f64 = 0.0;
     let mut shared_end_retreat: f64 = 0.0;
-    for (offset, weight) in lines {
+    for (offset, half_width) in lines {
         let line_start = Point::new(
             actual_start.x + normal_x * offset,
             actual_start.y + normal_y * offset,
@@ -491,16 +668,15 @@ fn shared_parallel_label_retreats(
             actual_end.x + normal_x * offset,
             actual_end.y + normal_y * offset,
         );
-        let half_width = line_weight_stroke_width_for_bond(bond, stroke_width, *weight) * 0.5;
         if let Some((start_retreat, end_retreat)) = body_segment_label_retreats(
             line_start,
             line_end,
             begin_box,
             &begin_polygons,
-            half_width,
+            *half_width,
             end_box,
             &end_polygons,
-            half_width,
+            *half_width,
         ) {
             shared_start_retreat = shared_start_retreat.max(start_retreat);
             shared_end_retreat = shared_end_retreat.max(end_retreat);
@@ -577,13 +753,13 @@ fn render_center_double_bond_lines(
         (
             -1.0,
             -double_offset / 2.0,
-            bond.line_styles.left,
+            effective_render_line_pattern(bond, BondLineLane::Left, bond.line_styles.left),
             bond.line_weights.left,
         ),
         (
             1.0,
             double_offset / 2.0,
-            bond.line_styles.right,
+            effective_render_line_pattern(bond, BondLineLane::Right, bond.line_styles.right),
             bond.line_weights.right,
         ),
     ] {
@@ -595,7 +771,7 @@ fn render_center_double_bond_lines(
             actual_end.x + normal_x * offset,
             actual_end.y + normal_y * offset,
         );
-        let (line_start, line_end) = apply_segment_endpoint_retreats(
+        let (line_start, line_end) = apply_label_endpoint_retreats(
             raw_line_start,
             raw_line_end,
             shared_start_retreat,
@@ -640,6 +816,7 @@ fn render_center_double_bond_lines(
             false,
             stroke,
             stroke_width,
+            pattern,
             line_pattern_dash_array_for_bond(bond, stroke_width, pattern),
             weight,
             object_id.clone(),
@@ -674,7 +851,22 @@ fn render_triple_bond(
     stroke_width: f64,
     object_id: Option<String>,
 ) {
-    let triple_offset = triple_bond_offset_distance(actual_start, actual_end, stroke_width);
+    let triple_offset =
+        triple_bond_offset_distance_for_bond(bond, actual_start, actual_end, stroke_width);
+    let shared_label_retreats = shared_parallel_label_retreats(
+        object,
+        node_map,
+        bond,
+        actual_start,
+        actual_end,
+        &[(0.0, 0.0), (triple_offset, 0.0), (-triple_offset, 0.0)],
+    );
+    let (main_start, main_end) = apply_label_endpoint_retreats(
+        actual_start,
+        actual_end,
+        shared_label_retreats.0,
+        shared_label_retreats.1,
+    );
 
     render_fragment_line(
         out,
@@ -684,14 +876,15 @@ fn render_triple_bond(
         bonds,
         node_map,
         bond,
-        start,
-        end,
+        main_start,
+        main_end,
         begin_box,
         end_box,
         true,
         stroke,
         stroke_width,
-        line_pattern_dash_array_for_bond(bond, stroke_width, bond.line_styles.main),
+        bond_main_line_pattern(bond),
+        line_pattern_dash_array_for_bond(bond, stroke_width, bond_main_line_pattern(bond)),
         bond.line_weights.main,
         object_id.clone(),
     );
@@ -717,7 +910,7 @@ fn render_triple_bond(
         object_id,
         &[1.0, -1.0],
         triple_offset,
-        None,
+        Some(shared_label_retreats),
     );
 }
 
@@ -747,8 +940,8 @@ fn render_outer_bond_lines(
 ) {
     let length = _actual_start.distance(_actual_end);
     let is_side_double = side_double_placement(bond).is_some();
-    let side_inset = if is_side_double {
-        offset_distance * (3.0f64).sqrt() / 3.0
+    let default_outer_line_inset = if is_side_double || bond.order >= 3 {
+        0.0
     } else {
         (DOUBLE_BOND_SIDE_INSET * (stroke_width / VIEWER_BOND_STROKE))
             .max(length * DOUBLE_BOND_SIDE_INSET_RATIO)
@@ -806,6 +999,36 @@ fn render_outer_bond_lines(
                 *side,
                 stroke_width,
             );
+        let start_side_inset = if is_side_double {
+            side_double_secondary_inset_for_endpoint(
+                object,
+                bonds,
+                node_map,
+                bond,
+                &bond.begin,
+                *side,
+                stroke_width,
+                offset_distance,
+            )
+            .unwrap_or(0.0)
+        } else {
+            default_outer_line_inset
+        };
+        let end_side_inset = if is_side_double {
+            side_double_secondary_inset_for_endpoint(
+                object,
+                bonds,
+                node_map,
+                bond,
+                &bond.end,
+                *side,
+                stroke_width,
+                offset_distance,
+            )
+            .unwrap_or(0.0)
+        } else {
+            default_outer_line_inset
+        };
         let (short_start, short_end) = inset_bond_segment(
             offset_start,
             offset_end,
@@ -816,7 +1039,7 @@ fn render_outer_bond_lines(
             {
                 0.0
             } else {
-                side_inset
+                start_side_inset
             },
             if end_endpoint_profile.is_some()
                 || end_has_label
@@ -825,13 +1048,13 @@ fn render_outer_bond_lines(
             {
                 0.0
             } else {
-                side_inset
+                end_side_inset
             },
         );
         let (short_start, short_end) = shared_label_retreats.map_or(
             (short_start, short_end),
             |(start_retreat, end_retreat)| {
-                apply_segment_endpoint_retreats(short_start, short_end, start_retreat, end_retreat)
+                apply_label_endpoint_retreats(short_start, short_end, start_retreat, end_retreat)
             },
         );
         render_fragment_line_with_profiles(
@@ -849,6 +1072,7 @@ fn render_outer_bond_lines(
             false,
             stroke,
             stroke_width,
+            line_pattern,
             line_pattern_dash_array_for_bond(bond, stroke_width, line_pattern),
             line_weight,
             object_id.clone(),
@@ -1039,6 +1263,8 @@ fn render_wavy_bond(
     end: Point,
     stroke: &str,
     stroke_width: f64,
+    template_bond_length: f64,
+    label_clipped: bool,
     object_id: Option<String>,
 ) {
     let direction = Vector::new(end.x - start.x, end.y - start.y);
@@ -1051,21 +1277,18 @@ fn render_wavy_bond(
     let amplitude = wavy_bond_amplitude_for_bond(bond, stroke_width)
         .min(length * 0.18)
         .max(EPSILON);
-    let half_wave_count = ((length / amplitude).ceil() as usize).max(4);
-    let drawn_length = ((half_wave_count.saturating_sub(1)) as f64 * amplitude).min(length);
-    if drawn_length <= EPSILON {
-        return;
-    }
-    let half_wave_step = drawn_length / half_wave_count as f64;
-    let control = (amplitude * 0.552_284_749_830_793_6).min(half_wave_step * 0.5);
+    let (half_wave_count, half_wave_step) =
+        wavy_bond_layout(length, stroke_width, template_bond_length, label_clipped);
     let mut d = format!("M {:.4} {:.4}", start.x, start.y);
     let mut points = vec![start];
     for index in 0..half_wave_count {
         let segment_start = wavy_bond_point(start, unit, normal, half_wave_step, amplitude, index);
         let segment_end =
             wavy_bond_point(start, unit, normal, half_wave_step, amplitude, index + 1);
-        let start_tangent = wavy_bond_tangent(unit, normal, index).scaled(control);
-        let end_tangent = wavy_bond_tangent(unit, normal, index + 1).scaled(control);
+        let start_tangent =
+            wavy_bond_control_tangent(unit, normal, half_wave_step, amplitude, index);
+        let end_tangent =
+            wavy_bond_control_tangent(unit, normal, half_wave_step, amplitude, index + 1);
         let control_1 = segment_start.translated(start_tangent);
         let control_2 = segment_end.translated(end_tangent.scaled(-1.0));
         d.push_str(&format!(
@@ -1090,6 +1313,28 @@ fn render_wavy_bond(
     });
 }
 
+fn wavy_bond_layout(
+    length: f64,
+    stroke_width: f64,
+    template_bond_length: f64,
+    label_clipped: bool,
+) -> (usize, f64) {
+    let division_count = (template_bond_length / stroke_width.max(EPSILON))
+        .round()
+        .clamp(12.0, 16.0) as usize;
+    let grid_step = template_bond_length.max(EPSILON) / division_count as f64;
+    if label_clipped {
+        let count = ((length / grid_step - 1.0e-9).ceil() as usize).clamp(1, division_count);
+        return (count, length / count as f64);
+    }
+    let natural_count = ((length / grid_step + 1.0e-9).floor() as usize).min(division_count);
+    if natural_count < 12 {
+        (12, length / 12.0)
+    } else {
+        (natural_count, grid_step)
+    }
+}
+
 fn wavy_bond_point(
     start: Point,
     unit: Vector,
@@ -1108,11 +1353,18 @@ fn wavy_bond_point(
         .translated(normal.scaled(amplitude * side))
 }
 
-fn wavy_bond_tangent(unit: Vector, normal: Vector, index: usize) -> Vector {
+fn wavy_bond_control_tangent(
+    unit: Vector,
+    normal: Vector,
+    step: f64,
+    amplitude: f64,
+    index: usize,
+) -> Vector {
+    const QUARTER_ELLIPSE_KAPPA: f64 = 0.552_284_749_830_793_6;
     match index % 4 {
-        0 => normal,
-        1 | 3 => unit,
-        2 => normal.scaled(-1.0),
+        0 => normal.scaled(QUARTER_ELLIPSE_KAPPA * amplitude),
+        1 | 3 => unit.scaled(QUARTER_ELLIPSE_KAPPA * step),
+        2 => normal.scaled(-QUARTER_ELLIPSE_KAPPA * amplitude),
         _ => unreachable!(),
     }
 }
@@ -1526,4 +1778,112 @@ fn push_bond_filled_path(
         rotate: 0.0,
         rotate_center: None,
     });
+}
+
+#[cfg(test)]
+mod dative_bond_tests {
+    use super::*;
+
+    fn assert_close(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() <= 1.0e-9,
+            "expected {expected}, got {actual}"
+        );
+    }
+
+    #[test]
+    fn dative_head_uses_chemdraw_line_width_geometry() {
+        let geometry = dative_bond_geometry(Point::new(20.0, 30.0), Point::new(50.0, 30.0), 1.0)
+            .expect("dative geometry");
+        assert_close(geometry.head_points[0].x, 50.0);
+        assert_close(geometry.head_points[1].x, 40.0);
+        assert_close(geometry.head_points[1].y, 32.5);
+        assert_close(geometry.shaft_end.x, 41.25);
+        assert_close(geometry.shaft_end.y, 30.0);
+        assert_close(geometry.head_points[3].y, 27.5);
+    }
+
+    #[test]
+    fn dative_head_caps_at_two_thirds_of_short_bond_length() {
+        let geometry = dative_bond_geometry(Point::new(20.0, 30.0), Point::new(25.0, 30.0), 1.0)
+            .expect("short dative geometry");
+        assert_close(geometry.head_points[1].x, 25.0 - 10.0 / 3.0);
+        assert_close(geometry.head_points[1].y, 30.0 + 5.0 / 6.0);
+        assert_close(geometry.shaft_end.x, 25.0 - 35.0 / 12.0);
+    }
+}
+
+#[cfg(test)]
+mod wavy_bond_tests {
+    use super::*;
+
+    fn assert_point_close(actual: Point, expected: Point) {
+        assert!((actual.x - expected.x).abs() <= 1.0e-9);
+        assert!((actual.y - expected.y).abs() <= 1.0e-9);
+    }
+
+    #[test]
+    fn wavy_bond_uses_twice_line_width_with_a_twelve_segment_minimum() {
+        let start = Point::new(2.0, 3.0);
+        let end = Point::new(18.0, 3.0);
+        let unit = Vector::new(1.0, 0.0);
+        let normal = Vector::new(0.0, 1.0);
+        let amplitude = 1.0;
+        let natural_step = 1.0;
+        let half_wave_count = (start.distance(end) / natural_step).floor() as usize;
+        let step = start.distance(end) / half_wave_count as f64;
+        assert_point_close(
+            wavy_bond_point(start, unit, normal, step, amplitude, half_wave_count),
+            end,
+        );
+        let non_integral_length = 15.9;
+        let count = (non_integral_length / natural_step).floor() as usize;
+        assert_eq!(count, 15);
+        assert_point_close(
+            wavy_bond_point(start, unit, normal, natural_step, amplitude, count),
+            Point::new(17.0, 2.0),
+        );
+
+        let thick_line_step: f64 = 3.54;
+        let thick_length: f64 = 20.83;
+        let natural_count = (thick_length / thick_line_step).floor() as usize;
+        assert!(natural_count < 12);
+        let count = natural_count.max(12);
+        let redistributed_step = thick_length / count as f64;
+        assert_point_close(
+            wavy_bond_point(start, unit, normal, redistributed_step, amplitude, count),
+            Point::new(22.83, 3.0),
+        );
+
+        assert_eq!(wavy_bond_layout(16.0, 0.5, 16.0, false), (16, 1.0));
+        assert_eq!(
+            wavy_bond_layout(20.825, 1.77, 20.83, false),
+            (12, 20.825 / 12.0)
+        );
+        assert_eq!(wavy_bond_layout(30.0, 1.0, 30.0, false), (16, 30.0 / 16.0));
+        assert_eq!(
+            wavy_bond_layout(29.998, 1.0, 30.0, false),
+            (15, 30.0 / 16.0)
+        );
+    }
+
+    #[test]
+    fn wavy_bond_label_clipping_allows_a_partial_phase_grid() {
+        assert_eq!(wavy_bond_layout(10.04, 0.5, 16.0, true), (11, 10.04 / 11.0));
+        assert_eq!(wavy_bond_layout(8.10, 0.6, 14.4, true), (9, 8.10 / 9.0));
+    }
+
+    #[test]
+    fn wavy_bond_uses_quarter_ellipse_control_handles() {
+        let unit = Vector::new(1.0, 0.0);
+        let normal = Vector::new(0.0, 1.0);
+        let step = 1.1;
+        let amplitude = 1.25;
+        let center_handle = wavy_bond_control_tangent(unit, normal, step, amplitude, 0);
+        let crest_handle = wavy_bond_control_tangent(unit, normal, step, amplitude, 1);
+        assert!((center_handle.x - 0.0).abs() <= 1.0e-9);
+        assert!((center_handle.y - 0.690_355_937_288_492).abs() <= 1.0e-9);
+        assert!((crest_handle.x - 0.607_513_224_813_873).abs() <= 1.0e-9);
+        assert!((crest_handle.y - 0.0).abs() <= 1.0e-9);
+    }
 }

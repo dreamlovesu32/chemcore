@@ -3,6 +3,7 @@
 /CODE_OF_CONDUCT.md text eol=lf
 /CONTRIBUTING.md text eol=lf
 /LICENSE text eol=lf
+/viewer/engine/LICENSE text eol=lf
 /NOTICE text eol=lf
 /SECURITY.md text eol=lf
 *.md text eol=lf

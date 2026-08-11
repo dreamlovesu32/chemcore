@@ -85,12 +85,12 @@ test("real ChemSema and NMR WASM modules generate a native result tab", async ()
   assert.equal(opened.length, 1);
   assert.equal(opened[0].title, "ChemNMR 1H Estimation");
   assert.equal(opened[0].documentData.document.meta.kind, "nmr-prediction-result");
-  assert.ok(opened[0].documentData.objects.some((object) => object.type === "spectrum"));
+  assert.ok(opened[0].documentData.entities.scene.some((object) => object.type === "spectrum"));
   assert.equal(await host.predict("13C"), true);
   assert.equal(opened.length, 2);
   assert.equal(opened[1].title, "ChemNMR 13C Estimation");
   assert.equal(opened[1].documentData.document.meta.prediction.nucleus, "13C");
-  assert.ok(opened[1].documentData.objects.some((object) => object.type === "spectrum"));
+  assert.ok(opened[1].documentData.entities.scene.some((object) => object.type === "spectrum"));
   engine.free();
 });
 

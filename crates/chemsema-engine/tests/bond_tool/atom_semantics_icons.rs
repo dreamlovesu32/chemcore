@@ -947,8 +947,8 @@ fn bond_tool_icons_are_rendered_with_kernel_bond_styles() {
     assert!(bold.contains(r#"fill="currentColor""#), "{bold}");
 
     let wavy = Engine::bond_tool_icon_svg(BondVariant::Wavy, 1.32, 3.68);
-    assert_eq!(wavy.matches(" C ").count(), 8, "{wavy}");
-    assert!(wavy.contains(r#"C 17.8377,7.7027"#), "{wavy}");
+    assert_eq!(wavy.matches(" C ").count(), 14, "{wavy}");
+    assert!(wavy.contains(r#"C 17.7322,7.5198"#), "{wavy}");
     assert!(wavy.contains(r#"stroke-width="1.32""#), "{wavy}");
 }
 
@@ -970,7 +970,11 @@ fn text_format_icons_are_rendered_with_kernel_text_runs() {
     assert!(bold.contains("<text "), "{bold}");
     assert!(bold.contains("<tspan"), "{bold}");
     assert!(bold.contains(r#"font-family="Times New Roman""#), "{bold}");
-    assert!(bold.contains(r#"font-size="16""#), "{bold}");
+    assert!(bold.contains(r#"font-size="320""#), "{bold}");
+    assert!(
+        bold.contains(r#"transform="matrix(0.05 0 0 0.05 12 17)""#),
+        "{bold}"
+    );
     assert!(bold.contains(r#"font-weight="700""#), "{bold}");
     assert!(bold.contains(">B</tspan>"), "{bold}");
 
@@ -997,22 +1001,26 @@ fn text_format_icons_are_rendered_with_kernel_text_runs() {
         chemical.contains(r#"class="chemsema-icon cc-text-format-icon cc-script-icon""#),
         "{chemical}"
     );
-    assert!(chemical.contains(r#"font-size="14""#), "{chemical}");
-    assert!(chemical.contains(">CH</tspan>"), "{chemical}");
-    assert!(chemical.contains(">2</tspan>"), "{chemical}");
-    assert!(chemical.contains("baseline-shift"), "{chemical}");
+    assert!(chemical.contains(r#"font-size="280px""#), "{chemical}");
+    assert!(chemical.contains(r#"font-size="210px""#), "{chemical}");
+    assert!(chemical.contains(">CH</text>"), "{chemical}");
+    assert!(chemical.contains(">2</text>"), "{chemical}");
+    assert_eq!(chemical.matches("<text ").count(), 2, "{chemical}");
 
     let subscript = Engine::text_format_icon_svg("subscript");
-    assert!(subscript.contains(">X</tspan>"), "{subscript}");
-    assert!(subscript.contains(">2</tspan>"), "{subscript}");
-    assert!(subscript.contains(r#"font-size="12""#), "{subscript}");
-    assert!(subscript.contains("baseline-shift"), "{subscript}");
+    assert!(subscript.contains(">X</text>"), "{subscript}");
+    assert!(subscript.contains(">2</text>"), "{subscript}");
+    assert!(subscript.contains(r#"font-size="240px""#), "{subscript}");
+    assert_eq!(subscript.matches("<text ").count(), 2, "{subscript}");
 
     let superscript = Engine::text_format_icon_svg("superscript");
-    assert!(superscript.contains(">X</tspan>"), "{superscript}");
-    assert!(superscript.contains(">2</tspan>"), "{superscript}");
-    assert!(superscript.contains(r#"font-size="12""#), "{superscript}");
-    assert!(superscript.contains("baseline-shift"), "{superscript}");
+    assert!(superscript.contains(">X</text>"), "{superscript}");
+    assert!(superscript.contains(">2</text>"), "{superscript}");
+    assert!(
+        superscript.contains(r#"font-size="240px""#),
+        "{superscript}"
+    );
+    assert_eq!(superscript.matches("<text ").count(), 2, "{superscript}");
 }
 
 #[test]

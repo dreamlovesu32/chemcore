@@ -1,8 +1,8 @@
 use crate::{
-    ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BioDrawKind,
-    BioShapeFillType, BioShapeLineType, BondVariant, BracketKind, Engine, OrbitalPhase,
-    OrbitalStyle, OrbitalTemplate, Point, PointerEvent, RenderBoundsScope, ShapeKind, ShapeStyle,
-    Tool, ToolState, WorldPoint, WorldPt,
+    ArrowCurve, ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowStylePatch, ArrowVariant,
+    BioDrawKind, BioShapeFillType, BioShapeLineType, BondVariant, BracketKind, Engine,
+    OrbitalPhase, OrbitalStyle, OrbitalTemplate, Point, PointerEvent, RenderBoundsScope, ShapeKind,
+    ShapeStyle, Tool, ToolState, WorldPoint, WorldPt,
 };
 use serde::Deserialize;
 use std::collections::BTreeSet;
@@ -84,8 +84,9 @@ impl WasmEngine {
         color: &str,
     ) -> Result<(), JsValue> {
         let mut tool = self.inner.state().tool.clone();
-        tool.bio_draw_kind =
-            parse_bio_draw_kind(kind).map_err(|error| JsValue::from_str(&error))?;
+        tool.bio_draw_kind = kind
+            .parse::<BioDrawKind>()
+            .map_err(|error| JsValue::from_str(&error))?;
         tool.bio_shape_fill_type =
             parse_bio_shape_fill_type(fill_type).map_err(|error| JsValue::from_str(&error))?;
         tool.bio_shape_line_type =
@@ -249,7 +250,8 @@ impl WasmEngine {
         line_type: &str,
     ) -> Result<String, JsValue> {
         Ok(Engine::bio_draw_tool_icon_svg(
-            parse_bio_draw_kind(kind).map_err(|error| JsValue::from_str(&error))?,
+            kind.parse::<BioDrawKind>()
+                .map_err(|error| JsValue::from_str(&error))?,
             parse_bio_shape_fill_type(fill_type).map_err(|error| JsValue::from_str(&error))?,
             parse_bio_shape_line_type(line_type).map_err(|error| JsValue::from_str(&error))?,
         ))
@@ -411,6 +413,26 @@ impl WasmEngine {
         )
     }
 
+    #[wasm_bindgen(js_name = applyArrowEndpointPatchToSelection)]
+    pub fn apply_arrow_endpoint_patch_to_selection(
+        &mut self,
+        head_style: &str,
+        tail_style: &str,
+    ) -> bool {
+        self.inner.apply_arrow_endpoints_to_selection(
+            (!head_style.is_empty()).then(|| parse_arrow_endpoint_style(head_style)),
+            (!tail_style.is_empty()).then(|| parse_arrow_endpoint_style(tail_style)),
+        )
+    }
+
+    #[wasm_bindgen(js_name = applyArrowStylePatchToSelection)]
+    pub fn apply_arrow_style_patch_to_selection(&mut self, patch_json: &str) -> bool {
+        let Ok(patch) = serde_json::from_str::<ArrowStylePatch>(patch_json) else {
+            return false;
+        };
+        self.inner.apply_arrow_style_patch_to_selection(patch)
+    }
+
     #[wasm_bindgen(js_name = pointerMove)]
     pub fn pointer_move(&mut self, x: f64, y: f64, alt_key: bool) {
         self.inner.pointer_move(PointerEvent::from_world_point(
@@ -557,6 +579,50 @@ impl WasmEngine {
     #[wasm_bindgen(js_name = contextMenuJson)]
     pub fn context_menu_json(&self, hit_json: &str, has_paste: bool) -> String {
         self.inner.context_menu_json(hit_json, has_paste)
+    }
+
+    #[wasm_bindgen(js_name = logicalObjectsJson)]
+    pub fn logical_objects_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .logical_objects_json()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = logicalObjectsDialogJson)]
+    pub fn logical_objects_dialog_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .logical_objects_dialog_json()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = setLogicalObjectJson)]
+    pub fn set_logical_object_json(
+        &mut self,
+        kind: &str,
+        value_json: &str,
+    ) -> Result<bool, JsValue> {
+        self.inner
+            .set_logical_object_json(kind, value_json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = deleteLogicalObject)]
+    pub fn delete_logical_object(&mut self, kind: &str, id: &str) -> Result<bool, JsValue> {
+        self.inner
+            .delete_logical_object(kind, id)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    #[wasm_bindgen(js_name = reorderLogicalObject)]
+    pub fn reorder_logical_object(
+        &mut self,
+        kind: &str,
+        id: &str,
+        index: usize,
+    ) -> Result<bool, JsValue> {
+        self.inner
+            .reorder_logical_object(kind, id, index)
+            .map_err(|error| JsValue::from_str(&error))
     }
 
     #[wasm_bindgen(js_name = nmrResultDocumentJson)]
@@ -948,6 +1014,13 @@ impl WasmEngine {
             .map_err(|error| JsValue::from_str(&error))
     }
 
+    #[wasm_bindgen(js_name = hydrateDocumentJson)]
+    pub fn hydrate_document_json(&mut self, json: &str) -> Result<usize, JsValue> {
+        self.inner
+            .hydrate_document_json(json)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
     #[wasm_bindgen(js_name = loadDocumentCdxml)]
     pub fn load_document_cdxml(&mut self, cdxml: &str) -> Result<(), JsValue> {
         self.inner
@@ -1165,6 +1238,20 @@ impl WasmEngine {
             .map_err(|error| JsValue::from_str(&error.to_string()))
     }
 
+    #[wasm_bindgen(js_name = documentPatchJson)]
+    pub fn document_patch_json(&self) -> Result<String, JsValue> {
+        self.inner
+            .document_patch_json()
+            .map_err(|error| JsValue::from_str(&error.to_string()))
+    }
+
+    #[wasm_bindgen(js_name = spatialQueryJson)]
+    pub fn spatial_query_json(&self, min_x: f64, min_y: f64, max_x: f64, max_y: f64) -> String {
+        self.inner
+            .spatial_query_json([min_x, min_y, max_x, max_y])
+            .unwrap_or_else(|_| "{\"entityIds\":[]}".to_string())
+    }
+
     #[wasm_bindgen(js_name = documentCdxml)]
     pub fn document_cdxml(&self) -> String {
         self.inner.document_cdxml()
@@ -1337,35 +1424,6 @@ fn parse_shape_kind(value: &str) -> ShapeKind {
         "plasmid-map" | "plasmidMap" => ShapeKind::PlasmidMap,
         _ => ShapeKind::Circle,
     }
-}
-
-fn parse_bio_draw_kind(value: &str) -> Result<BioDrawKind, String> {
-    let kind = match value {
-        "one-substrate-enzyme" | "1-substrate-enzyme" => BioDrawKind::OneSubstrateEnzyme,
-        "two-substrate-enzyme" | "2-substrate-enzyme" => BioDrawKind::TwoSubstrateEnzyme,
-        "receptor" => BioDrawKind::Receptor,
-        "g-protein-alpha" | "gprotein-alpha" => BioDrawKind::GProteinAlpha,
-        "g-protein-beta" | "gprotein-beta" => BioDrawKind::GProteinBeta,
-        "g-protein-gamma" | "gprotein-gamma" => BioDrawKind::GProteinGamma,
-        "immunoglobulin" | "immunoglobin" => BioDrawKind::Immunoglobulin,
-        "ion-channel" => BioDrawKind::IonChannel,
-        "endoplasmic-reticulum" => BioDrawKind::EndoplasmicReticulum,
-        "golgi" => BioDrawKind::Golgi,
-        "membrane-line" => BioDrawKind::MembraneLine,
-        "membrane-arc" => BioDrawKind::MembraneArc,
-        "membrane-ellipse" => BioDrawKind::MembraneEllipse,
-        "membrane-micelle" => BioDrawKind::MembraneMicelle,
-        "dna" => BioDrawKind::Dna,
-        "helix-protein" => BioDrawKind::HelixProtein,
-        "mitochondrion" => BioDrawKind::Mitochondrion,
-        "cloud" => BioDrawKind::Cloud,
-        "trna" | "t-rna" => BioDrawKind::TRna,
-        "ribosome-a" => BioDrawKind::RibosomeA,
-        "ribosome-b" => BioDrawKind::RibosomeB,
-        "plasmid-map" | "plasmidMap" => BioDrawKind::PlasmidMap,
-        _ => return Err(format!("Unsupported BioDraw kind '{value}'")),
-    };
-    Ok(kind)
 }
 
 fn parse_bio_shape_fill_type(value: &str) -> Result<BioShapeFillType, String> {

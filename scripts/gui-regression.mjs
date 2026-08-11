@@ -18,6 +18,7 @@ const selectionSummaryOnly = guiCase === "selection-summary";
 const chemicalPropertyOnly = guiCase === "chemical-property";
 const annotationOnly = guiCase === "annotation";
 const documentLayoutOnly = guiCase === "document-layout";
+const logicalObjectsOnly = guiCase === "logical-objects";
 
 function waitForPort(timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
@@ -268,16 +269,13 @@ async function verifyToolbarAndCursor(page) {
 async function verifyDocumentLayoutControls(page) {
   const dimensions = await page.evaluate(() => {
     const footer = document.querySelector(".selection-status-bar")?.getBoundingClientRect();
-    const template = document.querySelector("#template-panel-mode-button")?.getBoundingClientRect();
     const paper = document.querySelector("#paper-layout-mode-button")?.getBoundingClientRect();
     return {
       footerHeight: footer?.height,
-      template: template && [template.width, template.height],
       paper: paper && [paper.width, paper.height],
     };
   });
   assert.equal(dimensions.footerHeight, 40, `document footer height drifted: ${JSON.stringify(dimensions)}`);
-  assert.deepEqual(dimensions.template, [32, 32]);
   assert.deepEqual(dimensions.paper, [32, 32]);
 
   const paperButton = page.locator("#paper-layout-mode-button");
@@ -314,16 +312,93 @@ async function verifyDocumentLayoutControls(page) {
   ]) {
     assert.equal(await page.locator(`[name="${field}"]`).count(), 1, `layout dialog is missing ${field}`);
   }
+  await page.locator('[name="widthPages"]').fill("2");
+  await page.locator('[name="printTrimMarks"]').check();
   await page.locator('[data-layout-tab="header-footer"]').click();
   assert.equal(await page.locator('[name="header"]').count(), 1);
   assert.equal(await page.locator('[name="footer"]').count(), 1);
+  await page.locator('[name="header"]').fill("&lChemSema&cPage &p&r&f");
+  await page.locator('[name="headerPosition"]').fill("24");
+  await page.locator('[name="footer"]').fill("&cLayout verified");
+  await page.locator('[name="footerPosition"]').fill("25");
   await page.locator('[data-layout-tab="view"]').click();
   assert.equal(await page.locator('[name="magnificationPercent"]').count(), 1);
-  assert.equal(await page.locator('[name="splitterPositions"]').count(), 1);
+  assert.equal(await page.locator('[name="pageDefinition"]').count(), 1);
+  assert.equal(await page.locator('[name="splitters"]').count(), 1);
+  assert.equal(await page.locator('[name="legacySplitterPositionIds"]').count(), 1);
+  await page.locator('[name="pageDefinition"]').selectOption("reaction1");
+  await page.locator('[name="legacySplitterPositionIds"]').fill("701 702");
+  await page.locator('[name="splitters"]').fill(JSON.stringify([
+    { id: "701", position: [100, 220], pageDefinition: "center" },
+    { id: "702", position: null, pageDefinition: "user-defined" },
+  ]));
   await page.locator('[data-layout-tab="embedding"]').click();
   assert.equal(await page.locator('[name="fixInPlaceExtentX"]').count(), 1);
   assert.equal(await page.locator('[name="fixInPlaceGapY"]').count(), 1);
-  await page.getByRole("button", { name: "Cancel" }).click();
+  const invalidLayoutFields = await page.evaluate(() => (
+    [...document.querySelector(".document-layout-dialog form").elements]
+      .filter((element) => typeof element.checkValidity === "function" && !element.checkValidity())
+      .map((element) => ({ name: element.name, value: element.value, message: element.validationMessage }))
+  ));
+  assert.deepEqual(invalidLayoutFields, [], `layout form has invalid fields: ${JSON.stringify(invalidLayoutFields)}`);
+  await page.getByRole("button", { name: "OK" }).click();
+  await page.waitForFunction(() => (
+    !document.querySelector(".document-layout-dialog")
+    || document.querySelector("[data-layout-error]")?.textContent?.trim()
+  ));
+  const layoutError = await page.evaluate(() => (
+    document.querySelector("[data-layout-error]")?.textContent || ""
+  ));
+  assert.equal(layoutError?.trim() || "", "", `layout dialog rejected valid splitter data: ${layoutError}`);
+  const savedSplitterLayout = await page.evaluate(() => (
+    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson()).document.layout
+  ));
+  assert.equal(savedSplitterLayout.pageDefinition, "reaction1");
+  assert.deepEqual(savedSplitterLayout.legacySplitterPositionIds, ["701", "702"]);
+  assert.deepEqual(savedSplitterLayout.splitters, [
+    { id: "701", position: [100, 220], pageDefinition: "center" },
+    { id: "702", position: null, pageDefinition: "user-defined" },
+  ]);
+  assert.equal(savedSplitterLayout.widthPages, 2);
+  assert.equal(savedSplitterLayout.printTrimMarks, true);
+  assert.equal(savedSplitterLayout.header, "&lChemSema&cPage &p&r&f");
+  assert.equal(savedSplitterLayout.footer, "&cLayout verified");
+  await page.waitForFunction(() => (
+    document.querySelectorAll('[data-layer="paper-layout"] rect[data-page-number]').length === 2
+    && document.querySelectorAll('[data-layer="paper-layout"] [data-page-trim-mark]').length === 16
+  ));
+  const renderedPageDecorations = await page.evaluate(() => ({
+    headers: [...document.querySelectorAll(
+      '[data-layer="paper-layout"] [data-page-annotation="header"]',
+    )].map((node) => ({
+      page: node.getAttribute("data-page-number"),
+      text: node.textContent,
+    })),
+    footers: [...document.querySelectorAll(
+      '[data-layer="paper-layout"] [data-page-annotation="footer"]',
+    )].map((node) => ({
+      page: node.getAttribute("data-page-number"),
+      text: node.textContent,
+    })),
+    trimMarks: document.querySelectorAll(
+      '[data-layer="paper-layout"] [data-page-trim-mark]',
+    ).length,
+  }));
+  assert.deepEqual(
+    renderedPageDecorations.headers.filter((entry) => entry.text.startsWith("Page ")),
+    [
+      { page: "1", text: "Page 1" },
+      { page: "2", text: "Page 2" },
+    ],
+  );
+  assert.deepEqual(
+    renderedPageDecorations.footers,
+    [
+      { page: "1", text: "Layout verified" },
+      { page: "2", text: "Layout verified" },
+    ],
+  );
+  assert.equal(renderedPageDecorations.trimMarks, 16);
   await paperButton.click();
   await page.waitForFunction(() => (
     document.querySelector("#paper-layout-mode-button")?.getAttribute("aria-pressed") === "false"
@@ -615,6 +690,27 @@ async function verifyCopyPasteCut(page) {
   assert(pasted.renderedBonds > before.renderedBonds, `Paste did not duplicate the selected structure: ${JSON.stringify({ before, pasted })}`);
 
   await page.keyboard.press("Control+A");
+  try {
+    await page.waitForFunction(() => {
+      const selection = window.__chemsemaDebug.engineState?.selection || {};
+      const selectedCount = (selection.nodes?.length || 0)
+        + (selection.bonds?.length || 0)
+        + (selection.moleculeObjects?.length || 0)
+        + (selection.textObjects?.length || 0)
+        + (selection.arrowObjects?.length || 0);
+      return selectedCount > 0
+        && (document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0) > 0;
+    });
+  } catch (error) {
+    const diagnostic = await page.evaluate(() => ({
+      activeTool: window.__chemsemaDebug.editorState?.activeTool || null,
+      selection: window.__chemsemaDebug.engineState?.selection || null,
+      selectionBounds: JSON.parse(window.__chemsemaDebug.state.editorEngine.selectionBoundsJson?.() || "null"),
+      overlayChildren: document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0,
+      lastCommandResult: JSON.parse(window.__chemsemaDebug.state.editorEngine.lastCommandResultJson?.() || "null"),
+    }));
+    throw new Error(`Ctrl+A after paste did not render the full selection: ${JSON.stringify(diagnostic)}`, { cause: error });
+  }
   await page.locator('button[data-command="cut"]').click();
   try {
     await page.waitForFunction(() => document.querySelectorAll("[data-bond-id]").length === 0);
@@ -637,6 +733,62 @@ async function verifyCopyPasteCut(page) {
   await page.waitForFunction(() => document.querySelectorAll("[data-bond-id]").length > 0);
   const restored = await documentSummary(page);
   assert(restored.renderedBonds > 0, `Paste after cut did not restore content: ${JSON.stringify(restored)}`);
+}
+
+async function verifyNestedMixedGroupRendering(page) {
+  await drawBondWithMouse(page);
+  const viewer = await page.locator("#viewer-container").boundingBox();
+  assert(viewer, "Nested group regression could not locate the viewer.");
+  const drawArrow = async (from, to, expectedCount) => {
+    await page.locator('button[data-tool="arrow"]').click();
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForFunction((count) => new Set(
+      [...document.querySelectorAll('[data-role="document-graphic"][data-object-id]')]
+        .map((element) => element.dataset.objectId)
+        .filter(Boolean),
+    ).size === count, expectedCount);
+  };
+  await drawArrow(
+    { x: viewer.x + viewer.width * 0.62, y: viewer.y + viewer.height * 0.38 },
+    { x: viewer.x + viewer.width * 0.74, y: viewer.y + viewer.height * 0.38 },
+    1,
+  );
+  await page.locator('button[data-tool="select"]').click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Control+G");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll("[data-bond-id]").length === 1);
+
+  await drawArrow(
+    { x: viewer.x + viewer.width * 0.62, y: viewer.y + viewer.height * 0.66 },
+    { x: viewer.x + viewer.width * 0.74, y: viewer.y + viewer.height * 0.66 },
+    2,
+  );
+  await page.locator('button[data-tool="select"]').click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Control+G");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 2
+    && document.querySelectorAll('[data-object-type="group"] [data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll("[data-bond-id]").length === 1);
+
+  await page.keyboard.press("Control+A");
+  await page.keyboard.press("Control+Shift+G");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll('[data-object-type="group"] [data-object-type="group"][data-object-id]').length === 0
+    && document.querySelectorAll("[data-bond-id]").length === 1
+    && (document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0) > 0);
+  await page.keyboard.press("Control+Z");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 2
+    && document.querySelectorAll('[data-object-type="group"] [data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll("[data-bond-id]").length === 1);
+  await page.keyboard.press("Control+Y");
+  await page.waitForFunction(() => document.querySelectorAll('[data-object-type="group"][data-object-id]').length === 1
+    && document.querySelectorAll('[data-object-type="group"] [data-object-type="group"][data-object-id]').length === 0
+    && document.querySelectorAll("[data-bond-id]").length === 1
+    && (document.querySelector('[data-layer="editor-overlay"]')?.childElementCount || 0) === 0);
 }
 
 async function dispatchImageTransfer(page, eventType) {
@@ -675,7 +827,8 @@ async function verifyImageDropAndPaste(page) {
     await page.waitForFunction(() => {
       const engine = window.__chemsemaDebug.state.editorEngine;
       const documentValue = JSON.parse(engine.documentJson());
-      return documentValue.objects?.some((object) => object.type === "image")
+      return (documentValue.objects || documentValue.entities?.scene || [])
+        .some((object) => object.type === "image")
         && window.__chemsemaDebug.editorState?.activeTool === "select"
         && JSON.parse(engine.selectionBoundsJson() || "null");
     });
@@ -691,20 +844,23 @@ async function verifyImageDropAndPaste(page) {
     throw new Error(`Dropped image did not become the selected object: ${JSON.stringify(diagnostic)}`, { cause: error });
   }
 
-  const afterDrop = await page.evaluate(() => (
-    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson())
-      .objects.filter((object) => object.type === "image").length
-  ));
+  const afterDrop = await page.evaluate(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image").length;
+  });
   await dispatchImageTransfer(page, "paste");
-  await page.waitForFunction((count) => (
-    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson())
-      .objects.filter((object) => object.type === "image").length > count
-  ), afterDrop);
+  await page.waitForFunction((count) => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image").length > count;
+  }, afterDrop);
 
-  const afterPaste = await page.evaluate(() => (
-    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson())
-      .objects.filter((object) => object.type === "image").length
-  ));
+  const afterPaste = await page.evaluate(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image").length;
+  });
   const canvas = await page.locator("#viewer-container").boundingBox();
   assert(canvas, "Viewer container is not visible for context-menu image insertion.");
   await page.mouse.click(canvas.x + canvas.width * 0.72, canvas.y + canvas.height * 0.68, {
@@ -737,10 +893,62 @@ async function verifyImageDropAndPaste(page) {
     mimeType: "image/png",
     buffer: Buffer.from(pngBase64, "base64"),
   });
-  await page.waitForFunction((count) => (
-    JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson())
-      .objects.filter((object) => object.type === "image").length > count
-  ), afterPaste);
+  await page.waitForFunction((count) => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image").length > count;
+  }, afterPaste);
+
+  const selectedImage = page.locator(
+    '#viewer-container [data-object-id][data-role="document-graphic"]',
+  ).last();
+  const selectedImageBounds = await selectedImage.boundingBox();
+  assert(selectedImageBounds, "Selected image has no rendered bounds for the crop menu.");
+  await page.mouse.click(
+    selectedImageBounds.x + selectedImageBounds.width * 0.5,
+    selectedImageBounds.y + selectedImageBounds.height * 0.5,
+    { button: "right" },
+  );
+  const cropImage = page.locator(
+    '.canvas-context-menu-item[data-canvas-context-command="image-crop-dialog"]',
+  );
+  await cropImage.waitFor();
+  await cropImage.click();
+  await page.locator(".image-crop-dialog").waitFor();
+  await page.locator('.image-crop-dialog input[name="x"]').fill("0");
+  await page.locator('.image-crop-dialog input[name="y"]').fill("0");
+  await page.locator('.image-crop-dialog input[name="width"]').fill("1");
+  await page.locator('.image-crop-dialog input[name="height"]').fill("1");
+  await page.locator('.image-crop-dialog button[type="submit"]').click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || []).some(
+      (object) => object.type === "image" && object.payload?.imageCrop?.width === 1,
+    );
+  });
+  await page.locator('#viewer-container svg[viewBox="0 0 1 1"] > image').waitFor({ state: "visible" });
+
+  const croppedImageBounds = await page.locator(
+    '#viewer-container svg[viewBox="0 0 1 1"][data-object-id]',
+  ).boundingBox();
+  assert(croppedImageBounds, "Cropped image lost its selectable object identity.");
+  await page.mouse.click(
+    croppedImageBounds.x + croppedImageBounds.width * 0.5,
+    croppedImageBounds.y + croppedImageBounds.height * 0.5,
+    { button: "right" },
+  );
+  const resetCrop = page.locator(
+    '.canvas-context-menu-item[data-canvas-context-command="image-crop-reset"]',
+  );
+  await resetCrop.waitFor();
+  assert.equal(await resetCrop.isDisabled(), false, "Reset Image Crop is disabled after cropping.");
+  await resetCrop.click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(window.__chemsemaDebug.state.editorEngine.documentJson());
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .filter((object) => object.type === "image")
+      .every((object) => !object.payload?.imageCrop);
+  });
 }
 
 async function verifyStructuredClipboardAcrossTabs(context, page, errors) {
@@ -835,7 +1043,9 @@ async function verifySaveAsFormats(page) {
   await page.locator('button[data-command="save-as"]').click();
   const ccjs = await waitForSaveWrite(page, 0);
   assert.equal(ccjs.name, "gui-save.ccjs");
-  assert(ccjs.text.includes('"objects"') && JSON.parse(ccjs.text).resources, "Save As .ccjs did not write a ChemSema JSON document.");
+  const ccjsDocument = JSON.parse(ccjs.text);
+  assert.equal(ccjsDocument.format?.version, "0.2", "Save As .ccjs did not write the current ChemSema format.");
+  assert(Array.isArray(ccjsDocument.entities?.scene) && ccjsDocument.resources, "Save As .ccjs did not write a ChemSema JSON document.");
 
   await page.locator('button[data-command="save-as"]').click();
   const cdxml = await waitForSaveWrite(page, 1);
@@ -937,10 +1147,11 @@ async function verifyChemicalPropertyDialog(page) {
   const result = await page.evaluate(() => {
     const documentValue = window.__chemsemaDebug.document;
     const property = documentValue.chemicalProperties[0];
-    const display = documentValue.objects.find((object) => object.id === property.displayObjectId);
+    const display = (documentValue.objects || documentValue.entities?.scene || [])
+      .find((object) => object.id === property.displayObjectId);
     return {
       value: display?.payload?.text,
-      relation: documentValue.links.find(
+      relation: (documentValue.links || documentValue.relations || []).find(
         (candidate) => candidate.kind === "chemical-property-display",
       ),
     };
@@ -968,7 +1179,8 @@ async function verifyAnnotationDialog(page) {
     const documentValue = JSON.parse(
       window.__chemsemaDebug.state.editorEngine.documentJson(),
     );
-    return documentValue.objects.find((object) => object.type === "constraint")?.id;
+    return (documentValue.objects || documentValue.entities?.scene || [])
+      .find((object) => object.type === "constraint")?.id;
   });
   assert(annotationId, "Imported annotation did not create a native constraint object.");
   const annotationPoint = await page.evaluate(
@@ -991,7 +1203,7 @@ async function verifyAnnotationDialog(page) {
     const documentValue = JSON.parse(
       window.__chemsemaDebug.state.editorEngine.documentJson(),
     );
-    return documentValue.objects.some(
+    return (documentValue.objects || documentValue.entities?.scene || []).some(
       (object) => object.type === "constraint"
         && object.payload?.constraint?.constraintType === "distance"
         && object.payload.constraint.minimum === 0.75
@@ -1002,18 +1214,74 @@ async function verifyAnnotationDialog(page) {
     const documentValue = JSON.parse(
       window.__chemsemaDebug.state.editorEngine.documentJson(),
     );
-    const annotation = documentValue.objects.find(
+    const annotation = (documentValue.objects || documentValue.entities?.scene || []).find(
       (object) => object.type === "constraint",
     );
     return {
       basis: annotation?.payload?.constraint?.basisEntityIds,
-      relation: documentValue.links.find(
+      relation: (documentValue.links || documentValue.relations || []).find(
         (candidate) => candidate.kind === "annotation-basis",
       ),
     };
   });
   assert.equal(result.basis?.length, 2);
   assert.equal(result.relation?.endpoints?.length, 3);
+}
+
+async function verifyLogicalObjectsDialog(page) {
+  await drawBondWithMouse(page);
+  await page.locator('button[data-tool="select"]').click();
+  await page.keyboard.press("Control+A");
+  const viewer = await page.locator("#viewer-container").boundingBox();
+  assert(viewer, "Logical object regression could not locate the viewer.");
+  await page.mouse.click(viewer.x + 12, viewer.y + 12, { button: "right" });
+  const command = page.locator(
+    '.canvas-context-menu button[data-canvas-context-command="logical-objects-dialog"]',
+  );
+  await command.waitFor({ state: "visible" });
+  await command.click();
+
+  const dialog = page.locator(".logical-objects-dialog");
+  await dialog.waitFor({ state: "visible" });
+  await dialog.locator('[data-logical-family="annotation"]').click();
+  await dialog.locator("[data-logical-new]").click();
+  await dialog.locator('input[name="keyword"]').fill("source");
+  await dialog.locator('input[name="content"]').fill("browser regression");
+  await dialog.locator('button[type="submit"]').click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(
+      window.__chemsemaDebug.state.editorEngine.documentJson(),
+    );
+    return documentValue.logicalObjects?.annotations?.some(
+      (annotation) => annotation.keyword === "source"
+        && annotation.content === "browser regression"
+        && annotation.ownerEntityId,
+    );
+  });
+
+  await dialog.locator('input[name="content"]').fill("browser regression edited");
+  await dialog.locator('button[type="submit"]').click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(
+      window.__chemsemaDebug.state.editorEngine.documentJson(),
+    );
+    return documentValue.logicalObjects?.annotations?.length === 1
+      && documentValue.logicalObjects.annotations[0].content === "browser regression edited";
+  });
+
+  const exported = await page.evaluate(
+    () => window.__chemsemaDebug.state.editorEngine.documentCdxml(),
+  );
+  assert.match(exported, /<annotation\b/);
+  assert.match(exported, /Keyword="source"/);
+  await dialog.locator("[data-logical-delete]").click();
+  await page.waitForFunction(() => {
+    const documentValue = JSON.parse(
+      window.__chemsemaDebug.state.editorEngine.documentJson(),
+    );
+    return !documentValue.logicalObjects?.annotations?.length;
+  });
+  await dialog.locator(".logical-objects-titlebar [data-logical-close]").click();
 }
 
 let server = null;
@@ -1032,7 +1300,7 @@ try {
   await installBrowserMocks(context);
   const errors = [];
 
-  if (!selectionSummaryOnly && !chemicalPropertyOnly && !annotationOnly && !documentLayoutOnly) {
+  if (!selectionSummaryOnly && !chemicalPropertyOnly && !annotationOnly && !documentLayoutOnly && !logicalObjectsOnly) {
     const fixturePath = await createOpenFixture(context, errors);
     await verifyOpenButton(context, errors, fixturePath);
 
@@ -1057,6 +1325,10 @@ try {
     const page = await openViewer(context, errors);
     await verifyDocumentLayoutControls(page);
     await page.close();
+  } else if (logicalObjectsOnly) {
+    const page = await openViewer(context, errors);
+    await verifyLogicalObjectsDialog(page);
+    await page.close();
   } else if (!exactTieOnly) {
     const page = await openViewer(context, errors);
     await verifyToolbarAndCursor(page);
@@ -1067,6 +1339,10 @@ try {
     const editPage = await openViewer(context, errors);
     await verifyCopyPasteCut(editPage);
     await editPage.close();
+
+    const groupPage = await openViewer(context, errors);
+    await verifyNestedMixedGroupRendering(groupPage);
+    await groupPage.close();
 
     const imagePage = await openViewer(context, errors);
     await verifyImageDropAndPaste(imagePage);
@@ -1103,9 +1379,11 @@ try {
         ? "[gui-regression] ok (Geometry/Constraint context menu and kernel dialog)"
       : documentLayoutOnly
         ? "[gui-regression] ok (40 px status bar and document layout controls)"
+      : logicalObjectsOnly
+        ? "[gui-regression] ok (native logical object manager and CDXML export)"
     : exactTieOnly
       ? "[gui-regression] ok (exact-tie double bond)"
-      : "[gui-regression] ok (open, save-as ccjs/cdxml/svg, ctrl+s ccjz, copy/paste/cut, image drop/paste/context-menu, cross-tab structured clipboard, detached desktop tab, toolbar icons, cursors, selection overlay, delete tool, exact-tie double bond, zoom, style, annotation dialog)");
+      : "[gui-regression] ok (open, save-as ccjs/cdxml/svg, ctrl+s ccjz, copy/paste/cut, nested mixed grouping, image drop/paste/context-menu, cross-tab structured clipboard, detached desktop tab, toolbar icons, cursors, selection overlay, delete tool, exact-tie double bond, zoom, style, annotation dialog)");
 } finally {
   await browser?.close();
   if (server) {

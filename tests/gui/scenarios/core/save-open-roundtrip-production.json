@@ -1,0 +1,167 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.document.save-open-roundtrip.production",
+  "title": "Save, independently validate, reopen, and continue editing a CCJS document through native dialogs",
+  "risk": "critical",
+  "owner": "document-io",
+  "originatingDefect": null,
+  "capabilities": ["gui.public-input", "editor.bond.draw", "document.save-as", "document.open", "document.close-discard", "document.roundtrip", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 7,
+  "actions": [
+    {
+      "id": "activate-bond-tool",
+      "type": "click",
+      "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } },
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "draw-saved-bond",
+      "type": "drag",
+      "target": { "strategy": "automation-id", "value": "viewer-container" },
+      "button": "left",
+      "from": { "x": 0.35, "y": 0.43 },
+      "to": { "x": 0.45, "y": 0.43 },
+      "steps": 8,
+      "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1, "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "open-save-as-dialog",
+      "type": "click",
+      "target": { "strategy": "role", "value": "button", "name": "Save as" },
+      "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "focus-save-filename",
+      "type": "click",
+      "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" },
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "select-save-filename",
+      "type": "key",
+      "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" },
+      "key": "Control+A",
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "type-save-path",
+      "type": "text",
+      "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" },
+      "textSource": "document-output-path",
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "confirm-save",
+      "type": "key",
+      "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" },
+      "key": "Enter",
+      "completion": { "kind": "document-saved", "timeoutMs": 30000 },
+      "budgetMs": 90000
+    },
+    {
+      "id": "draw-unsaved-second-bond",
+      "type": "drag",
+      "target": { "strategy": "automation-id", "value": "viewer-container" },
+      "button": "left",
+      "from": { "x": 0.55, "y": 0.6 },
+      "to": { "x": 0.65, "y": 0.6 },
+      "steps": 8,
+      "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 2, "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "close-dirty-saved-tab",
+      "type": "click",
+      "target": { "strategy": "role", "value": "button", "name": "Close roundtrip.ccjs *" },
+      "completion": { "kind": "dom-count", "selector": "[data-unsaved-decision='discard']", "operator": "eq", "value": 1, "timeoutMs": 12000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "discard-unsaved-second-bond",
+      "type": "click",
+      "target": { "strategy": "role", "value": "button", "name": "Don't Save" },
+      "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 0, "timeoutMs": 12000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "open-native-open-dialog",
+      "type": "click",
+      "target": { "strategy": "role", "value": "button", "name": "Open file" },
+      "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 20000 },
+      "budgetMs": 40000
+    },
+    {
+      "id": "focus-open-filename",
+      "type": "click",
+      "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" },
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "select-open-filename",
+      "type": "key",
+      "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" },
+      "key": "Control+A",
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "type-open-path",
+      "type": "text",
+      "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" },
+      "textSource": "document-output-path",
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "confirm-open",
+      "type": "key",
+      "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" },
+      "key": "Enter",
+      "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1, "timeoutMs": 15000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "reactivate-bond-tool",
+      "type": "click",
+      "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } },
+      "completion": { "kind": "actionable", "timeoutMs": 8000 },
+      "budgetMs": 30000
+    },
+    {
+      "id": "continue-editing-reopened-document",
+      "type": "drag",
+      "target": { "strategy": "world-geometry", "value": "page-background" },
+      "button": "left",
+      "from": { "x": 0.65, "y": 0.75 },
+      "to": { "x": 0.8, "y": 0.75 },
+      "steps": 8,
+      "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 2, "timeoutMs": 12000 },
+      "budgetMs": 30000
+    }
+  ],
+  "oracles": [
+    { "id": "continued-document-has-two-bonds", "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 2 },
+    { "id": "saved-document-chemical-counts", "kind": "document-counts", "expected": { "nodes": 2, "bonds": 1, "molecules": 1, "objects": 1 } },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["document.save-as", "document.open", "document.close-discard", "document.roundtrip", "editor.bond.draw", "oracle.document-file"],
+    "objectTypes": ["bond", "molecule"],
+    "cardinalities": ["1", "2"],
+    "states": ["blank-document", "dirty-document", "saved-document", "discard-confirmation", "discarded-document", "reopened-document", "continued-editing"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["bond.order.single"],
+    "persistenceBoundaries": ["filesystem", "native-dialog", "runtime"]
+  }
+}

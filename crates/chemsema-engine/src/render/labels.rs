@@ -22,10 +22,7 @@ pub(super) fn attached_label_glyph_anchor_world(
         (bounds.y1 + bounds.y2) * 0.5
     } else {
         let baseline_y = label.position?[1];
-        let font_size = label
-            .font_size
-            .unwrap_or(crate::DEFAULT_MOLECULE_LABEL_FONT_SIZE_PT);
-        baseline_y - font_size * crate::MOLECULE_LABEL_ANCHOR_BASELINE_RATIO
+        baseline_y - crate::node_label_anchor_baseline_offset(label)
     };
     Some(Point::new(
         (bounds.x1 + bounds.x2) * 0.5 + object.transform.translate[0],
@@ -52,7 +49,11 @@ fn authored_character_glyph_index(source: &str, authored_character_index: usize)
 
 #[cfg(test)]
 mod attachment_tests {
-    use super::authored_character_glyph_index;
+    use super::{
+        algebraic_body_segment_after_label_retreats, authored_character_glyph_index,
+        clip_body_segment_out_of_label_geometry, strip_endpoint_label_retreat,
+    };
+    use crate::{Point, Vector};
 
     #[test]
     fn authored_multiline_attachment_indices_map_to_visible_glyphs() {
@@ -63,6 +64,88 @@ mod attachment_tests {
     #[test]
     fn authored_single_line_attachment_indices_are_unchanged() {
         assert_eq!(authored_character_glyph_index("(PhO)2POH", 6), Some(6));
+    }
+
+    #[test]
+    fn continuous_strip_retreat_uses_contacts_between_center_and_edge_rays() {
+        let polygon = vec![vec![
+            Point::new(4.0, 0.35),
+            Point::new(6.0, 0.35),
+            Point::new(6.0, 0.65),
+            Point::new(4.0, 0.65),
+        ]];
+        let retreat = strip_endpoint_label_retreat(
+            Point::new(0.0, 0.0),
+            Vector::new(1.0, 0.0),
+            Vector::new(0.0, 1.0),
+            &polygon,
+            1.0,
+        );
+        assert!((retreat - 6.0).abs() <= crate::EPSILON);
+    }
+
+    #[test]
+    fn label_retreat_can_cross_a_short_bond_endpoint() {
+        let label = vec![vec![
+            Point::new(-5.0, -2.0),
+            Point::new(5.0, -2.0),
+            Point::new(5.0, 2.0),
+            Point::new(-5.0, 2.0),
+        ]];
+        let (start, end) = clip_body_segment_out_of_label_geometry(
+            Point::new(0.0, 0.0),
+            Point::new(2.0, 0.0),
+            None,
+            &label,
+            0.0,
+            None,
+            &[],
+            0.0,
+        )
+        .expect("ChemDraw keeps the reversed short-bond body");
+        assert!((start.x - 5.0).abs() < crate::EPSILON);
+        assert!((end.x - 2.0).abs() < crate::EPSILON);
+    }
+
+    #[test]
+    fn overlapping_endpoint_labels_collapse_the_visible_bond_body() {
+        let start_label = vec![vec![
+            Point::new(-2.0, -2.0),
+            Point::new(2.0, -2.0),
+            Point::new(2.0, 2.0),
+            Point::new(-2.0, 2.0),
+        ]];
+        let end_label = vec![vec![
+            Point::new(1.0, -2.0),
+            Point::new(5.0, -2.0),
+            Point::new(5.0, 2.0),
+            Point::new(1.0, 2.0),
+        ]];
+        assert!(clip_body_segment_out_of_label_geometry(
+            Point::new(0.0, 0.0),
+            Point::new(3.0, 0.0),
+            None,
+            &start_label,
+            0.0,
+            None,
+            &end_label,
+            0.0,
+        )
+        .is_none());
+
+        let (start, end, start_retreat, end_retreat) = algebraic_body_segment_after_label_retreats(
+            Point::new(0.0, 0.0),
+            Point::new(3.0, 0.0),
+            None,
+            &start_label,
+            0.0,
+            None,
+            &end_label,
+            0.0,
+        )
+        .expect("parallel bond rails retain their algebraic clipping axis");
+        assert!(start_retreat + end_retreat > 3.0);
+        assert!(start.x > end.x);
     }
 }
 
@@ -104,6 +187,110 @@ pub(super) fn label_clip_polygons_world(node: &Node, object: &SceneObject) -> Ve
         .unwrap_or_default()
 }
 
+pub(super) fn label_clip_polygons_world_for_segment(
+    node: &Node,
+    object: &SceneObject,
+    endpoint: Point,
+    other: Point,
+    half_width: f64,
+) -> Vec<Vec<Point>> {
+    let Some(label) = node.label.as_ref() else {
+        return Vec::new();
+    };
+    let direction = Vector::new(other.x - endpoint.x, other.y - endpoint.y);
+    if direction.length() <= EPSILON {
+        return Vec::new();
+    }
+    let direction = direction.normalized();
+    let cardinal_sector = crate::glyph_kernel::GLYPH_AXIS_HALF_SECTOR_DEG
+        .to_radians()
+        .sin();
+    // ChemDraw's horizontal cardinal sector is a dedicated run-envelope
+    // contact. It replaces the general outline/feature kernel inside the
+    // measured ten-degree sector; taking their union makes trailing lowercase
+    // glyphs such as the r in Tyr retreat too far. BeginAttach/EndAttach only
+    // choose the authored character used as the ray origin and do not change
+    // this boundary.
+    if direction.y.abs() <= cardinal_sector {
+        return label_horizontal_axis_contact_polygons(label)
+            .into_iter()
+            .map(|polygon| polygon_to_world(polygon, object))
+            .filter(|polygon| polygon.len() >= 3)
+            .collect();
+    }
+    // Diagonal contacts use the complete label outline. The remaining
+    // top/bottom cardinal sectors are owned by the glyph column under the bond.
+    if direction.x.abs() > cardinal_sector {
+        return label_clip_polygons_world(node, object);
+    }
+    let local_endpoint = Point::new(
+        endpoint.x - object.transform.translate[0],
+        endpoint.y - object.transform.translate[1],
+    );
+    label_clip_polygons_for_segment(label, local_endpoint, direction, half_width)
+        .into_iter()
+        .map(|polygon| polygon_to_world(polygon, object))
+        .filter(|polygon| polygon.len() >= 3)
+        .collect()
+}
+
+pub(super) fn label_clip_polygons_world_for_cardinal_strip(
+    node: &Node,
+    object: &SceneObject,
+    endpoint: Point,
+    other: Point,
+    half_width: f64,
+) -> Vec<Vec<Point>> {
+    let Some(label) = node.label.as_ref() else {
+        return Vec::new();
+    };
+    let direction = Vector::new(other.x - endpoint.x, other.y - endpoint.y);
+    if direction.length() <= EPSILON {
+        return Vec::new();
+    }
+    let direction = direction.normalized();
+    debug_assert!(
+        direction.x.abs()
+            <= crate::glyph_kernel::GLYPH_AXIS_HALF_SECTOR_DEG
+                .to_radians()
+                .sin()
+    );
+    let local_endpoint = Point::new(
+        endpoint.x - object.transform.translate[0],
+        endpoint.y - object.transform.translate[1],
+    );
+    label_clip_polygons_for_strip(label, local_endpoint, direction, half_width)
+        .into_iter()
+        .map(|polygon| polygon_to_world(polygon, object))
+        .filter(|polygon| polygon.len() >= 3)
+        .collect()
+}
+
+fn label_horizontal_axis_contact_polygons(label: &NodeLabel) -> Vec<Vec<Point>> {
+    let clip_polygons = label.glyph_clip_polygons();
+    if clip_polygons.is_empty() {
+        // A hand-built label without a derived clip profile has only its
+        // authoritative glyph outlines.
+        return label.glyph_polygons();
+    }
+    if label.glyph_clip_polygon_owners.len() != clip_polygons.len() {
+        // Explicit unowned in-memory clip geometry is already the complete
+        // authored contact representation. Imported and edited labels always
+        // carry the parallel ownership vector produced by the glyph kernel.
+        return clip_polygons;
+    }
+    let horizontal_contacts = clip_polygons
+        .iter()
+        .zip(label.glyph_clip_polygon_owners.iter())
+        .filter_map(|(polygon, owner)| owner.is_none().then_some(polygon.clone()))
+        .collect::<Vec<_>>();
+    if horizontal_contacts.is_empty() {
+        clip_polygons
+    } else {
+        horizontal_contacts
+    }
+}
+
 fn polygon_to_world(polygon: Vec<Point>, object: &SceneObject) -> Vec<Point> {
     compact_polygon_points(
         polygon
@@ -128,20 +315,170 @@ struct GlyphClipInfo {
 }
 
 fn label_clip_polygons(label: &NodeLabel) -> Vec<Vec<Point>> {
+    let glyph_indices = (0..label.glyph_polygons.len()).collect::<Vec<_>>();
+    label_clip_polygons_for_glyph_indices(label, &glyph_indices, true)
+}
+
+fn label_clip_polygons_for_segment(
+    label: &NodeLabel,
+    endpoint: Point,
+    direction: Vector,
+    half_width: f64,
+) -> Vec<Vec<Point>> {
+    let glyph_polygons = label.glyph_polygons();
+    let normal = Vector::new(-direction.y, direction.x);
+    let rays = [0.0, half_width, -half_width].map(|offset| {
+        Point::new(
+            endpoint.x + normal.x * offset,
+            endpoint.y + normal.y * offset,
+        )
+    });
+    let mut glyph_indices = glyph_polygons
+        .iter()
+        .enumerate()
+        .filter_map(|(index, polygon)| {
+            let bounds = polygon_bounds(polygon)?;
+            rays.iter()
+                .any(|ray| ray_intersects_rect_forward(*ray, direction, bounds))
+                .then_some(index)
+        })
+        .collect::<Vec<_>>();
+    let mut row_glyphs = glyph_polygons
+        .iter()
+        .enumerate()
+        .filter_map(|(index, polygon)| {
+            let bounds = polygon_bounds(polygon)?;
+            label_glyph_can_join_horizontal_clip(label, index).then_some(GlyphClipInfo {
+                index,
+                bounds,
+                center_x: (bounds.x1 + bounds.x2) * 0.5,
+                center_y: (bounds.y1 + bounds.y2) * 0.5,
+                height: (bounds.y2 - bounds.y1).max(0.0),
+            })
+        })
+        .collect::<Vec<_>>();
+    row_glyphs.sort_by(|left, right| {
+        left.center_y
+            .total_cmp(&right.center_y)
+            .then_with(|| left.center_x.total_cmp(&right.center_x))
+    });
+    let mut rows: Vec<Vec<GlyphClipInfo>> = Vec::new();
+    for glyph in row_glyphs {
+        if let Some(row) = rows.iter_mut().find(|row| {
+            row.last()
+                .is_some_and(|previous| horizontal_clip_glyphs_share_row(*previous, glyph))
+        }) {
+            row.push(glyph);
+        } else {
+            rows.push(vec![glyph]);
+        }
+    }
+    for row in &mut rows {
+        row.sort_by(|left, right| left.center_x.total_cmp(&right.center_x));
+        for pair in row.windows(2) {
+            let left = pair[0];
+            let right = pair[1];
+            let bridge = RectBox {
+                x1: left.bounds.x2,
+                y1: left.bounds.y1.max(right.bounds.y1),
+                x2: right.bounds.x1,
+                y2: left.bounds.y2.min(right.bounds.y2),
+            };
+            if bridge.x2 > bridge.x1 + EPSILON
+                && bridge.y2 > bridge.y1 + EPSILON
+                && rays
+                    .iter()
+                    .any(|ray| ray_intersects_rect_forward(*ray, direction, bridge))
+            {
+                glyph_indices.extend([left.index, right.index]);
+            }
+        }
+    }
+    if glyph_indices.is_empty() {
+        // A bond axis can lie in a kerning gap or beside a shifted formula
+        // script. ChemDraw assigns that gap to the nearest glyph column, then
+        // applies that glyph's MarginWidth. A script participates here only
+        // when the raw bond rays did not already select another glyph.
+        let candidates = glyph_polygons
+            .iter()
+            .enumerate()
+            .filter_map(|(index, polygon)| {
+                let bounds = polygon_bounds(polygon)?;
+                forward_ray_rect_distance(endpoint, direction, normal, bounds)
+                    .map(|distance| (index, distance))
+            })
+            .collect::<Vec<_>>();
+        if let Some((index, _)) = candidates.into_iter().min_by(|left, right| {
+            left.1
+                .total_cmp(&right.1)
+                .then_with(|| left.0.cmp(&right.0))
+        }) {
+            glyph_indices.push(index);
+        }
+    }
+    glyph_indices.sort_unstable();
+    glyph_indices.dedup();
+    label_clip_polygons_for_glyph_indices(label, &glyph_indices, false)
+}
+
+fn label_clip_polygons_for_strip(
+    label: &NodeLabel,
+    endpoint: Point,
+    direction: Vector,
+    half_width: f64,
+) -> Vec<Vec<Point>> {
+    let normal = Vector::new(-direction.y, direction.x);
+    let glyph_indices = label
+        .glyph_polygons()
+        .iter()
+        .enumerate()
+        .filter_map(|(index, polygon)| {
+            let bounds = polygon_bounds(polygon)?;
+            forward_ray_rect_distance(endpoint, direction, normal, bounds)
+                .is_some_and(|distance| distance <= half_width + EPSILON)
+                .then_some(index)
+        })
+        .collect::<Vec<_>>();
+    label_clip_polygons_for_glyph_indices(label, &glyph_indices, false)
+}
+
+fn label_clip_polygons_for_glyph_indices(
+    label: &NodeLabel,
+    glyph_indices: &[usize],
+    include_shared_axis_contacts: bool,
+) -> Vec<Vec<Point>> {
     let glyph_polygons = label.glyph_polygons();
     let authored_clip_polygons = label.glyph_clip_polygons();
+    let selected = glyph_indices.iter().copied().collect::<BTreeSet<_>>();
     // The glyph outline is itself authoritative retreat geometry.  Some import
     // paths store a separately expanded clip outline, while native labels only
     // carry the glyph outline.  An empty expanded set therefore selects the
     // glyph outline; it must never fall through to an inferred text box.
     let mut polygons = if authored_clip_polygons.is_empty() {
-        glyph_polygons.clone()
+        glyph_indices
+            .iter()
+            .filter_map(|index| glyph_polygons.get(*index).cloned())
+            .collect::<Vec<_>>()
+    } else if label.glyph_clip_polygon_owners.len() == authored_clip_polygons.len() {
+        authored_clip_polygons
+            .into_iter()
+            .zip(label.glyph_clip_polygon_owners.iter())
+            .filter_map(|(polygon, owner)| match owner {
+                Some(index) if selected.contains(index) => Some(polygon),
+                None if include_shared_axis_contacts => Some(polygon),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
     } else {
+        // Explicitly unowned clip geometry is accepted only for hand-built
+        // in-memory labels. Imported and edited labels are rebuilt by the
+        // glyph kernel and always carry parallel ownership.
         authored_clip_polygons
     };
     let mut glyphs: Vec<GlyphClipInfo> = glyph_polygons
         .iter()
         .enumerate()
+        .filter(|(index, _)| selected.contains(index))
         .filter_map(|(index, polygon)| {
             let bounds = polygon_bounds(polygon)?;
             Some(GlyphClipInfo {
@@ -185,6 +522,50 @@ fn label_clip_polygons(label: &NodeLabel) -> Vec<Vec<Point>> {
     }
 
     polygons
+}
+
+fn forward_ray_rect_distance(
+    start: Point,
+    direction: Vector,
+    normal: Vector,
+    bounds: RectBox,
+) -> Option<f64> {
+    let center = Point::new((bounds.x1 + bounds.x2) * 0.5, (bounds.y1 + bounds.y2) * 0.5);
+    let half_width = (bounds.x2 - bounds.x1).max(0.0) * 0.5;
+    let half_height = (bounds.y2 - bounds.y1).max(0.0) * 0.5;
+    let offset = Vector::new(center.x - start.x, center.y - start.y);
+    let forward_center = offset.x * direction.x + offset.y * direction.y;
+    let forward_radius = direction.x.abs() * half_width + direction.y.abs() * half_height;
+    if forward_center + forward_radius < -EPSILON {
+        return None;
+    }
+    let normal_center = offset.x * normal.x + offset.y * normal.y;
+    let normal_radius = normal.x.abs() * half_width + normal.y.abs() * half_height;
+    Some((normal_center.abs() - normal_radius).max(0.0))
+}
+
+fn ray_intersects_rect_forward(start: Point, direction: Vector, bounds: RectBox) -> bool {
+    let mut near = f64::NEG_INFINITY;
+    let mut far = f64::INFINITY;
+    for (origin, delta, minimum, maximum) in [
+        (start.x, direction.x, bounds.x1, bounds.x2),
+        (start.y, direction.y, bounds.y1, bounds.y2),
+    ] {
+        if delta.abs() <= EPSILON {
+            if origin < minimum - EPSILON || origin > maximum + EPSILON {
+                return false;
+            }
+            continue;
+        }
+        let first = (minimum - origin) / delta;
+        let second = (maximum - origin) / delta;
+        near = near.max(first.min(second));
+        far = far.min(first.max(second));
+        if near > far + EPSILON {
+            return false;
+        }
+    }
+    far >= -EPSILON
 }
 
 fn label_glyph_can_join_horizontal_clip(label: &NodeLabel, glyph_index: usize) -> bool {
@@ -278,78 +659,6 @@ fn clip_rectangle(x1: f64, y1: f64, x2: f64, y2: f64) -> Option<Vec<Point>> {
     ])
 }
 
-pub(super) fn segment_intersection_fraction(
-    start: Point,
-    end: Point,
-    first: Point,
-    second: Point,
-) -> Option<f64> {
-    let direction = Vector::new(end.x - start.x, end.y - start.y);
-    let edge = Vector::new(second.x - first.x, second.y - first.y);
-    let denom = vector_cross(direction, edge);
-    if denom.abs() <= EPSILON {
-        let offset = Vector::new(first.x - start.x, first.y - start.y);
-        if vector_cross(offset, direction).abs() > EPSILON {
-            return None;
-        }
-        let length_sq = direction.x * direction.x + direction.y * direction.y;
-        if length_sq <= EPSILON {
-            return None;
-        }
-        let first_t =
-            ((first.x - start.x) * direction.x + (first.y - start.y) * direction.y) / length_sq;
-        let second_t =
-            ((second.x - start.x) * direction.x + (second.y - start.y) * direction.y) / length_sq;
-        let overlap_start = first_t.min(second_t).max(0.0);
-        let overlap_end = first_t.max(second_t).min(1.0);
-        return (overlap_end + EPSILON >= overlap_start).then_some(overlap_end);
-    }
-    let offset = Vector::new(first.x - start.x, first.y - start.y);
-    let t = vector_cross(offset, edge) / denom;
-    let u = vector_cross(offset, direction) / denom;
-    if (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u) {
-        Some(t)
-    } else {
-        None
-    }
-}
-
-fn point_is_on_segment(point: Point, first: Point, second: Point) -> bool {
-    let edge = Vector::new(second.x - first.x, second.y - first.y);
-    let point_vector = Vector::new(point.x - first.x, point.y - first.y);
-    if vector_cross(edge, point_vector).abs() > EPSILON {
-        return false;
-    }
-    let dot = point_vector.x * edge.x + point_vector.y * edge.y;
-    if dot < -EPSILON {
-        return false;
-    }
-    dot <= edge.x * edge.x + edge.y * edge.y + EPSILON
-}
-
-fn point_is_inside_or_on_polygon(point: Point, polygon: &[Point]) -> bool {
-    if polygon.len() < 3 {
-        return false;
-    }
-    let mut inside = false;
-    for index in 0..polygon.len() {
-        let first = polygon[index];
-        let second = polygon[(index + 1) % polygon.len()];
-        if point_is_on_segment(point, first, second) {
-            return true;
-        }
-        let crosses = (first.y > point.y) != (second.y > point.y);
-        if crosses {
-            let x_intersection =
-                (second.x - first.x) * (point.y - first.y) / (second.y - first.y) + first.x;
-            if x_intersection > point.x {
-                inside = !inside;
-            }
-        }
-    }
-    inside
-}
-
 pub(super) fn polygon_bounds(polygon: &[Point]) -> Option<RectBox> {
     let mut bounds = RectBox {
         x1: f64::INFINITY,
@@ -372,58 +681,6 @@ pub(super) fn polygon_bounds(polygon: &[Point]) -> Option<RectBox> {
         .then_some(bounds)
 }
 
-pub(super) fn clip_point_out_of_polygons(
-    start: Point,
-    end: Point,
-    polygons: &[Vec<Point>],
-) -> Option<Point> {
-    let mut best_t: Option<f64> = None;
-    for polygon in polygons {
-        if polygon.len() < 3 {
-            continue;
-        }
-        let start_inside = point_is_inside_or_on_polygon(start, polygon);
-        let mut polygon_t: Option<f64> = None;
-        for index in 0..polygon.len() {
-            let next = (index + 1) % polygon.len();
-            let Some(t) = segment_intersection_fraction(start, end, polygon[index], polygon[next])
-            else {
-                continue;
-            };
-            if t <= EPSILON && !start_inside {
-                continue;
-            }
-            if polygon_t.is_none_or(|current| t > current) {
-                polygon_t = Some(t);
-            }
-        }
-        if start_inside && polygon_t.is_none() {
-            polygon_t = Some(0.0);
-        }
-        if let Some(t) = polygon_t {
-            if best_t.is_none_or(|current| t > current) {
-                best_t = Some(t);
-            }
-        }
-    }
-    best_t.map(|t| {
-        Point::new(
-            start.x + (end.x - start.x) * t,
-            start.y + (end.y - start.y) * t,
-        )
-    })
-}
-
-pub(super) fn clip_point_out_of_label_geometry(
-    start: Point,
-    end: Point,
-    polygons: &[Vec<Point>],
-) -> Point {
-    // Missing glyph geometry has one explicit meaning: no glyph-based retreat.
-    // A label rectangle is layout metadata, not an equivalent ink contour.
-    clip_point_out_of_polygons(start, end, polygons).unwrap_or(start)
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn clip_body_segment_out_of_label_geometry(
     start: Point,
@@ -435,6 +692,81 @@ pub(super) fn clip_body_segment_out_of_label_geometry(
     end_polygons: &[Vec<Point>],
     end_half_width: f64,
 ) -> Option<(Point, Point)> {
+    let (clipped_start, clipped_end, start_retreat, end_retreat) =
+        algebraic_body_segment_after_label_retreats(
+            start,
+            end,
+            start_rect,
+            start_polygons,
+            start_half_width,
+            end_rect,
+            end_polygons,
+            end_half_width,
+        )?;
+    let authored_length = start.distance(end);
+    if start_retreat > EPSILON
+        && end_retreat > EPSILON
+        && start_retreat + end_retreat + EPSILON >= authored_length
+    {
+        // ChemDraw keeps an algebraic centerline for two overlapping endpoint
+        // labels but collapses its body width to zero. It therefore contributes
+        // no visible ink. A one-label overrun is different and remains a
+        // reversed, visible bond body.
+        return None;
+    }
+    (clipped_start.distance(clipped_end) > EPSILON).then_some((clipped_start, clipped_end))
+}
+
+pub(super) fn clip_wavy_body_segment_out_of_label_geometry(
+    start: Point,
+    end: Point,
+    start_polygons: &[Vec<Point>],
+    start_half_width: f64,
+    start_uses_strip: bool,
+    end_polygons: &[Vec<Point>],
+    end_half_width: f64,
+    end_uses_strip: bool,
+) -> Option<(Point, Point)> {
+    let direction = Vector::new(end.x - start.x, end.y - start.y);
+    let authored_length = direction.length();
+    if authored_length <= EPSILON {
+        return None;
+    }
+    let unit = direction.normalized();
+    let normal = Vector::new(-unit.y, unit.x);
+    let start_retreat = if start_uses_strip {
+        strip_endpoint_label_retreat(start, unit, normal, start_polygons, start_half_width)
+    } else {
+        wedge_endpoint_label_retreat(start, unit, normal, None, start_polygons, start_half_width)
+    };
+    let end_axis = Vector::new(-unit.x, -unit.y);
+    let end_retreat = if end_uses_strip {
+        strip_endpoint_label_retreat(end, end_axis, normal, end_polygons, end_half_width)
+    } else {
+        wedge_endpoint_label_retreat(end, end_axis, normal, None, end_polygons, end_half_width)
+    };
+    if start_retreat > EPSILON
+        && end_retreat > EPSILON
+        && start_retreat + end_retreat + EPSILON >= authored_length
+    {
+        return None;
+    }
+    let (clipped_start, clipped_end) =
+        apply_label_endpoint_retreats(start, end, start_retreat, end_retreat);
+    (clipped_start.distance(clipped_end) > EPSILON).then_some((clipped_start, clipped_end))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn algebraic_body_segment_after_label_retreats(
+    start: Point,
+    end: Point,
+    start_rect: Option<RectBox>,
+    start_polygons: &[Vec<Point>],
+    start_half_width: f64,
+    end_rect: Option<RectBox>,
+    end_polygons: &[Vec<Point>],
+    end_half_width: f64,
+) -> Option<(Point, Point, f64, f64)> {
     let (start_retreat, end_retreat) = body_segment_label_retreats(
         start,
         end,
@@ -446,8 +778,31 @@ pub(super) fn clip_body_segment_out_of_label_geometry(
         end_half_width,
     )?;
     let (clipped_start, clipped_end) =
-        apply_segment_endpoint_retreats(start, end, start_retreat, end_retreat);
-    (clipped_start.distance(clipped_end) > EPSILON).then_some((clipped_start, clipped_end))
+        apply_label_endpoint_retreats(start, end, start_retreat, end_retreat);
+    Some((clipped_start, clipped_end, start_retreat, end_retreat))
+}
+
+pub(super) fn apply_label_endpoint_retreats(
+    start: Point,
+    end: Point,
+    start_retreat: f64,
+    end_retreat: f64,
+) -> (Point, Point) {
+    let direction = Vector::new(end.x - start.x, end.y - start.y);
+    if direction.length() <= EPSILON {
+        return (start, end);
+    }
+    let unit = direction.normalized();
+    (
+        Point::new(
+            start.x + unit.x * start_retreat.max(0.0),
+            start.y + unit.y * start_retreat.max(0.0),
+        ),
+        Point::new(
+            end.x - unit.x * end_retreat.max(0.0),
+            end.y - unit.y * end_retreat.max(0.0),
+        ),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -470,23 +825,19 @@ pub(super) fn body_segment_label_retreats(
     let normal = Vector::new(-unit.y, unit.x);
     let start_retreat = wedge_endpoint_label_retreat(
         start,
-        end,
         unit,
         normal,
         start_rect,
         start_polygons,
         start_half_width,
-        length,
     );
     let end_retreat = wedge_endpoint_label_retreat(
         end,
-        start,
         Vector::new(-unit.x, -unit.y),
         normal,
         end_rect,
         end_polygons,
         end_half_width,
-        length,
     );
     Some((start_retreat, end_retreat))
 }
@@ -494,13 +845,11 @@ pub(super) fn body_segment_label_retreats(
 #[allow(clippy::too_many_arguments)]
 fn wedge_endpoint_label_retreat(
     endpoint: Point,
-    opposite: Point,
     axis_from_endpoint: Vector,
     normal: Vector,
     _rect: Option<RectBox>,
     polygons: &[Vec<Point>],
     endpoint_half_width: f64,
-    axis_length: f64,
 ) -> f64 {
     let mut retreat: f64 = 0.0;
     for side in [0.0, 1.0, -1.0] {
@@ -509,16 +858,93 @@ fn wedge_endpoint_label_retreat(
             endpoint.x + normal.x * endpoint_offset,
             endpoint.y + normal.y * endpoint_offset,
         );
-        let ray_end = Point::new(
-            opposite.x + normal.x * endpoint_offset,
-            opposite.y + normal.y * endpoint_offset,
-        );
-        let clipped = clip_point_out_of_label_geometry(ray_start, ray_end, polygons);
-        let projected = (clipped.x - ray_start.x) * axis_from_endpoint.x
-            + (clipped.y - ray_start.y) * axis_from_endpoint.y;
-        retreat = retreat.max(projected.clamp(0.0, axis_length));
+        retreat = retreat.max(ray_exit_distance_from_polygons(
+            ray_start,
+            axis_from_endpoint,
+            polygons,
+        ));
     }
     retreat
+}
+
+fn strip_endpoint_label_retreat(
+    endpoint: Point,
+    axis_from_endpoint: Vector,
+    normal: Vector,
+    polygons: &[Vec<Point>],
+    half_width: f64,
+) -> f64 {
+    let mut retreat: f64 = 0.0;
+    for polygon in polygons {
+        for index in 0..polygon.len() {
+            let first = polygon[index];
+            let second = polygon[(index + 1) % polygon.len()];
+            let first_offset = Vector::new(first.x - endpoint.x, first.y - endpoint.y);
+            let second_offset = Vector::new(second.x - endpoint.x, second.y - endpoint.y);
+            let first_axis =
+                first_offset.x * axis_from_endpoint.x + first_offset.y * axis_from_endpoint.y;
+            let second_axis =
+                second_offset.x * axis_from_endpoint.x + second_offset.y * axis_from_endpoint.y;
+            let first_normal = first_offset.x * normal.x + first_offset.y * normal.y;
+            let second_normal = second_offset.x * normal.x + second_offset.y * normal.y;
+            if first_normal.abs() <= half_width + EPSILON && first_axis >= -EPSILON {
+                retreat = retreat.max(first_axis.max(0.0));
+            }
+            if second_normal.abs() <= half_width + EPSILON && second_axis >= -EPSILON {
+                retreat = retreat.max(second_axis.max(0.0));
+            }
+            for boundary in [-half_width, half_width] {
+                let denominator = second_normal - first_normal;
+                if denominator.abs() <= EPSILON {
+                    continue;
+                }
+                let fraction = (boundary - first_normal) / denominator;
+                if !(-EPSILON..=1.0 + EPSILON).contains(&fraction) {
+                    continue;
+                }
+                let axis = first_axis + (second_axis - first_axis) * fraction;
+                if axis >= -EPSILON {
+                    retreat = retreat.max(axis.max(0.0));
+                }
+            }
+        }
+    }
+    retreat
+}
+
+fn ray_exit_distance_from_polygons(
+    start: Point,
+    direction: Vector,
+    polygons: &[Vec<Point>],
+) -> f64 {
+    let mut farthest: f64 = 0.0;
+    for polygon in polygons {
+        for index in 0..polygon.len() {
+            let first = polygon[index];
+            let second = polygon[(index + 1) % polygon.len()];
+            let edge = Vector::new(second.x - first.x, second.y - first.y);
+            let offset = Vector::new(first.x - start.x, first.y - start.y);
+            let denominator = vector_cross(direction, edge);
+            if denominator.abs() <= EPSILON {
+                if vector_cross(offset, direction).abs() <= EPSILON {
+                    for point in [first, second] {
+                        let distance =
+                            (point.x - start.x) * direction.x + (point.y - start.y) * direction.y;
+                        if distance >= -EPSILON {
+                            farthest = farthest.max(distance.max(0.0));
+                        }
+                    }
+                }
+                continue;
+            }
+            let distance = vector_cross(offset, edge) / denominator;
+            let edge_fraction = vector_cross(offset, direction) / denominator;
+            if distance >= -EPSILON && (-EPSILON..=1.0 + EPSILON).contains(&edge_fraction) {
+                farthest = farthest.max(distance.max(0.0));
+            }
+        }
+    }
+    farthest
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -537,6 +963,7 @@ pub(super) fn render_fragment_line(
     allow_bold_contacts: bool,
     stroke: &str,
     stroke_width: f64,
+    line_pattern: BondLinePattern,
     dash_array: Vec<f64>,
     line_weight: BondLineWeight,
     object_id: Option<String>,
@@ -556,10 +983,11 @@ pub(super) fn render_fragment_line(
         allow_bold_contacts,
         stroke,
         stroke_width,
+        line_pattern,
         dash_array,
         line_weight,
         object_id,
-        true,
+        false,
         true,
         true,
         true,
@@ -584,6 +1012,7 @@ pub(super) fn render_fragment_line_with_profiles(
     allow_bold_contacts: bool,
     stroke: &str,
     stroke_width: f64,
+    line_pattern: BondLinePattern,
     dash_array: Vec<f64>,
     line_weight: BondLineWeight,
     object_id: Option<String>,
@@ -623,7 +1052,8 @@ pub(super) fn render_fragment_line_with_profiles(
         end_endpoint_profile_override
     };
     let Some((clipped_start, clipped_end)) = (if clip_against_label_geometry {
-        let half_width = line_weight_stroke_width_for_bond(bond, stroke_width, line_weight) * 0.5;
+        let half_width =
+            line_pattern_visual_width_for_bond(bond, stroke_width, line_pattern, line_weight) * 0.5;
         clip_body_segment_out_of_label_geometry(
             start,
             end,
@@ -649,7 +1079,7 @@ pub(super) fn render_fragment_line_with_profiles(
     } else {
         contact_kernel.endpoint_retreat(&bond.id, &bond.end)
     };
-    if is_hash_bond(bond) && line_weight == BondLineWeight::Bold && !dash_array.is_empty() {
+    if line_pattern == BondLinePattern::Hash {
         let retreat = hash_contact_retreat_distance_for_bond(bond, stroke_width);
         if !start_has_label && endpoint_has_other_bond(bonds, bond, &bond.begin) {
             start_retreat = start_retreat.max(retreat);
@@ -685,6 +1115,24 @@ pub(super) fn render_fragment_line_with_profiles(
             || start_endpoint_profile.is_some());
     let use_end_contact_kernel = !end_has_label
         && (contact_kernel.uses_endpoint(&bond.id, &bond.end) || end_endpoint_profile.is_some());
+    if line_pattern == BondLinePattern::Hash {
+        let visual_width =
+            line_pattern_visual_width_for_bond(bond, stroke_width, line_pattern, line_weight);
+        for points in
+            hash_bond_segment_polygons(clipped_start, clipped_end, visual_width, stroke_width, bond)
+        {
+            push_bond_polygon(
+                out,
+                &bond.id,
+                points,
+                stroke,
+                stroke,
+                0.0,
+                object_id.clone(),
+            );
+        }
+        return;
+    }
     if line_weight == BondLineWeight::Normal && dash_array.is_empty() {
         let allow_main_line_join =
             is_joinable_main_line_render(bond, allow_bold_contacts, line_weight);
@@ -707,18 +1155,14 @@ pub(super) fn render_fragment_line_with_profiles(
     }
     if !dash_array.is_empty() {
         let visual_width = line_weight_stroke_width_for_bond(bond, stroke_width, line_weight);
-        let segment_polygons = if line_weight == BondLineWeight::Bold && is_hash_bond(bond) {
-            hash_bond_segment_polygons(clipped_start, clipped_end, visual_width, stroke_width)
-        } else {
-            dashed_bond_segment_polygons_with_profiles(
-                clipped_start,
-                clipped_end,
-                visual_width,
-                &dash_array,
-                start_endpoint_profile.as_deref(),
-                end_endpoint_profile.as_deref(),
-            )
-        };
+        let segment_polygons = dashed_bond_segment_polygons_with_profiles(
+            clipped_start,
+            clipped_end,
+            visual_width,
+            &dash_array,
+            start_endpoint_profile.as_deref(),
+            end_endpoint_profile.as_deref(),
+        );
         if !segment_polygons.is_empty() {
             for points in segment_polygons {
                 push_bond_polygon(
@@ -825,7 +1269,7 @@ pub(super) fn render_fragment_line_with_profiles(
     if let Some(points) = simple_main_line_polygon_points(
         clipped_start,
         clipped_end,
-        line_weight_stroke_width_for_bond(bond, stroke_width, line_weight),
+        line_pattern_visual_width_for_bond(bond, stroke_width, line_pattern, line_weight),
     ) {
         push_bond_polygon(out, &bond.id, points, stroke, stroke, 0.0, object_id);
     }

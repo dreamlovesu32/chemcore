@@ -1,5 +1,8 @@
 # chemsema Format v0.1
 
+> Legacy specification. New files use [CCJS v0.2](./format-v0.2.md); the
+> engine accepts v0.1 only as a migration input and writes canonical v0.2.
+
 ## Scope
 
 This document defines the first persisted document format for `chemsema`.
@@ -321,16 +324,24 @@ visibility, copy/paste, deletion, and undo use the normal scene-object rules.
   "payload": {
     "resourceRef": "image_a",
     "bbox": [0, 0, 160, 120],
+    "imageCrop": { "x": 80, "y": 40, "width": 480, "height": 320 },
     "fit": "stretch",
     "opacity": 1
   }
 }
 ```
 
-CDX/CDXML raster payloads map to this object without changing their bytes.
-Unsupported compound payloads such as OLE, EMF, WMF, TIFF, PDF, or PICT remain
-opaque resources and render a sized diagnostic placeholder instead of silently
-disappearing. Their original bytes remain authoritative for round-trip export.
+`imageCrop` is an optional integer rectangle in top-left-origin resource pixels.
+It is applied before object fit, scale, translation, and rotation. OLE, EMF,
+WMF, TIFF, PDF, and PICT resources retain their authoritative original bytes
+and carry an explicitly decoded preview when one can be extracted. Invalid,
+oversized, damaged, and previewless containers have distinct status values and
+render a sized diagnostic placeholder.
+
+CDX/CDXML have no standard crop attribute. A cropped raster is therefore
+projected as a cropped PNG. Compound resources retain their original payload
+and add the cropped PNG preview, so re-import preserves visible pixels without
+inventing a non-standard CDXML field.
 
 ## Spectrum Object
 
@@ -878,12 +889,19 @@ Bond fields:
 - `labelClipMargin`: legacy compatibility field; new documents must not emit it,
   and renderers ignore it because glyph polygons define the clipping boundary
 - `hashSpacing`: hash / hashed wedge template spacing in pt
-- `bondSpacing`: double-bond spacing percentage, matching CDXML `BondSpacing`
+- `bondSpacing`: multiple-bond center-spacing percentage, matching CDXML
+  `BondSpacing`
+- `bondSpacingAbsolute`: optional absolute multiple-bond center spacing in pt,
+  matching CDXML `BondSpacingAbs`; when present it takes precedence over
+  `bondSpacing` for double bonds. ChemDraw 22.2 has a verified triple-bond
+  rendering exception: presence of this field selects its 15% triple default
+  with the line-width floor instead of rendering either authored spacing value.
 - `marginWidth`: source margin width in pt. It drives glyph-polygon expansion for
   bond-vs-label retreat and also applies to bond-vs-bond crossing knockout where
   applicable.
 - `lineStyles`: line patterns for `main | left | right`, each one of
-  `solid | dashed | wavy`
+  `solid | dashed | hash | wavy`. `hash` is an explicit transverse-stripe
+  pattern; it is not encoded as a bold dashed line.
 - `lineWeights`: line weights for `main | left | right`, each one of
   `normal | bold`
 - `stereo.kind`: `solid-wedge | hashed-wedge | hollow-wedge`
@@ -973,6 +991,7 @@ Example:
 - `length` maps to CDXML `HeadSize / 100`; the rendered head length is `length * strokeWidth`
 - `centerLength` maps to CDXML `ArrowheadCenterSize / 100`; the rendered notch position is `centerLength * strokeWidth`
 - `width` maps to CDXML `ArrowheadWidth / 100`; the rendered broad-end half-width parameter is `width * strokeWidth`. For solid arrowheads, ChemDraw treats this as the broad-end half-width parameter: the rendered outline uses an outer half-width of about `width * strokeWidth + 0.05` and an inner Bezier control offset of `7/16` of that half-width. For open and hollow arrowheads, this value is the extra head-width parameter relative to the shaft half-width
+- A visible solid full or half arrowhead is the same path painted twice: a black fill followed by a fixed `0.133333 pt` hairline outline. This outline does not scale with document `LineWidth`, `HeadSize`, or `ArrowheadWidth`; open and hollow arrowheads do not use this duplicate-outline rule
 - `curve` maps to CDXML `AngularSize`; negative and positive values represent opposite bend directions
 - `curveSpacing` maps to CDXML `CurveSpacing / 100`
 - `noGo` maps to CDXML `NoGo` and may be `none | cross | hash`
@@ -1090,7 +1109,7 @@ Example:
 
 - `kind`: `circle | ellipse | rect | roundRect`
 - `bbox`: local bounding box for rectangles and rounded rectangles; CDXML import maps this from `BoundingBox`
-- `cornerRadius`: optional corner radius for `roundRect`, mapped from CDXML `CornerRadius / 100`
+- `cornerRadius`: optional absolute corner radius in document points for `roundRect`. CDXML encodes a different quantity: `(CornerRadius / 100) × normal LineWidth`. Missing or zero CDXML values select the measured `600` default, and `BoldWidth` does not replace the normal `LineWidth` basis. Import resolves that expression to an absolute radius; export divides the absolute radius by the emitted `LineWidth`. When the radius exceeds one rectangle axis, rendering clamps the horizontal and vertical corner radii independently to `width / 2` and `height / 2`.
 - `center` / `majorAxisEnd` / `minorAxisEnd`: actual circle and ellipse axis points, mapped from CDXML `Center3D`, `MajorAxisEnd3D`, and `MinorAxisEnd3D`
 
 Shape appearance belongs primarily in styles, including:

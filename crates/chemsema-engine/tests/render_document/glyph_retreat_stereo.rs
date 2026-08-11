@@ -605,6 +605,41 @@ fn parse_cdxml_maps_legacy_and_modern_arrow_types_without_losing_endpoints() {
     assert_eq!(endpoint(10, "head"), Some("full"));
     assert_eq!(endpoint(10, "tail"), Some("none"));
     assert_eq!(kind(10), Some("hollow"));
+
+    let exported = document_to_cdxml(&document);
+    let reopened = parse_cdxml_document(&exported, Some("arrow matrix reopened"))
+        .expect("arrows should reopen");
+    assert_eq!(
+        reopened
+            .objects
+            .iter()
+            .filter(|object| object.object_type == "line")
+            .count(),
+        11,
+        "legacy Graphic arrows must be replaced rather than retained beside native Arrow objects"
+    );
+}
+
+#[test]
+fn modern_arrow_wins_over_same_identity_legacy_graphic_representation() {
+    let cdxml = r#"<CDXML LineWidth="0.6" BondLength="14.4">
+  <page id="1">
+    <graphic id="10" GraphicType="Line" ArrowType="FullHead"
+      HeadSize="1000" BoundingBox="150 20 10 20"/>
+    <arrow id="10" ArrowheadHead="Full" ArrowheadType="Solid"
+      HeadSize="1000" Head3D="150 20 0" Tail3D="10 20 0"/>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("dual arrow representation")).expect("arrow should parse");
+    assert_eq!(
+        document
+            .objects
+            .iter()
+            .filter(|object| object.object_type == "line")
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -1588,6 +1623,52 @@ C</s>
 }
 
 #[test]
+fn imported_node_label_preserves_inherited_line_height_until_explicitly_edited() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" LabelLineHeight="6">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <fragment id="fragment">
+      <n id="nitrogen" p="30 30" Element="7">
+        <t p="25 34" BoundingBox="25 22 33 35">
+          <s font="3" size="10">N</s>
+        </t>
+      </n>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let mut document = parse_cdxml_document(cdxml, Some("inherited label line height"))
+        .expect("inherited node label should parse");
+    let first_export = document_to_cdxml(&document);
+    assert_eq!(first_export.matches("LabelLineHeight=\"6\"").count(), 1);
+    assert!(!first_export
+        .split("<t ")
+        .nth(1)
+        .expect("exported label")
+        .split('>')
+        .next()
+        .expect("label start tag")
+        .contains("LabelLineHeight="));
+
+    let label = document
+        .resources
+        .values_mut()
+        .find_map(|resource| match &mut resource.data {
+            ResourceData::Fragment(fragment) => fragment
+                .nodes
+                .iter_mut()
+                .find(|node| node.id == "nitrogen")
+                .and_then(|node| node.label.as_mut()),
+            _ => None,
+        })
+        .expect("imported nitrogen label");
+    label.line_height_mode = "fixed".to_string();
+    label.line_height = Some(9.5);
+    let edited_export = document_to_cdxml(&document);
+    assert!(edited_export.contains("LabelLineHeight=\"9.5\""));
+}
+
+#[test]
 fn generated_atom_label_recomputes_variable_spacing_after_hydrogen_stacking() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LabelFont="3" LabelSize="10">
@@ -1604,6 +1685,12 @@ fn generated_atom_label_recomputes_variable_spacing_after_hydrogen_stacking() {
 </CDXML>"##;
     let document = parse_cdxml_document(cdxml, Some("generated stacked atom label"))
         .expect("stacked atom label should parse");
+    let object_translate_y = document
+        .editable_fragment()
+        .expect("stacked atom fragment")
+        .object
+        .transform
+        .translate[1];
     let label = document
         .resources
         .values()
@@ -1618,6 +1705,186 @@ fn generated_atom_label_recomputes_variable_spacing_after_hydrogen_stacking() {
     assert_eq!(label.line_advances.len(), 1);
     assert!((label.line_height.unwrap_or_default() - label.line_advances[0]).abs() < 0.01);
     assert!(label.line_advances[0] < 9.0);
+
+    let position = label.position.expect("stacked label anchor baseline");
+    let bbox = label.bbox().expect("stacked label box");
+    let first_line_baseline = bbox[1] + label.font_size.unwrap_or(10.0) * 0.82;
+    assert!(
+        (first_line_baseline + label.line_advances[0] - position[1]).abs() < 0.01,
+        "the box top must be reframed after variable spacing is resolved: {label:?}"
+    );
+    assert!(
+        ((bbox[3] - bbox[1]) - label.line_advances[0] * 2.0).abs() < 0.01,
+        "the multiline box height must use the resolved variable advance: {label:?}"
+    );
+
+    let rendered_baselines = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                node_id: Some(node_id),
+                y,
+                ..
+            } if node_id == "nitrogen" => Some(y),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(rendered_baselines.len(), 2);
+    assert!((rendered_baselines[0] - first_line_baseline - object_translate_y).abs() < 0.01);
+    assert!((rendered_baselines[1] - position[1] - object_translate_y).abs() < 0.01);
+}
+
+#[test]
+fn generated_atom_label_reframes_variable_spacing_for_below_stack() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <fragment id="fragment">
+      <n id="left" p="20 15"/>
+      <n id="nitrogen" p="40 40" Element="7" NumHydrogens="1"/>
+      <n id="right" p="60 15"/>
+      <b id="left-bond" B="left" E="nitrogen"/>
+      <b id="right-bond" B="nitrogen" E="right"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("generated below stacked atom label"))
+        .expect("below stacked atom label should parse");
+    let object_translate_y = document
+        .editable_fragment()
+        .expect("below stacked atom fragment")
+        .object
+        .transform
+        .translate[1];
+    let label = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .find(|node| node.id == "nitrogen")
+        .and_then(|node| node.label.as_ref())
+        .expect("nitrogen label should be generated");
+
+    assert_eq!(label.text, "N\nH");
+    assert_eq!(label.layout.as_deref(), Some("attached-group-below"));
+    assert_eq!(label.line_height_mode, "variable");
+    assert_eq!(label.line_advances.len(), 1);
+
+    let position = label.position.expect("element line anchor baseline");
+    let bbox = label.bbox().expect("below stacked label box");
+    let first_line_baseline = bbox[1] + label.font_size.unwrap_or(10.0) * 0.82;
+    assert!((first_line_baseline - position[1]).abs() < 0.01);
+    assert!(((bbox[3] - bbox[1]) - label.line_advances[0] * 2.0).abs() < 0.01);
+
+    let rendered_baselines = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                node_id: Some(node_id),
+                y,
+                ..
+            } if node_id == "nitrogen" => Some(y),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(rendered_baselines.len(), 2);
+    assert!((rendered_baselines[0] - position[1] - object_translate_y).abs() < 0.01);
+    assert!(
+        (rendered_baselines[1] - position[1] - object_translate_y - label.line_advances[0]).abs()
+            < 0.01
+    );
+}
+
+#[test]
+fn generated_node_labels_remain_derived_until_their_text_is_explicitly_edited() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" ShowTerminalCarbonLabels="yes">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <fragment id="fragment">
+      <n id="oxygen" p="20 20" Element="8" NumHydrogens="1"/>
+      <n id="query" p="50 20" NodeType="ElementList" ElementList="7 8"/>
+      <n id="carbon" p="80 20" Element="6" ShowTerminalCarbonLabels="yes"/>
+      <b id="oxygen-query" B="oxygen" E="query"/>
+      <b id="query-carbon" B="query" E="carbon"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let mut document = parse_cdxml_document(cdxml, Some("automatic derived node labels"))
+        .expect("automatic node labels should parse");
+    let imported_carbon = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .find(|node| node.id == "carbon")
+        .expect("carbon node");
+    assert!(
+        imported_carbon.label.is_none(),
+        "imported carbon display fields are preserved but do not synthesize authored labels"
+    );
+    let first_labels = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .filter_map(|node| {
+            node.label.as_ref().map(|label| {
+                (
+                    node.atomic_number,
+                    label.source_text.clone(),
+                    label.text.clone(),
+                    label.position,
+                    label.bbox(),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(first_labels.len(), 2);
+
+    let first_export = document_to_cdxml(&document);
+    assert!(!first_export.contains("<t "), "{first_export}");
+    assert!(first_export.contains("ElementList=\"7 8\""));
+    assert!(first_export.contains("ShowTerminalCarbonLabels=\"yes\""));
+
+    let reparsed = parse_cdxml_document(&first_export, Some("reparsed automatic node labels"))
+        .expect("exported automatic labels should parse");
+    let reparsed_labels = reparsed
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .filter_map(|node| {
+            node.label.as_ref().map(|label| {
+                (
+                    node.atomic_number,
+                    label.source_text.clone(),
+                    label.text.clone(),
+                    label.position,
+                    label.bbox(),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(reparsed_labels, first_labels);
+
+    let oxygen_label = document
+        .resources
+        .values_mut()
+        .find_map(|resource| match &mut resource.data {
+            ResourceData::Fragment(fragment) => fragment
+                .nodes
+                .iter_mut()
+                .find(|node| node.id == "oxygen")
+                .and_then(|node| node.label.as_mut()),
+            _ => None,
+        })
+        .expect("generated oxygen label");
+    oxygen_label.meta["implicitHydrogenLabel"]["userEdited"] = json!(true);
+    let edited_export = document_to_cdxml(&document);
+    assert_eq!(edited_export.matches("<t ").count(), 1);
+    assert!(edited_export.contains("UTF8Text=\"OH\""));
 }
 
 #[test]
@@ -1962,14 +2229,14 @@ fn parse_cdxml_imports_visible_stereo_object_tags_inside_fragments() {
             object.meta.get("role").and_then(|value| value.as_str()) == Some("enhanced_stereo")
         })
         .expect("enhanced-stereo label should import");
-    assert_eq!(enhanced.transform.translate, [19.35, 14.15]);
+    assert_eq!(enhanced.transform.translate, [22.0, 16.7]);
     assert_eq!(
         enhanced
             .payload
             .extra
             .get("baselineOffset")
             .and_then(|value| value.as_f64()),
-        Some(6.6)
+        Some(6.3)
     );
     assert!(document.objects.iter().any(|object| {
         object.object_type == "text"

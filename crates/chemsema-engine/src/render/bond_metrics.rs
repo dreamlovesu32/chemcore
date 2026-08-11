@@ -55,6 +55,21 @@ pub(super) fn line_weight_stroke_width_for_bond(
     }
 }
 
+pub(super) fn line_pattern_visual_width_for_bond(
+    bond: &Bond,
+    stroke_width: f64,
+    pattern: BondLinePattern,
+    weight: BondLineWeight,
+) -> f64 {
+    if pattern == BondLinePattern::Hash {
+        bond.bold_width
+            .filter(|width| *width > EPSILON)
+            .unwrap_or_else(|| line_weight_stroke_width(stroke_width, BondLineWeight::Bold))
+    } else {
+        line_weight_stroke_width_for_bond(bond, stroke_width, weight)
+    }
+}
+
 pub(super) fn wavy_bond_amplitude_for_bond(bond: &Bond, stroke_width: f64) -> f64 {
     bond.bold_width
         .unwrap_or_else(|| line_weight_stroke_width(stroke_width, BondLineWeight::Bold))
@@ -94,7 +109,7 @@ pub(super) fn double_bond_center_distance_for_weights(
     multi_bond_inner_gap(None, start, end, stroke_width) + 0.5 * (first_width + second_width)
 }
 
-pub(super) fn double_bond_center_distance_for_bond_weights(
+pub(crate) fn double_bond_center_distance_for_bond_weights(
     bond: &Bond,
     start: Point,
     end: Point,
@@ -102,6 +117,12 @@ pub(super) fn double_bond_center_distance_for_bond_weights(
     first_weight: BondLineWeight,
     second_weight: BondLineWeight,
 ) -> f64 {
+    if let Some(spacing) = bond
+        .bond_spacing_absolute
+        .filter(|spacing| spacing.is_finite() && *spacing > EPSILON)
+    {
+        return spacing;
+    }
     let first_width = line_weight_stroke_width_for_bond(bond, stroke_width, first_weight);
     let second_width = line_weight_stroke_width_for_bond(bond, stroke_width, second_weight);
     multi_bond_inner_gap(Some(bond), start, end, stroke_width) + 0.5 * (first_width + second_width)
@@ -119,7 +140,36 @@ pub(super) fn double_bond_offset_distance(start: Point, end: Point, stroke_width
 
 pub(super) fn triple_bond_offset_distance(start: Point, end: Point, stroke_width: f64) -> f64 {
     let spacing_ratio = DEFAULT_MULTI_BOND_CENTER_SPACING_RATIO;
-    (start.distance(end) * spacing_ratio).max(stroke_width * 1.5)
+    (start.distance(end) * spacing_ratio).max(stroke_width * 2.5)
+}
+
+const CHEMDRAW_TRIPLE_BOND_ABSOLUTE_FIELD_DEFAULT_RATIO: f64 = 0.15;
+
+pub(super) fn triple_bond_offset_distance_for_bond(
+    bond: &Bond,
+    start: Point,
+    end: Point,
+    stroke_width: f64,
+) -> f64 {
+    if bond
+        .bond_spacing_absolute
+        .is_some_and(|spacing| spacing.is_finite() && spacing > EPSILON)
+    {
+        // ChemDraw 22.2 preserves BondSpacingAbs on a triple bond but does not
+        // render that value. Its presence suppresses the document percentage,
+        // selecting ChemDraw's 15% triple-bond default before the usual
+        // line-width floor is applied.
+        return (start.distance(end) * CHEMDRAW_TRIPLE_BOND_ABSOLUTE_FIELD_DEFAULT_RATIO)
+            .max(stroke_width * 2.5);
+    }
+    double_bond_center_distance_for_bond_weights(
+        bond,
+        start,
+        end,
+        stroke_width,
+        BondLineWeight::Normal,
+        BondLineWeight::Normal,
+    )
 }
 
 pub(super) fn solid_wedge_half_width_for_bond(bond: &Bond, stroke_width: f64) -> f64 {
@@ -182,56 +232,6 @@ pub(super) fn is_acs_document_1996_bond_template(bond: &Bond, stroke_width: f64)
         && bond
             .bond_spacing
             .is_none_or(|spacing| (spacing - 18.0).abs() <= 0.05)
-}
-
-pub(super) fn equal_black_segment_gap_intervals(
-    length: f64,
-    start_offset: f64,
-    end_inset: f64,
-    stripe_length: f64,
-    target_gap_length: f64,
-) -> Vec<(f64, f64)> {
-    if length <= EPSILON {
-        return Vec::new();
-    }
-    let usable_start = start_offset.max(0.0);
-    let usable_end = (length - end_inset).max(usable_start);
-    let usable_length = usable_end - usable_start;
-    let stripe_length = stripe_length.max(EPSILON);
-    let target_gap_length = target_gap_length.max(EPSILON);
-    if usable_length <= stripe_length + EPSILON {
-        return Vec::new();
-    }
-
-    let mut stripe_count = ((usable_length + target_gap_length)
-        / (stripe_length + target_gap_length))
-        .round() as usize;
-    stripe_count = stripe_count.max(2);
-    while stripe_count > 1 && stripe_length * stripe_count as f64 > usable_length + EPSILON {
-        stripe_count -= 1;
-    }
-    if stripe_count < 2 {
-        return Vec::new();
-    }
-
-    let gap_count = stripe_count - 1;
-    let total_gap_length = (usable_length - stripe_length * stripe_count as f64).max(0.0);
-    let gap_length = total_gap_length / gap_count as f64;
-    let mut intervals = Vec::with_capacity(gap_count);
-    let mut cursor = usable_start + stripe_length;
-    for index in 0..gap_count {
-        let gap_start = cursor;
-        let gap_end = if index + 1 == gap_count {
-            usable_end - stripe_length
-        } else {
-            gap_start + gap_length
-        };
-        if gap_end > gap_start + EPSILON {
-            intervals.push((gap_start, gap_end));
-        }
-        cursor = gap_end + stripe_length;
-    }
-    intervals
 }
 
 fn chemdraw_dashed_bond_stripe_count(
@@ -362,19 +362,13 @@ pub(super) fn hash_bond_segment_polygons(
     end: Point,
     visual_width: f64,
     pattern_width: f64,
+    bond: &Bond,
 ) -> Vec<Vec<Point>> {
     let length = start.distance(end);
-    if length <= EPSILON {
+    if length + EPSILON < pattern_width || length <= EPSILON {
         return Vec::new();
     }
-    let scale = pattern_width / VIEWER_BOND_STROKE;
-    let gaps = equal_black_segment_gap_intervals(
-        length,
-        0.0,
-        0.0,
-        HASH_BLACK_SEGMENT_LENGTH * scale,
-        HASH_TARGET_GAP_LENGTH * scale,
-    );
+    let gaps = hashed_wedge_gap_intervals(length, pattern_width, bond);
     dashed_segment_polygons_for_gap_intervals(start, end, visual_width * 0.5, &gaps)
 }
 
@@ -529,11 +523,12 @@ pub(super) fn line_pattern_dash_array_for_bond(
 }
 
 pub(super) fn outer_line_pattern(bond: &Bond, side: f64) -> BondLinePattern {
-    if side > 0.0 {
-        bond.line_styles.left
+    let (lane, authored) = if side > 0.0 {
+        (BondLineLane::Left, bond.line_styles.left)
     } else {
-        bond.line_styles.right
-    }
+        (BondLineLane::Right, bond.line_styles.right)
+    };
+    effective_render_line_pattern(bond, lane, authored)
 }
 
 pub(super) fn outer_line_weight(bond: &Bond, side: f64) -> BondLineWeight {
@@ -559,7 +554,12 @@ pub(super) fn fragment_outer_bond_offset_for_side(
     end: Point,
 ) -> Option<f64> {
     if bond.order >= 3 {
-        return Some(triple_bond_offset_distance(start, end, stroke_width));
+        return Some(triple_bond_offset_distance_for_bond(
+            bond,
+            start,
+            end,
+            stroke_width,
+        ));
     }
     let placement = side_double_placement(bond)?;
     if (placement == DoubleBondPlacement::Left && side > 0.0)
@@ -796,7 +796,7 @@ pub(super) fn outer_bond_drawn_boundary_pairs_for_endpoint(
 
 pub(super) fn main_bond_candidate_sides(bond: &Bond) -> Vec<f64> {
     if bond.line_weights.main == BondLineWeight::Bold
-        && bond.line_styles.main == BondLinePattern::Solid
+        && bond_main_line_pattern(bond) == BondLinePattern::Solid
     {
         vec![1.0, -1.0]
     } else {
@@ -1030,6 +1030,56 @@ pub(super) fn side_double_outer_endpoint_can_match_main_length(
         }
     }
     true
+}
+
+pub(super) fn side_double_secondary_inset_for_endpoint(
+    object: &SceneObject,
+    bonds: &[Bond],
+    node_map: &BTreeMap<&str, &Node>,
+    bond: &Bond,
+    shared_node_id: &str,
+    side: f64,
+    stroke_width: f64,
+    offset_distance: f64,
+) -> Option<f64> {
+    if side_double_placement(bond).is_none() || offset_distance <= EPSILON {
+        return None;
+    }
+    let current_stroke_width = stroke_width.max(bond.stroke_width);
+    let current_center = outer_bond_offset_line_for_endpoint(
+        object,
+        node_map,
+        bond,
+        shared_node_id,
+        side,
+        current_stroke_width,
+    )?;
+    let current_local_side = line_geometry_local_side(current_center)?;
+
+    bonds
+        .iter()
+        .filter(|other_bond| {
+            other_bond.id != bond.id
+                && (other_bond.begin == shared_node_id || other_bond.end == shared_node_id)
+        })
+        .filter_map(|other_bond| {
+            let other_axis =
+                bond_axis_line_for_endpoint(object, node_map, other_bond, shared_node_id)?;
+            let contact_side = main_contact_side(current_center.direction, other_axis.direction)?;
+            if (contact_side - current_local_side).abs() > 1.0e-6 {
+                return None;
+            }
+            let included_angle = vector_dot(
+                current_center.direction.normalized(),
+                other_axis.direction.normalized(),
+            )
+            .clamp(-1.0, 1.0)
+            .acos();
+            let tangent = (included_angle * 0.5).tan();
+            (tangent.is_finite() && tangent > EPSILON).then_some(offset_distance / tangent)
+        })
+        .filter(|inset| inset.is_finite())
+        .max_by(f64::total_cmp)
 }
 
 pub(super) fn line_geometry_local_side(line: LineGeometry) -> Option<f64> {
@@ -1385,10 +1435,11 @@ mod tests {
     use super::{
         chemdraw_dashed_bond_gap_intervals_with_endpoint_insets,
         hash_contact_retreat_distance_for_bond, hashed_wedge_gap_intervals,
-        line_pattern_dash_array_for_bond,
+        line_pattern_dash_array_for_bond, triple_bond_offset_distance_for_bond,
     };
     use crate::{
-        Bond, BondLinePattern, BondLineStyles, BondLineWeight, BondLineWeights, DEFAULT_BOND_STROKE,
+        Bond, BondLinePattern, BondLineStyles, BondLineWeight, BondLineWeights, Point,
+        DEFAULT_BOND_STROKE,
     };
     use serde_json::Value;
 
@@ -1409,6 +1460,7 @@ mod tests {
             label_clip_margin: None,
             hash_spacing,
             bond_spacing: None,
+            bond_spacing_absolute: None,
             margin_width: None,
             line_styles: BondLineStyles::default(),
             line_weights: BondLineWeights {
@@ -1438,6 +1490,29 @@ mod tests {
                 crate::DEFAULT_HASH_SPACING_PT.value()
             ]
         );
+    }
+
+    #[test]
+    fn triple_bond_spacing_absolute_selects_chemdraw_fifteen_percent_default() {
+        for (line_width, expected) in [(0.6, 2.16), (1.0, 2.5), (2.0, 5.0)] {
+            for spacing_absolute in [0.5, 1.0, 1.5, 2.0, 2.2, 3.0, 5.0] {
+                let mut bond = test_bond(None);
+                bond.order = 3;
+                bond.stroke_width = line_width;
+                bond.bond_spacing = Some(30.0);
+                bond.bond_spacing_absolute = Some(spacing_absolute);
+                let measured = triple_bond_offset_distance_for_bond(
+                    &bond,
+                    Point::new(0.0, 0.0),
+                    Point::new(14.4, 0.0),
+                    line_width,
+                );
+                assert!(
+                    (measured - expected).abs() <= 1e-9,
+                    "line_width={line_width} spacing_absolute={spacing_absolute} measured={measured}"
+                );
+            }
+        }
     }
 
     #[test]

@@ -14,6 +14,8 @@ pub(crate) const DOCUMENT_DIFF_SCHEMA_VERSION: &str = "chemsema.document.diff.v1
 pub(crate) const COMMAND_TRANSACTION_SCHEMA_VERSION: &str = "chemsema.command-transaction.v1";
 pub(crate) const ERROR_MODEL_VERSION: &str = "chemsema-cli-error.v1";
 pub(crate) const ENTRYPOINTS_SCHEMA_VERSION: &str = "chemsema.entrypoints.v1";
+pub(crate) const CCJZ_CONTAINER_VERSION: &str = "chemsema.container.v1";
+pub(crate) const JOURNAL_VERSION: &str = "chemsema.journal.v1";
 
 #[derive(Clone, Copy)]
 struct GuideSpec {
@@ -76,8 +78,8 @@ const COMMAND_SPECS: &[CommandSpec] = &[
     CommandSpec {
         name: "schema",
         summary: "Return machine-readable command, target, and capture schemas.",
-        usage: "chemsema-cli schema [protocol|commands|targets|capture|context|bundle|detail|diff|guide|copy|json-output|command-script|command-transaction|all] [--pretty] [--out <path>]",
-        example: "chemsema-cli schema capture --pretty",
+        usage: "chemsema-cli schema [ccjs-v0.2|ccjz-container|journal|protocol|commands|targets|capture|context|bundle|detail|diff|guide|copy|json-output|command-script|command-transaction|all] [--pretty] [--out <path>]",
+        example: "chemsema-cli schema ccjz-container --pretty",
     },
     CommandSpec {
         name: "doctor",
@@ -102,6 +104,30 @@ const COMMAND_SPECS: &[CommandSpec] = &[
         summary: "Locate the installed agent and detailed CLI guides and optionally include their Markdown content.",
         usage: "chemsema-cli guide [--kind agent|detailed|all] [--include-content] [--pretty] [--out <path>]",
         example: "chemsema-cli guide --pretty",
+    },
+    CommandSpec {
+        name: "validate",
+        summary: "Validate container integrity, CCJS structure, engine semantics, and optional canonical round trips.",
+        usage: "chemsema-cli validate <input> [--level structural|chemical|roundtrip] [--out <report.json>] [--pretty]",
+        example: "chemsema-cli validate document.ccjz --level roundtrip --pretty",
+    },
+    CommandSpec {
+        name: "canonicalize",
+        summary: "Rewrite a document through the authoritative engine into canonical CCJS 0.2 or CCJZ form.",
+        usage: "chemsema-cli canonicalize <input> --out <document.ccjs|document.ccjz> [--format ccjs|ccjz] [--pretty]",
+        example: "chemsema-cli canonicalize input.ccjs --out canonical.ccjz --pretty",
+    },
+    CommandSpec {
+        name: "migrate",
+        summary: "Migrate a supported editable input to canonical CCJS 0.2 without overwriting the source.",
+        usage: "chemsema-cli migrate <input> --out <document.ccjs|document.ccjz> [--format ccjs|ccjz] [--pretty]",
+        example: "chemsema-cli migrate legacy.ccjs --out migrated.ccjz --pretty",
+    },
+    CommandSpec {
+        name: "conformance",
+        summary: "Run the built-in CCJS, deterministic CCJZ, and recovery-journal conformance probes.",
+        usage: "chemsema-cli conformance [--out <report.json>] [--pretty]",
+        example: "chemsema-cli conformance --pretty",
     },
     CommandSpec {
         name: "label-query",
@@ -212,6 +238,7 @@ pub(crate) struct CliError {
     hint: Option<String>,
     fix: Option<Value>,
     suggestions: Vec<Value>,
+    details: Option<Value>,
 }
 
 pub(crate) type CliResult<T> = Result<T, CliError>;
@@ -228,6 +255,7 @@ impl CliError {
             hint: Some("Read error.message, then rerun with corrected input.".to_string()),
             fix: None,
             suggestions: Vec::new(),
+            details: None,
         }
     }
 
@@ -249,6 +277,34 @@ impl CliError {
             hint: command_error_hint(kind, command),
             fix,
             suggestions,
+            details: None,
+        }
+    }
+
+    pub(crate) fn validation(report: Value) -> Self {
+        let issue_count = report
+            .get("issues")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0);
+        Self {
+            kind: "validation_failed".to_string(),
+            message: format!("Document validation failed with {issue_count} issue(s)."),
+            command: Some("validate".to_string()),
+            argument: None,
+            usage: command_spec("validate").map(|spec| spec.usage.to_string()),
+            examples: command_spec("validate")
+                .map(|spec| vec![spec.example.to_string()])
+                .unwrap_or_default(),
+            hint: Some(
+                "Inspect error.details.issues and correct every error-severity issue.".to_string(),
+            ),
+            fix: Some(json!({
+                "action": "fix_validation_issues",
+                "issueCount": issue_count,
+            })),
+            suggestions: Vec::new(),
+            details: Some(report),
         }
     }
 
@@ -274,6 +330,7 @@ impl CliError {
                 "helpCommand": "chemsema-cli capabilities",
             })),
             suggestions: command_suggestions(command),
+            details: None,
         }
     }
 
@@ -290,6 +347,7 @@ impl CliError {
                 "hint": self.hint,
                 "fix": self.fix,
                 "suggestions": self.suggestions,
+                "details": self.details,
             }
         })
     }
@@ -525,6 +583,16 @@ fn command_specs_json() -> Vec<Value> {
 }
 
 fn protocol_schemas_json() -> Value {
+    let ccjs_v02: Value =
+        serde_json::from_str(include_str!("../../../schemas/ccjs-v0.2.schema.json"))
+            .expect("bundled CCJS v0.2 schema must be valid JSON");
+    let ccjz_container: Value = serde_json::from_str(include_str!(
+        "../../../schemas/ccjz-container-v1.schema.json"
+    ))
+    .expect("bundled CCJZ container schema must be valid JSON");
+    let journal: Value =
+        serde_json::from_str(include_str!("../../../schemas/journal-v1.schema.json"))
+            .expect("bundled journal schema must be valid JSON");
     json!({
         "protocol": {
             "cli": CLI_PROTOCOL_VERSION,
@@ -536,8 +604,13 @@ fn protocol_schemas_json() -> Value {
             "commandTransaction": COMMAND_TRANSACTION_SCHEMA_VERSION,
             "errorModel": ERROR_MODEL_VERSION,
             "entrypoints": ENTRYPOINTS_SCHEMA_VERSION,
+            "ccjzContainer": CCJZ_CONTAINER_VERSION,
+            "journal": JOURNAL_VERSION,
             "compatibility": "v1 fields are intended to remain backward compatible throughout the 1.0 beta line unless explicitly marked experimental."
         },
+        "ccjsV02": ccjs_v02,
+        "ccjzContainer": ccjz_container,
+        "journal": journal,
         "jsonOutput": {
             "default": "Commands that print JSON emit compact single-line JSON unless --pretty is present.",
             "pretty": "--pretty only changes JSON whitespace: compact JSON becomes line-broken and indented. It does not change fields, values, output files, exit code, schema, ordering, or command behavior.",
@@ -837,9 +910,14 @@ pub(crate) fn version_value() -> Value {
         "product": "ChemSema",
         "cli": "chemsema-cli",
         "version": env!("CARGO_PKG_VERSION"),
+        "buildIdentity": build_identity(),
         "protocol": CLI_PROTOCOL_VERSION,
         "protocols": protocol_versions_value(),
     })
+}
+
+pub(crate) const fn build_identity() -> Option<&'static str> {
+    option_env!("CHEMSEMA_BUILD_IDENTITY")
 }
 
 fn examples_value(topic: &str) -> Result<Value, String> {
@@ -1248,7 +1326,7 @@ pub(crate) fn schema_command(args: &[String]) -> Result<(), String> {
         json!({ "ok": true, "topic": topic, "schema": schema })
     } else {
         return Err(format!(
-            "Unknown schema topic '{topic}'. Expected protocol, commands, targets, bounds, capture, context, bundle, detail, diff, guide, copy, session, label-query, json-output, command-script, command-transaction, or all."
+            "Unknown schema topic '{topic}'. Expected ccjs-v0.2, ccjz-container, journal, protocol, commands, targets, bounds, capture, context, bundle, detail, diff, guide, copy, session, label-query, json-output, command-script, command-transaction, or all."
         ));
     };
     write_json_value(value, output.as_deref(), pretty)
@@ -1256,6 +1334,9 @@ pub(crate) fn schema_command(args: &[String]) -> Result<(), String> {
 
 pub(crate) fn schema_topic_key(topic: &str) -> Option<&'static str> {
     match topic {
+        "ccjs-v0.2" | "ccjs" | "document" | "document-format" => Some("ccjsV02"),
+        "ccjz-container" | "ccjz" | "container" => Some("ccjzContainer"),
+        "journal" | "recovery-journal" => Some("journal"),
         "protocol" | "protocols" | "version" | "versions" => Some("protocol"),
         "target" | "targets" => Some("target"),
         "bounds" => Some("bounds"),

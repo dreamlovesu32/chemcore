@@ -47,15 +47,29 @@ pub(crate) fn render_curve_object(
             segment[0].x, segment[0].y, segment[1].x, segment[1].y, segment[2].x, segment[2].y,
         ));
     }
-    if payload_bool(&object.payload, "closed").unwrap_or(false) {
-        d.push_str(" Z");
+    let closed = payload_bool(&object.payload, "closed").unwrap_or(false);
+    let mut rendered_points = body.to_vec();
+    if closed {
+        let closing_control_1 = points[points.len() - 1];
+        let closing_control_2 = points[0];
+        let closing_end = body[0];
+        d.push_str(&format!(
+            " C {:.4} {:.4} {:.4} {:.4} {:.4} {:.4}",
+            closing_control_1.x,
+            closing_control_1.y,
+            closing_control_2.x,
+            closing_control_2.y,
+            closing_end.x,
+            closing_end.y,
+        ));
+        rendered_points.extend([closing_control_1, closing_control_2]);
     }
     out.push(RenderPrimitive::Path {
         role: RenderRole::DocumentGraphic,
         object_id: Some(object.id.clone()),
         bond_id: None,
         d,
-        points: body.to_vec(),
+        points: rendered_points,
         stroke: stroke.clone(),
         stroke_width,
         dash_array,
@@ -71,41 +85,58 @@ pub(crate) fn render_curve_object(
         return;
     }
     let length = payload_number(&object.payload, "headLength")
-        .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO);
+        .unwrap_or(crate::DEFAULT_CURVE_ARROW_HEAD_LENGTH_RATIO * stroke_width);
     let center_length = payload_number(&object.payload, "headCenterLength")
-        .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.875);
+        .unwrap_or(crate::DEFAULT_CURVE_ARROW_CENTER_LENGTH_RATIO * stroke_width);
     let width = payload_number(&object.payload, "headWidth")
-        .unwrap_or(crate::DEFAULT_ARROW_HEAD_LENGTH_RATIO * 0.25);
+        .unwrap_or(crate::DEFAULT_CURVE_ARROW_WIDTH_RATIO * stroke_width);
     let head = payload_string(&object.payload, "head").unwrap_or_else(|| "none".to_string());
-    if head != "none" {
+    let head_style = curve_endpoint_style(&head);
+    if head_style.enabled() {
         let end = *body.last().unwrap_or(&body[0]);
-        let tangent = body[body.len() - 2];
+        let outer_guide = points[points.len() - 1];
         super::arrows::render_curve_solid_arrow_head(
             out,
-            tangent,
             end,
+            outer_guide,
             length,
             center_length,
             width,
-            head == "half",
+            head_style,
             stroke_width,
             &stroke,
             Some(object.id.clone()),
         );
     }
     let tail = payload_string(&object.payload, "tail").unwrap_or_else(|| "none".to_string());
-    if tail != "none" {
+    let tail_style = curve_endpoint_style(&tail);
+    if tail_style.enabled() {
+        let start = body[0];
+        let outer_guide = points[0];
         super::arrows::render_curve_solid_arrow_head(
             out,
-            body[1],
-            body[0],
+            start,
+            outer_guide,
             length,
             center_length,
             width,
-            tail == "half",
+            tail_style,
             stroke_width,
             &stroke,
             Some(object.id.clone()),
         );
+    }
+}
+
+fn curve_endpoint_style(value: &str) -> super::arrows::RenderArrowEndpointStyle {
+    match value.to_ascii_lowercase().as_str() {
+        "full" => super::arrows::RenderArrowEndpointStyle::Full,
+        "half" | "half-left" | "halfleft" | "left" | "top" => {
+            super::arrows::RenderArrowEndpointStyle::Left
+        }
+        "half-right" | "halfright" | "right" | "bottom" => {
+            super::arrows::RenderArrowEndpointStyle::Right
+        }
+        _ => super::arrows::RenderArrowEndpointStyle::None,
     }
 }

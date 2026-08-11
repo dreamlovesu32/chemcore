@@ -89,9 +89,23 @@ export function createEditorRuntimeHost(scope) {
     return true;
   }
 
-  async function applyArrowOptionsToSelection() {
+  async function applyArrowOptionsToSelection(patch = null) {
     if (!isEditingRustDocument()) {
       return false;
+    }
+    if (patch && Object.keys(patch).length) {
+      const result = await commandEngine.executeEngineCommand(
+        {
+          type: "apply-arrow-style-patch",
+          payload: { changes: patch },
+        },
+        () => state.editorEngine.applyArrowStylePatchToSelection?.(JSON.stringify(patch)),
+      );
+      const changed = !!result.changed;
+      if (changed) {
+        renderDocumentChange(result);
+      }
+      return changed;
     }
     const result = await commandEngine.executeEngineCommand(
       {

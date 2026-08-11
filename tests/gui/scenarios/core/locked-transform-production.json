@@ -1,0 +1,58 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.selection.locked-transform.production",
+  "title": "Keep locked members stationary during mixed transforms and restore movement after Unlock",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Selection transforms ignored the CCJS locked editing contract and moved locked objects.",
+  "capabilities": [
+    "gui.public-input",
+    "editor.arrow.draw",
+    "editor.selection.region",
+    "editor.selection.select-all",
+    "editor.object.lock",
+    "editor.context-menu",
+    "editor.selection.transform-partial",
+    "editor.history.undo-redo",
+    "desktop.production"
+  ],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 10,
+  "actions": [
+    { "id": "activate-arrow-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Small arrow head", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"arrow\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-first-arrow", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.42, "y": 0.38 }, "to": { "x": 0.52, "y": 0.38 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-second-arrow", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.66, "y": 0.62 }, "to": { "x": 0.76, "y": 0.62 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-first-arrow", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.38, "y": 0.32 }, "to": { "x": 0.56, "y": 0.44 }, "steps": 8, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-first-arrow-context-menu", "type": "click", "target": { "strategy": "entity-id", "value": "obj_line_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"set-selection-locked\"][data-canvas-context-value=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "lock-first-arrow", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Lock", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "quiescent", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-locked-and-editable-arrows", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "drag-mixed-selection", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.59, "y": 0.50 }, "to": { "x": 0.65, "y": 0.50 }, "steps": 8, "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_line_1", "operator": "stationary", "toleranceWorld": 0.5 }, { "entityId": "obj_line_2", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "undo-mixed-selection-drag", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_line_1", "operator": "stationary", "toleranceWorld": 0.5 }, { "entityId": "obj_line_2", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-mixed-selection-drag", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_line_1", "operator": "stationary", "toleranceWorld": 0.5 }, { "entityId": "obj_line_2", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "clear-mixed-selection", "type": "click", "target": { "strategy": "world-geometry", "value": "page-background" }, "button": "left", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-locked-arrow-context-menu", "type": "click", "target": { "strategy": "entity-id", "value": "obj_line_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"set-selection-locked\"][data-canvas-context-value=\"false\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "unlock-first-arrow", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Unlock", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "quiescent", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-two-editable-arrows", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "drag-two-editable-arrows", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.62, "y": 0.50 }, "to": { "x": 0.68, "y": 0.50 }, "steps": 8, "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_line_1", "operator": "moved", "toleranceWorld": 5 }, { "entityId": "obj_line_2", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "undo-two-editable-arrow-drag", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_line_1", "operator": "moved", "toleranceWorld": 5 }, { "entityId": "obj_line_2", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-two-editable-arrow-drag", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "entity-rect-deltas", "entities": [{ "entityId": "obj_line_1", "operator": "moved", "toleranceWorld": 5 }, { "entityId": "obj_line_2", "operator": "moved", "toleranceWorld": 5 }], "timeoutMs": 8000 }, "budgetMs": 30000 }
+  ],
+  "oracles": [
+    { "id": "both-arrows-remain", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2 },
+    { "id": "context-menu-is-closed", "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0 },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.arrow.draw", "editor.selection.region", "editor.selection.select-all", "editor.object.lock", "editor.context-menu", "editor.selection.transform-partial", "editor.history.undo-redo", "desktop.production"],
+    "objectTypes": ["arrow"],
+    "cardinalities": ["1", "2"],
+    "states": ["unlocked", "locked", "mixed-applicability", "moved", "stationary", "undone", "redone", "unlocked-again"],
+    "inputModes": ["mouse", "right-mouse", "keyboard"],
+    "properties": ["object.locked", "object.transform", "arrow.type.solid"],
+    "persistenceBoundaries": ["runtime", "undo-stack"]
+  }
+}

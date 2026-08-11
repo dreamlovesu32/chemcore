@@ -253,6 +253,28 @@ not bulk-import the entire table.
 
 Terminal templates such as `iPr`, `nBu`, and `tBu`, which begin with a lowercase letter and contain later uppercase letters, use whole-label layout: selection and anchors treat the whole label as one indivisible structural label.
 
+Multi-connection direction uses ChemDraw's largest-open-sector rule. Sort the
+actual connection directions, find the largest angular gap, and classify the
+bisector of the occupied complementary arc. The two horizontal flow sectors
+each span 135 degrees (`292.5°..67.5°` for reverse and
+`112.5°..247.5°` for forward); the two 45-degree vertical sectors produce
+stack-above and stack-below. Gaps within `0.001°` are an intentional symmetry
+tie: an open gap centered on the positive horizontal axis wins first,
+otherwise the gap nearest the upward axis wins, with the clockwise gap winning
+an exact distance tie. Exactly opposite pairs use the undirected-axis
+boundaries `22.5°/90°/157.5°`. A three-way split remains in its trigonal
+120-degree phase branch while every realized angular gap is within `3°` of
+`120°`; silent probes place the transition between `2.95°` and `3.05°`
+across 8/10/14 pt labels and 10/14.35/24 pt bonds. Outside that fixed window,
+the unique largest gap is authoritative. Silent ChemDraw SVG/CDXML probes cover
+the complete 30-degree grids for
+two, three, and four connections (1,079 cases), boundary sweeps, multiple
+label sizes, and multiple bond lengths. Source-coordinate quantization is
+resolved before this rule; file names or nominal request angles never enter
+the decision. A terminal label instead follows the complete left/right
+half-plane; only an effectively vertical single connection delegates direction
+to collision resolution.
+
 ## Relationship To Element Implicit Hydrogen
 
 Abbreviation recognition occurs before simple-element implicit hydrogen logic. After a functional group is recognized, implicit-hydrogen rules use the functional-group expansion as input.

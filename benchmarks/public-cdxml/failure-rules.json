@@ -1,0 +1,792 @@
+{
+  "schema": "chemsema.public-cdxml-failure-rules.v1",
+  "rules": [
+    {
+      "id": "cdxml-preserve-inherited-label-line-height",
+      "status": "verified",
+      "summary": "Imported atom labels with no object-level LineHeight or LabelLineHeight must remain inherited on export; an explicit value is emitted only after the effective line-height setting is edited.",
+      "officialRule": "LabelLineHeight is optional. When absent, ChemDraw inherits the containing object or document value, then the style sheet, and finally treats the label as Variable.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelLineHeight.htm",
+        "docs/cdxml-text-label-field-audit.zh-CN.md",
+        "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#imported_node_label_preserves_inherited_line_height_until_explicitly_edited"
+      ],
+      "caseIds": [
+        "0001",
+        "0002",
+        "0004",
+        "0009",
+        "0011",
+        "0012",
+        "0027",
+        "0040",
+        "0042",
+        "0043",
+        "0045",
+        "0046",
+        "0047",
+        "0049",
+        "0052",
+        "0054",
+        "0055",
+        "0056",
+        "0057",
+        "0063",
+        "0067",
+        "0070",
+        "0071",
+        "0072",
+        "0073",
+        "0075",
+        "0079",
+        "0083",
+        "0207",
+        "0209",
+        "0211",
+        "0214",
+        "0231",
+        "0248",
+        "0249",
+        "0250",
+        "0251",
+        "0252",
+        "0265",
+        "0274",
+        "0275",
+        "0276",
+        "0277",
+        "0278",
+        "0295",
+        "0296",
+        "0310",
+        "0316",
+        "0317",
+        "0326",
+        "0330",
+        "0332",
+        "0333",
+        "0334",
+        "0335",
+        "0336",
+        "0337",
+        "0338",
+        "0341",
+        "0344",
+        "0345",
+        "0356",
+        "0358",
+        "0362",
+        "0363",
+        "0365",
+        "0366",
+        "0367",
+        "0369",
+        "0372",
+        "0373",
+        "0374",
+        "0375",
+        "0376",
+        "0377",
+        "0378",
+        "0379",
+        "0380",
+        "0381",
+        "0382",
+        "0383",
+        "0384",
+        "0385",
+        "0386",
+        "0387",
+        "0388",
+        "0389",
+        "0390",
+        "0391",
+        "0392",
+        "0393",
+        "0394",
+        "0395",
+        "0396",
+        "0397",
+        "0398",
+        "0399",
+        "0400",
+        "0401",
+        "0403",
+        "0404",
+        "0406",
+        "0407",
+        "0409",
+        "0412",
+        "0413"
+      ]
+    },
+    {
+      "id": "cdxml-keep-automatic-node-labels-derived",
+      "status": "verified",
+      "summary": "Imported atom and query-list labels remain derived. ShowTerminalCarbonLabels and ShowNonTerminalCarbonLabels are preserved as atom/document fields, but import does not synthesize carbon text that ChemDraw itself did not materialize.",
+      "officialRule": "Element and ElementList are Node properties, while a Text object is separate authored presentation. ChemDraw open/save and SVG probes preserve ShowTerminalCarbonLabels and ShowNonTerminalCarbonLabels but do not synthesize a child Text object from those fields alone; explicit editor property changes may create or remove the live carbon display without changing import semantics.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "tmp/chemdraw-atom-query-probe/summary.json#carbon-root-all",
+        "tmp/chemdraw-atom-query-probe/summary.json#carbon-node-all",
+        "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#generated_node_labels_remain_derived_until_their_text_is_explicitly_edited"
+      ],
+      "caseIds": [
+        "0010",
+        "0016",
+        "0017",
+        "0018",
+        "0019",
+        "0020",
+        "0021",
+        "0024",
+        "0059",
+        "0080",
+        "0085",
+        "0096",
+        "0097",
+        "0099",
+        "0105",
+        "0106",
+        "0107",
+        "0111",
+        "0115",
+        "0118",
+        "0119",
+        "0120",
+        "0121",
+        "0122",
+        "0123",
+        "0124",
+        "0125",
+        "0136",
+        "0151",
+        "0152",
+        "0155",
+        "0159",
+        "0160",
+        "0163",
+        "0167",
+        "0170",
+        "0171",
+        "0172",
+        "0173",
+        "0174",
+        "0175",
+        "0176",
+        "0177",
+        "0178",
+        "0181",
+        "0187",
+        "0188",
+        "0189",
+        "0190",
+        "0191",
+        "0192",
+        "0193",
+        "0194",
+        "0195",
+        "0196",
+        "0197",
+        "0198",
+        "0199",
+        "0200",
+        "0201",
+        "0202",
+        "0253",
+        "0260",
+        "0261",
+        "0264",
+        "0269",
+        "0270",
+        "0286",
+        "0287",
+        "0288",
+        "0289",
+        "0290",
+        "0291",
+        "0292",
+        "0405"
+      ]
+    },
+    {
+      "id": "cdxml-preserve-invisible-text-objects",
+      "status": "verified",
+      "summary": "A CDX/CDXML Text object with Visible=no remains an editable object across export and reimport; visibility controls rendering and does not delete the object.",
+      "officialRule": "CDX object ID zero means no ID was assigned and is permitted for an unreferenced object. The independent Visible property controls whether an object is displayed. Therefore neither an unassigned ID nor Visible=no permits dropping the Text object from the document.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "crates/chemsema-engine/src/cdx.rs#cdx_unassigned_invisible_text_remains_an_invisible_object_after_export"
+      ],
+      "caseIds": [
+        "0103",
+        "0104",
+        "0108",
+        "0114",
+        "0117",
+        "0129",
+        "0130",
+        "0131",
+        "0149",
+        "0156",
+        "0157",
+        "0161",
+        "0166",
+        "0169",
+        "0185",
+        "0186"
+      ]
+    },
+    {
+      "id": "cdxml-bind-anonymous-object-tag-text",
+      "status": "verified",
+      "summary": "An ObjectTag child Text without its own CDX object ID remains linked to the tag by owner, semantic role, and content. Automatic enhanced-stereo placement preserves the cached direction vector separately from the rendered text box.",
+      "officialRule": "Object IDs may be unassigned when an object is not referenced. ObjectTag is the owning metadata object, and PositioningType=auto interprets the cached child geometry as positioning input. Attachment is a relation, not the child object's identity, so it must not make the owner's source ID ambiguous.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "docs/cdxml-text-label-field-audit.zh-CN.md",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#anonymous_object_tag_text_binds_by_owner_role_and_content"
+      ],
+      "caseIds": [
+        "0030",
+        "0031",
+        "0032",
+        "0293"
+      ]
+    },
+    {
+      "id": "cdxml-bind-graphical-object-tag-to-leaf-owner",
+      "status": "verified",
+      "summary": "A graphical ObjectTag belongs to the individual leaf Graphic that contains it, not to an aggregate ChemSema group that happens to list that Graphic ID. An ID value of zero remains unassigned and cannot merge otherwise independent ObjectTags or child Text objects.",
+      "officialRule": "CDX object IDs identify individual objects, while zero means no ID was assigned. ObjectTag is a child of its owning object. Therefore a bracket pair container may retain both source Graphic IDs for regeneration, but those aggregate IDs are not aliases for the container and ID zero is never a cross-object reference key.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text"
+      ],
+      "caseIds": [
+        "0064",
+        "0065",
+        "0066",
+        "0153",
+        "0158",
+        "0184",
+        "0257"
+      ]
+    },
+    {
+      "id": "cdxml-chemdraw-js-implicit-object-tag-positioning",
+      "status": "verified",
+      "summary": "For ChemDraw JS documents, an omitted ObjectTag PositioningType preserves the authored absolute child Text geometry. The import boundary normalizes that producer convention to explicit absolute positioning so a ChemSema round trip cannot reinterpret it as desktop automatic placement.",
+      "officialRule": "PositioningType controls whether ObjectTag display geometry is absolute or automatically derived. The public ChemDraw JS fixtures consistently omit the field while authoring absolute child positions; once the producer changes on export, that implicit convention must be made explicit.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "docs/cdxml-text-label-field-audit.zh-CN.md",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#bracket_graphic_object_tag_owns_its_anonymous_display_text",
+        "crates/chemsema-engine/tests/render_document.rs#parse_cdxml_preserves_chemdraw_js_cached_enhanced_stereo_position"
+      ],
+      "caseIds": [
+        "0092",
+        "0154",
+        "0281"
+      ]
+    },
+    {
+      "id": "cdxml-preserve-native-semantic-object-tag-displays",
+      "status": "verified",
+      "summary": "Native atom and bond properties remain the authoritative query, reaction, atom-number, and stereochemical semantics, but an explicitly owned ObjectTag child Text is the authoritative display object and remains nested in that relation. Derived text is synthesized only when no explicit display exists. Only an unlinked generated display is suppressed, and its now-unreferenced generated style is removed with it.",
+      "officialRule": "ObjectTag owns its display child objects, while atom and bond fields carry editable semantics such as AtomNumber, RxnParticipation, query orders, and stereochemistry. Preserving the explicit relation and its automatic or absolute placement is therefore independent from avoiding duplicate derived labels. A style referenced only by a suppressed generated display has no remaining document owner and must not survive as count drift.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#native_atom_semantic_object_tags_keep_their_cached_display_text",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#explicit_bond_query_display_uses_its_authored_object_tag_geometry_once",
+        "crates/chemsema-engine/tests/render_document/atom_queries.rs#explicit_atom_query_display_uses_its_object_tag_instead_of_a_derived_duplicate"
+      ],
+      "caseIds": [
+        "0022",
+        "0061",
+        "0062",
+        "0068",
+        "0069",
+        "0285",
+        "0360",
+        "0361"
+      ]
+    },
+    {
+      "id": "cdxml-merge-compatible-repeated-text-id-parts",
+      "status": "verified",
+      "summary": "Sibling Text elements with the same assigned object ID and compatible object properties represent ordered parts of one text object. Their styled runs are concatenated once, an empty part contributes no content, and conflicting geometry or representation is rejected explicitly.",
+      "officialRule": "A nonzero CDX object ID must be unique within its containing object, and Text is one arbitrary block of possibly styled text. Therefore repeated compatible CDXML Text elements carrying the same identity cannot become independent scene objects. Public Indigo fixtures use this transport shape for split style runs and redundant empty tail parts; normalization restores the single official object identity before import and interchange capture.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "https://github.com/epam/Indigo/blob/master/api/tests/integration/tests/formats/ref/AlcoholOxidation_Rxn2.cdxml",
+        "https://github.com/epam/Indigo/blob/master/api/tests/integration/tests/formats/ref/Esterification_Rxn2.cdxml",
+        "crates/chemsema-engine/src/cdxml.rs#repeated_text_id_parts_merge_once_and_empty_parts_are_no_ops",
+        "crates/chemsema-engine/src/cdxml.rs#repeated_text_id_with_conflicting_object_geometry_is_rejected"
+      ],
+      "caseIds": [
+        "0303",
+        "0311"
+      ]
+    },
+    {
+      "id": "cdxml-select-display-fragments-by-structural-containment",
+      "status": "verified",
+      "summary": "A Fragment with a direct Node or Bond is a displayed molecule, including a one-node collapsed nickname whose p is omitted. A Fragment nested below that Node is its definition and is never promoted to another page molecule. A wholly coordinate-free collection uses ChemDraw's square-shell column rule at BondLength spacing; anchored or bonded entries are complete molecular components and require component cleanup plus box packing.",
+      "officialRule": "Fragment is the CDX container for a molecular graph, while Node may own an embedded Fragment. ChemDraw 21 open-save probes preserve the nested definition but render only the owning collapsed Node and assign p=0 0 to one unpositioned wrapper. For every tested count from 1 through 64, an unanchored singleton collection follows one count-derived rule: one row for counts 1-3; otherwise first-column height floor(sqrt(count - 1)) + 2, subsequent columns of one fewer entry, a remainder of one absorbed into the preceding column, and each later column vertically centered in half-BondLength steps. The result is independent of label width, nested-definition coordinates, and unrelated positioned molecules. Bonded entries are not points in this grid; they are whole components sorted by decreasing padded-box area and packed as components.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "scripts/chemdraw-collapsed-fragment-layout-probe.mjs",
+        "crates/chemsema-engine/src/cdxml.rs#singleton_placeholder_fragment_stays_a_molecule_for_every_producer",
+        "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_displays_its_collapsed_node_not_its_definition",
+        "crates/chemsema-engine/src/cdxml.rs#unpositioned_collapsed_wrappers_use_chemdraw_page_grid",
+        "crates/chemsema-engine/src/cdxml.rs#collapsed_wrapper_grid_uses_a_single_parent_bond_anchor"
+      ],
+      "caseIds": [
+        "0034",
+        "0035",
+        "0036",
+        "0037",
+        "0039",
+        "0041",
+        "0048",
+        "0076",
+        "0077",
+        "0086",
+        "0088",
+        "0100",
+        "0101",
+        "0102",
+        "0110",
+        "0112",
+        "0113",
+        "0126",
+        "0127",
+        "0144",
+        "0145",
+        "0146",
+        "0147",
+        "0148",
+        "0165",
+        "0179",
+        "0180",
+        "0222",
+        "0223",
+        "0228",
+        "0229",
+        "0232",
+        "0233",
+        "0234",
+        "0235",
+        "0236",
+        "0237",
+        "0238",
+        "0240",
+        "0241",
+        "0242",
+        "0243",
+        "0256",
+        "0364"
+      ]
+    },
+    {
+      "id": "cdxml-replace-legacy-and-modern-arrow-representations",
+      "status": "verified",
+      "summary": "A legacy Graphic carrying ArrowType and a modern Arrow are two serializations of one native arrow identity. Export replaces either source form with one generated Arrow, and import prefers the richer modern Arrow when both forms carry the same assigned object ID.",
+      "officialRule": "CDX object IDs identify objects rather than serialization spellings. The legacy Graphic ArrowType form and the dedicated Arrow object both encode arrow semantics, so retaining one while appending the other would create a second object rather than preserve the first.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#parse_cdxml_maps_legacy_and_modern_arrow_types_without_losing_endpoints",
+        "crates/chemsema-engine/tests/render_document/glyph_retreat_stereo.rs#modern_arrow_wins_over_same_identity_legacy_graphic_representation"
+      ],
+      "caseIds": [
+        "0133",
+        "0266"
+      ]
+    },
+    {
+      "id": "cdxml-regenerate-native-text-by-object-identity",
+      "status": "verified",
+      "summary": "A native Text object replaces the source Text carrying the same assigned ID regardless of whether the source Text was nested in a transparent Fragment or another retained container. The container may remain for unmodeled properties, but it cannot retain a second copy of the native text.",
+      "officialRule": "A nonzero CDX object ID identifies one Text object within its container scope. Native regeneration owns that object's content and geometry; interchange containment preserves unmodeled structure, not a duplicate visible object.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml.rs#native_text_replaces_same_identity_text_inside_transparent_fragment"
+      ],
+      "caseIds": [
+        "0246",
+        "0247",
+        "0271",
+        "0272"
+      ]
+    },
+    {
+      "id": "cdxml-do-not-persist-synthesized-enhanced-stereo-text",
+      "status": "verified",
+      "summary": "An enhanced-stereo label synthesized from native node fields is a derived display and is not exported as an independent Text object. EnhancedStereoType and EnhancedStereoGroupNum remain authoritative and regenerate exactly one display on every import.",
+      "officialRule": "Enhanced stereo is stored on Node through EnhancedStereoType and EnhancedStereoGroupNum. A generated abs, orN, or &N label visualizes those fields; without an authored ObjectTag relation it has no independent Text identity to persist.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/TableOfProperties.htm",
+        "crates/chemsema-engine/src/cdxml.rs#synthesized_enhanced_stereo_display_is_not_an_independent_text_object"
+      ],
+      "caseIds": [
+        "0327",
+        "0328",
+        "0329",
+        "0343",
+        "0371"
+      ]
+    },
+    {
+      "id": "cdxml-resolve-logical-owner-by-object-kind-and-scoped-id",
+      "status": "verified",
+      "summary": "Node- and Bond-owned logical metadata is reattached to an XML Node or Bond with the mapped ID, never to an unrelated font, color, page, or other object that reuses the same scoped numeric ID.",
+      "officialRule": "Object IDs are scoped to their containing object, and ObjectTag is a child of its owning object. Ownership resolution therefore requires both the semantic owner kind and its mapped ID; a global first-ID match is not a valid reference lookup.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml/import_logical_objects.rs#anonymous_object_tag_text_binds_by_owner_role_and_content"
+      ],
+      "caseIds": [
+        "0359"
+      ]
+    },
+    {
+      "id": "cdxml-normalize-materialized-line-start-offsets",
+      "status": "verified",
+      "summary": "LineStarts is interpreted against the authored UTF-8 styled-text byte stream. When those virtual wrap positions are materialized as LF characters in editable CCJS text, the persisted offsets are advanced to describe that materialized stream, so reopening cannot insert the same breaks again.",
+      "officialRule": "LineStarts records zero-based positions in the text stream and line-ending characters themselves occupy positions. Therefore inserting an LF changes every later byte offset by one. Retaining offsets from the pre-materialized stream beside text that already contains those LFs mixes two coordinate systems and is not a valid serialization.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+        "docs/cdxml-text-label-field-audit.zh-CN.md#linestarts-导入规则补充2026-07-21",
+        "crates/chemsema-engine/tests/render_document/text_layout.rs#materialized_utf8_line_starts_are_idempotent_across_cdxml_saves"
+      ],
+      "caseIds": [
+        "0226",
+        "0227",
+        "0244",
+        "0245",
+        "0410",
+        "0411"
+      ]
+    },
+    {
+      "id": "cdxml-keep-directional-label-layout-separate-from-authored-lines",
+      "status": "verified",
+      "summary": "A chemical label may be displayed in directional rows because of LabelAlignment even though its authored text contains no newline. Export emits LineStarts only for LF characters in the authored text stream; derived above, below, or reversed atom-label layout remains controlled by LabelAlignment.",
+      "officialRule": "LabelAlignment controls the placement of a node label relative to its node, while LineStarts records authored text-stream line positions. They are independent fields. Turning a derived H-above-N display into authored line breaks changes the label string and causes repeated relayout on import.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm",
+        "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#parse_cdxml_node_labels_use_internal_attached_layout"
+      ],
+      "caseIds": [
+        "0314",
+        "0315",
+        "0322",
+        "0323",
+        "0324",
+        "0325"
+      ]
+    },
+    {
+      "id": "cdxml-do-not-positionally-merge-identified-graph-objects",
+      "status": "verified",
+      "summary": "Fragment and Group IDs define ownership boundaries and are never merged with an arbitrary neighboring boundary. A renumbered Fragment may inherit source metadata only when its direct Node/Bond shape and node centroid identify one unique peer; Nodes and Bonds may be renumbered and retain ordered matching inside that already-matched Fragment. A regenerated display Fragment nested inside an unpositioned Fragment-node wrapper is removed from the retained wrapper before the native top-level Fragment is emitted.",
+      "officialRule": "Assigned object IDs identify graph objects within their containing scope, while Node and Bond ID namespaces can overlap and therefore require deterministic renumbering on export. Structural containment alone does not authorize substituting a neighboring Fragment or Group. A coordinate-free outer Fragment/Node wrapper is transparent to its positioned embedded display Fragment and cannot become a second owner of that regenerated graph.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml.rs#unpositioned_fragment_wrapper_exposes_its_positioned_embedded_fragment"
+      ],
+      "caseIds": [
+        "0314",
+        "0315",
+        "0322",
+        "0323",
+        "0324",
+        "0325",
+        "0402"
+      ]
+    },
+    {
+      "id": "cdxml-keep-aromatic-order-independent-from-bond-display",
+      "status": "verified",
+      "summary": "Order=1.5 preserves delocalized or aromatic bond semantics but does not imply Display=Dash. For positioned bonds, export derives Display from the editable line style and leaves Display absent when the authored bond was solid. Coordinate-free Order=1.5 + Dash transport input follows the separately verified ChemDraw layout-normalization rule.",
+      "officialRule": "Bond Order and Display are independent official properties. Order=1.5 is a valid order value, while Solid and Dash are separate Display enum values. Inferring Dash solely from Order changes an authored solid delocalized bond on the first save; suppressing an explicit Dash on a positioned bond likewise changes authored display.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Order.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Display.htm",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_solid_order_one_point_five_is_not_drawn_as_a_double_bond",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_aromatic_ring_and_missing_bond_ids_remain_visible",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_cdxml_aromatic_dash_remains_visibly_dashed"
+      ],
+      "caseIds": [
+        "0283",
+        "0284"
+      ]
+    },
+    {
+      "id": "cdxml-canonicalize-coordinate-free-aromatic-dash-after-layout",
+      "status": "verified",
+      "summary": "When both endpoints lack p, ChemDraw treats Order=1.5 + Display=Dash without Display2 as coordinate-free transport input: it lays the bond out as one solid single-bond lane. Saving the laid-out document removes Order=1.5 and Dash. ChemSema keeps the first-import solid rendering and exports the normalized Order=1 + explicit Solid form so source interchange cannot resurrect Dash; positioned aromatic Dash bonds remain dashed.",
+      "officialRule": "Order and Display remain independent fields. This additional branch is selected only by the document state that ChemDraw itself normalizes: both endpoint coordinates were generated, source Order is 1.5, Display is Dash, and Display2 is absent. A ChemDraw 21 open-save probe of the public RDKit ring3.cdxml generated coordinates and six ordinary single bonds with neither Order nor Display attributes.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Order.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Display.htm",
+        "scripts/chemdraw-oracle.mjs",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_aromatic_ring_and_missing_bond_ids_remain_visible",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#positioned_cdxml_aromatic_dash_remains_visibly_dashed"
+      ],
+      "caseIds": [
+        "0015"
+      ]
+    },
+    {
+      "id": "cdxml-reserve-exact-graph-child-identities-before-renumbered-order-matching",
+      "status": "verified",
+      "summary": "Within a matched Fragment, exact Node and Bond identities are reserved before any ordered matching is allowed for genuinely renumbered children. An unmodeled malformed node, invalid bond, or coordinate-free Fragment wrapper therefore cannot consume a later generated child that has an exact source peer and shift every following graph object by one.",
+      "officialRule": "Node and Bond IDs identify references within their containing graph even though their numeric namespaces can overlap across object kinds. Renumbering is sometimes required, but it does not supersede an exact identity that remains available. Ordered matching applies only to generated children for which no source sibling has an exact identity.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/IntroCDX.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/AllCDXObjects.htm",
+        "crates/chemsema-engine/src/cdxml/export/interchange.rs#unmatched_graph_child_cannot_consume_a_later_exact_identity"
+      ],
+      "caseIds": [
+        "0028",
+        "0029",
+        "0301",
+        "0304",
+        "0305",
+        "0312",
+        "0339"
+      ]
+    },
+    {
+      "id": "cdxml-export-centered-label-alignment-as-center",
+      "status": "verified",
+      "summary": "An internally centered attached label exports LabelAlignment=Center when the source did not carry an explicit LabelAlignment. It must not be serialized as Right, which changes a Justification=Center label to right alignment on the next import.",
+      "officialRule": "Center and Right are distinct official LabelAlignment values. Justification=Center and LabelJustification=Center establish a centered text anchor; the equivalent inferred LabelAlignment is Center.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LabelAlignment.htm",
+        "crates/chemsema-engine/tests/render_document/double_bond_text_import.rs#inferred_centered_label_exports_center_alignment_without_becoming_right_aligned",
+        "crates/chemsema-engine/src/cdx.rs#cdx_inferred_centered_metal_label_keeps_vertical_anchor_and_stable_fields"
+      ],
+      "caseIds": [
+        "0312"
+      ]
+    },
+    {
+      "id": "cdxml-invert-standalone-horizontal-bracket-normalization",
+      "status": "verified",
+      "summary": "A standalone horizontal bracket is stored internally as the canonical vertical bracket payload plus a minus-90-degree transform. CDXML export inverts that normalization and writes a horizontal BoundingBox; exporting the unrotated local box would turn it into an unmatched vertical bracket that disappears on reimport.",
+      "officialRule": "A Bracket Graphic is oriented by its BoundingBox endpoints. Horizontal source endpoints must therefore remain horizontal on export even when the editor uses a normalized vertical payload and a rotation transform internally.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/objects/Graphic.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BoundingBox.htm",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#parse_cdxml_keeps_standalone_horizontal_curly_bracket"
+      ],
+      "caseIds": [
+        "0033",
+        "0038",
+        "0262"
+      ]
+    },
+    {
+      "id": "cdxml-treat-bracket-boundingbox-as-ordered-spine-endpoints",
+      "status": "verified",
+      "summary": "Graphic BoundingBox for a bracket is an ordered pair of spine endpoints, not an axis-aligned rectangle. Import derives the bracket length, local depth, rotation, and translation from that one authoritative pair at source precision; export reconstructs the same world endpoints from the live rotated geometry. This preserves arbitrary-angle brackets and avoids independent 0.01 pt rounding drift in near-threshold round brackets.",
+      "officialRule": "The official BoundingBox definition explicitly states that a Graphic uses the property as a pair of points interpreted according to GraphicType. ChemDraw SVG output confirms that a slanted square bracket uses those two points as its stem endpoints and draws both lips normal to that stem.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BoundingBox.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/Graphic.htm",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#parse_cdxml_preserves_arbitrary_angle_bracket_endpoints",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#parse_cdxml_round_bracket_geometry_does_not_cross_rounding_thresholds",
+        "scripts/tests/public-cdxml-impact.test.mjs#bracket-semantic-geometry-follows-ordered-rotated-spine-endpoints"
+      ],
+      "caseIds": [
+        "0091",
+        "0368"
+      ]
+    },
+    {
+      "id": "roundtrip-match-repeated-visible-text-geometry-one-to-one",
+      "status": "verified",
+      "summary": "Visual geometry comparison groups repeated text by semantic key and finds a one-to-one match within the fixed coordinate tolerance. It does not sort duplicates by serialized coordinates, where a 0.01 pt x change can reorder objects separated by tens of points on y and create a false drift.",
+      "officialRule": "Repeated captions with the same text remain independent graphical objects. Their equivalence is determined by their own positions and boxes, not by array order or lexicographic coordinate order.",
+      "evidence": [
+        "scripts/public-cdxml-semantic-geometry.mjs",
+        "scripts/tests/public-cdxml-impact.test.mjs#visual-geometry-matches-repeated-text-by-tolerance-instead-of-coordinate-sort-order",
+        "scripts/tests/public-cdxml-impact.test.mjs#visual-geometry-still-rejects-unmatched-repeated-text"
+      ],
+      "caseIds": [
+        "0137"
+      ]
+    },
+    {
+      "id": "roundtrip-compare-geometry-only-for-visible-text",
+      "status": "verified",
+      "summary": "All text content remains in the semantic snapshot, but pixel geometry is compared only for visible text. A hidden cached bracketusage Text superseded by the visible parameterizedBracketLabel carries interchange data but produces no pixels and cannot constitute visual drift.",
+      "officialRule": "The official Visible property controls whether an object is visible. Hidden object content must remain lossless, while its cached geometry is outside the rendered-pixel contract.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/Visible.htm",
+        "scripts/public-cdxml-roundtrip.mjs#textGeometry",
+        "docs/cdxml-text-label-field-audit.zh-CN.md"
+      ],
+      "caseIds": [
+        "0368"
+      ]
+    },
+    {
+      "id": "cdxml-represent-object-reference-precedes-spatial-auto-linking",
+      "status": "verified",
+      "summary": "A Graphic Symbol represent child carries both the represented attribute and the target object ID. Import preserves both values and creates the atom-symbol relation to that exact node across all molecule fragments, regardless of which atom is geometrically nearer. Spatial auto-linking is used only when no explicit object reference exists. A symbol that represents an already stored Charge or Radical visualizes that state and contributes zero additional valence or hydrogen change.",
+      "officialRule": "The official RepresentsProperty value identifies a property in another object. Therefore its object reference is authoritative identity, not a proximity hint. In public case 0263, the Plus graphic explicitly represents Charge on node 21807; choosing nearer node 21801 duplicated the charge and changed its derived label from CH2 to CH after export.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/RepresentsProperty.htm",
+        "docs/cdx-cdxml-field-verification.zh-CN.md",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#cdxml_represent_target_overrides_nearest_atom_across_fragments",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#cdxml_represented_charge_symbol_roundtrips_without_accumulating_charge",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#cdxml_represented_radical_symbol_does_not_double_count_node_radical"
+      ],
+      "caseIds": [
+        "0263",
+        "0408"
+      ]
+    },
+    {
+      "id": "cdxml-import-only-explicit-represent-links-before-user-spatial-edit",
+      "status": "verified",
+      "summary": "Loading CDX, CDXML, or CCJS preserves existing atom-symbol links and creates new source links only from an explicit represent child. Mere source-file proximity does not create chemistry. Spatial auto-linking begins when the user creates or moves a symbol, after which the ordinary auto policy applies.",
+      "officialRule": "RepresentsProperty is the source-format relation that identifies a property and target object. ChemDraw 21 open-save probes of public cases 0260 and 0324 retained nearby Plus/CirclePlus graphics without adding represent, atom Charge, or Radical fields. In 0324 the apparent nearest atom was inside a NodeType=Fragment definition and ChemDraw relocated that internal definition independently on save, proving that page-space proximity was accidental rather than semantic.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/RepresentsProperty.htm",
+        "scripts/chemdraw-oracle.mjs",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#imported_unrepresented_symbol_does_not_infer_chemistry_from_proximity",
+        "crates/chemsema-engine/tests/bond_tool/history_properties.rs#charge_symbol_attaches_to_terminal_carbon_and_reduces_hidden_hydrogen"
+      ],
+      "caseIds": [
+        "0260",
+        "0324"
+      ]
+    },
+    {
+      "id": "roundtrip-count-topology-only-in-visible-fragments",
+      "status": "verified",
+      "summary": "The topology-loss gate counts source bonds from the retained interchange tree and excludes every bond below an n ancestor. A fragment owned by a node is an expansion, connection definition, or cached representation of that node; its bonds are not independent page-level molecule topology and must not require visible imported bonds.",
+      "officialRule": "CDXML object ownership is structural. A fragment that is a direct child of n belongs to that node, while page-level display fragments are collected outside node ownership. A raw text search for any b element cannot distinguish these meanings and falsely reports topology loss for aliases, formulas, multiple-text objects, and periodic-table fixtures.",
+      "evidence": [
+        "docs/cdx-public-visual-rules-2026-07-20.zh-CN.md",
+        "scripts/public-cdxml-source-topology.mjs",
+        "scripts/tests/public-cdxml-impact.test.mjs#source-topology-ignores-bonds-inside-node-owned-fragments"
+      ],
+      "caseIds": [
+        "0268",
+        "0279",
+        "0282",
+        "0357"
+      ]
+    },
+    {
+      "id": "chemdraw-auto-bond-annotation-uses-visible-body-and-font-baseline",
+      "status": "verified",
+      "summary": "An automatic bond query or enhanced-stereo display is positioned from the midpoint and normal of the label-clipped visible bond body, not the raw atom-center segment. Its Text y coordinate is the alphabetic baseline. ChemDraw applies a deterministic font-family baseline metric, a 0.25 em horizontal gap, and half the live bond stroke width; MarginWidth does not participate.",
+      "officialRule": "ObjectTag PositioningType=auto delegates placement to the editor. Silent ChemDraw 21 probes across horizontal, vertical, shallow, and steep bonds; 19 supported font families; normal and italic faces; 8-18 pt sizes; 0.5-6 pt margins; and 0.2-2 pt line widths establish one axis-separated placement rule. A visible endpoint label first clips the bond body, after which the same rule applies.",
+      "evidence": [
+        "scripts/chemdraw-bond-query-reaction-probe.mjs",
+        "docs/bond-query-reaction-editing-rules.zh-CN.md",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#generated_bond_query_uses_chemdraw_text_baseline_not_its_box_top",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#generated_bond_query_uses_the_label_clipped_visible_bond_midpoint",
+        "tmp/public-cdxml-visual-gate-query-placement-v2.json"
+      ],
+      "caseIds": [
+        "0003",
+        "0005",
+        "0209"
+      ]
+    },
+    {
+      "id": "cdxml-layout-coordinate-free-paths-and-rings-by-topology-not-producer-name",
+      "status": "verified",
+      "summary": "A fragment whose nodes all omit p is laid out from its graph topology regardless of CreationProgram. Paths use ChemDraw's alternating 30-degree bond components, rounded per step. Simple 3-8 member cycles use a regular polygon with the measured ChemDraw start angle for even, 1-mod-4 odd, and 3-mod-4 odd sizes. Branching, fused, and 9-plus macrocycle topologies have distinct ChemDraw algorithms and now return an explicit unsupported-layout error instead of the former arbitrary regular-polygon fallback.",
+      "officialRule": "The CDXML n@p attribute is optional in the official element declaration, and ChemDraw 21 opens and saves coordinate-free documents without requiring a producer marker. Batch open-save probes show stable, producer-independent layouts for path4 and cycles 3-8; the cycle9, branched, star, and fused probes prove that one regular-polygon fallback is not a valid universal rule.",
+      "evidence": [
+        "scripts/chemdraw-coordinate-free-layout-probe.mjs",
+        "crates/chemsema-engine/src/cdxml/import_topology.rs#coordinate_free_cycles_three_through_eight_match_chemdraw_orientation",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_cycle_uses_chemdraw_ring_orientation_without_producer_hint",
+        "crates/chemsema-engine/tests/render_document/crossings_selection.rs#coordinate_free_cdxml_branching_is_not_silently_drawn_as_a_polygon"
+      ],
+      "caseIds": [
+        "0078"
+      ]
+    },
+    {
+      "id": "chemdraw-horizontal-run-envelope-and-vertical-glyph-column-contact",
+      "status": "verified",
+      "summary": "Horizontal text uses one left/right contact envelope across the complete run, while top/bottom contact is local to glyph columns crossed by the structural attachment axis. A script beside the attachment column cannot deepen a vertical retreat, but text on the attachment-facing end of a fixed horizontal run remains part of horizontal bond clipping.",
+      "officialRule": "ChemDraw SVG geometry for public case 0249 places the vertical CH3 bond endpoint at y=191.09pt. The C column plus the source MarginWidth predicts this endpoint; using the whole label ymax incorrectly yields about 193.19pt. Public case 0137 supplies the complementary horizontal condition repeatedly: fixed-display, multi-attachment labels such as (CH2CHO)m cover the horizontal bond until the complete run's attachment-facing X extreme. Filtering the horizontal branch by a single glyph row lengthens those bonds by 1.60-4.22pt and fails the ChemDraw oracle. A separate 31-pair silent ChemDraw probe varies Arial, Times New Roman, and Calibri; 8, 10, and 14pt; MarginWidth 0, 1.6, and 3pt; LineWidth 0.6 and 1.5pt; all four attachment directions; and remote subscript/superscript glyphs. Together the paired probes and fixed-display public documents distinguish writing-axis behavior from a character-specific exception.",
+      "evidence": [
+        "scripts/chemdraw-multiglyph-axis-contact-probe.mjs",
+        "tmp/chemdraw-multiglyph-axis-contact-probe/measurements.json",
+        "tmp/public-cdxml-chemdraw-review-all/items/0249_indigo_api_tests_integration_tests_formats_molecules_3060_iso_butane/reference.svg",
+        "docs/chemdraw-label-retreat-measurement.zh-CN.md",
+        "docs/bond-rendering-rules.md",
+        "crates/chemsema-engine/src/glyph_kernel.rs#axial_contact_uses_only_glyphs_crossing_the_attachment_axis",
+        "crates/chemsema-engine/src/glyph_kernel.rs#horizontal_axial_contact_keeps_the_whole_text_run_envelope",
+        "crates/chemsema-engine/tests/render_document/text_layout.rs#parse_cdxml_vertical_bond_retreat_ignores_distant_formula_subscript",
+        "tmp/public-cdxml-visual-gate-axis-contact-0249-dirty.json",
+        "tmp/public-cdxml-visual-gate-axis-ab3.json"
+      ],
+      "caseIds": [
+        "0137",
+        "0249"
+      ]
+    },
+    {
+      "id": "chemdraw-triple-bond-spacing-uses-actual-length-and-absolute-precedence",
+      "status": "verified",
+      "summary": "Triple-bond outer-line offsets use max(actual endpoint distance * bondSpacing / 100, 2.5 * lineWidth). BondSpacingAbs is an exact point distance that takes precedence and does not receive the line-width floor.",
+      "officialRule": "BondSpacing is relative to bond length and BondSpacingAbs is the absolute distance between multiple-bond segments. Silent ChemDraw SVG probes establish that triple bonds use the actual endpoint distance, apply the same percentage-spacing line-width floor as two normal-weight multiple-bond lines, remain direction invariant, and bypass that floor for BondSpacingAbs.",
+      "evidence": [
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BondSpacing.htm",
+        "https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/BondSpacingAbs.htm",
+        "scripts/chemdraw-triple-bond-spacing-probe.mjs",
+        "docs/bond-rendering-rules.md",
+        "crates/chemsema-engine/tests/render_document/text_layout.rs#parse_cdxml_triple_bond_spacing_matches_chemdraw_percentage_and_absolute_rules",
+        "crates/chemsema-engine/tests/render_document/query_double_bonds.rs#parse_cdxml_prefers_absolute_multiple_bond_spacing"
+      ],
+      "caseIds": [
+        "0030",
+        "0031",
+        "0032",
+        "0033",
+        "0036",
+        "0039",
+        "0041",
+        "0114",
+        "0166",
+        "0211",
+        "0237",
+        "0248",
+        "0255",
+        "0317",
+        "0366",
+        "0367",
+        "0371",
+        "0389",
+        "0408",
+        "0410"
+      ]
+    }
+  ]
+}

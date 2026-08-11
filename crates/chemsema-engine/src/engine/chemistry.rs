@@ -13,6 +13,77 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 impl Engine {
+    /// Validate every editable molecule resource with the shared chemistry
+    /// sanitizer. This is intentionally separate from document-shape loading:
+    /// a structurally valid drawing may still contain invalid valence,
+    /// aromaticity, or stereochemistry.
+    pub fn chemical_validation_json(&self) -> Result<String, String> {
+        let molecule_ids = self
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .map(|entry| entry.object.id.clone())
+            .collect::<Vec<_>>();
+        let mut molecules = Vec::with_capacity(molecule_ids.len());
+        let mut issues = Vec::new();
+        for object_id in molecule_ids {
+            let mut targets = CommandTargetSet::default();
+            targets.objects.push(object_id.clone());
+            match self.chemical_molecule_for_targets_mode(&targets, false) {
+                Ok(molecule) => match sanitize(&molecule) {
+                    Ok(sanitization) => {
+                        let properties =
+                            molecular_properties(&molecule).map_err(|error| error.to_string())?;
+                        molecules.push(json!({
+                            "objectId": object_id,
+                            "ok": true,
+                            "atomCount": molecule.atoms.len(),
+                            "bondCount": molecule.bonds.len(),
+                            "componentCount": molecule.components().len(),
+                            "implicitHydrogens": sanitization.implicit_hydrogens,
+                            "doubleBondStereo": sanitization.double_bond_stereo,
+                            "tetrahedralCenters": sanitization.tetrahedral_centers,
+                            "properties": properties,
+                        }));
+                    }
+                    Err(error) => {
+                        issues.push(json!({
+                            "objectId": object_id,
+                            "kind": error.kind,
+                            "message": error.message,
+                            "atomIndex": error.atom_index,
+                            "bondIndex": error.bond_index,
+                        }));
+                        molecules.push(json!({
+                            "objectId": object_id,
+                            "ok": false,
+                            "atomCount": molecule.atoms.len(),
+                            "bondCount": molecule.bonds.len(),
+                            "componentCount": molecule.components().len(),
+                        }));
+                    }
+                },
+                Err(message) => {
+                    issues.push(json!({
+                        "objectId": object_id,
+                        "kind": "conversion",
+                        "message": message,
+                    }));
+                    molecules.push(json!({"objectId": object_id, "ok": false}));
+                }
+            }
+        }
+        serde_json::to_string(&json!({
+            "ok": issues.is_empty(),
+            "schema": "chemsema.chemical-validation.v1",
+            "moleculeCount": molecules.len(),
+            "molecules": molecules,
+            "issues": issues,
+        }))
+        .map_err(|error| error.to_string())
+    }
+
     pub(super) fn insert_smiles_untracked(
         &mut self,
         molecule: &Molecule,
@@ -151,6 +222,7 @@ impl Engine {
                     label_clip_margin: None,
                     hash_spacing: Some(crate::DEFAULT_HASH_SPACING_PT.value()),
                     bond_spacing: Some(crate::DEFAULT_BOND_SPACING_PERCENT),
+                    bond_spacing_absolute: None,
                     margin_width: Some(crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value()),
                     line_styles: BondLineStyles::default(),
                     line_weights: BondLineWeights::default(),
@@ -333,11 +405,27 @@ impl Engine {
         &self,
         targets: &CommandTargetSet,
     ) -> Result<Molecule, String> {
-        let entry = self
-            .state
-            .document
-            .editable_fragment()
-            .ok_or_else(|| "document has no editable molecule".to_string())?;
+        self.chemical_molecule_for_targets_mode(targets, true)
+    }
+
+    fn chemical_molecule_for_targets_mode(
+        &self,
+        targets: &CommandTargetSet,
+        strict_wedge_stereo: bool,
+    ) -> Result<Molecule, String> {
+        let entries = self.state.document.editable_fragments();
+        let entry = if targets.objects.len() == 1 {
+            let object_id = &targets.objects[0];
+            entries
+                .into_iter()
+                .find(|entry| entry.object.id == *object_id)
+                .ok_or_else(|| format!("document has no editable molecule '{object_id}'"))?
+        } else {
+            entries
+                .into_iter()
+                .next()
+                .ok_or_else(|| "document has no editable molecule".to_string())?
+        };
         let target_nodes = if !targets.nodes.is_empty() {
             targets.nodes.iter().cloned().collect::<BTreeSet<_>>()
         } else if !self.state.selection.nodes.is_empty() {
@@ -556,6 +644,7 @@ impl Engine {
             &index_by_id,
             &mut atoms,
             &bonds,
+            strict_wedge_stereo,
         )?;
         Ok(Molecule { atoms, bonds })
     }
@@ -698,6 +787,7 @@ fn infer_wedge_chirality(
     index_by_id: &BTreeMap<&str, usize>,
     atoms: &mut [ChemicalAtom],
     bonds: &[ChemicalBond],
+    strict: bool,
 ) -> Result<(), String> {
     for display_bond in fragment
         .bonds
@@ -740,10 +830,13 @@ fn infer_wedge_chirality(
         neighbors.sort_unstable();
         neighbors.dedup();
         if !(3..=4).contains(&neighbors.len()) {
-            return Err(format!(
-                "wedge at atom '{}' does not describe a tetrahedral center",
-                center_id
-            ));
+            if strict {
+                return Err(format!(
+                    "wedge at atom '{}' does not describe a tetrahedral center",
+                    center_id
+                ));
+            }
+            continue;
         }
         let center_node = fragment
             .nodes
@@ -828,10 +921,13 @@ fn infer_wedge_chirality(
         let c = subtract3(vectors[3], vectors[0]);
         let volume = dot3(a, cross3(b, c));
         if volume.abs() < 1e-8 {
-            return Err(format!(
-                "wedge at atom '{}' has degenerate geometry",
-                center_id
-            ));
+            if strict {
+                return Err(format!(
+                    "wedge at atom '{}' has degenerate geometry",
+                    center_id
+                ));
+            }
+            continue;
         }
         atoms[center].chirality = Some(if volume < 0.0 {
             ChemicalChirality::Anticlockwise

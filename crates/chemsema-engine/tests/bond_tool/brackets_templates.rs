@@ -250,7 +250,9 @@ fn half_arrow_heads_keep_visual_left_and_right_sides_on_curves() {
         let mut head = Vec::new();
         for primitive in engine.render_list() {
             match primitive {
-                RenderPrimitive::Path { points, .. } | RenderPrimitive::Polyline { points, .. } => {
+                RenderPrimitive::Path { points, .. } | RenderPrimitive::Polyline { points, .. }
+                    if points.len() == 2 || points.len() > 4 =>
+                {
                     arc = points
                 }
                 RenderPrimitive::Line { from, to, .. } => arc = vec![from, to],
@@ -995,6 +997,7 @@ fn object_settings_update_bond_and_graphic_metrics() {
             "page": { "width": 160.0, "height": 120.0, "background": "#ffffff" }
         },
         "styles": {
+            "style_molecule_default": { "kind": "molecule" },
             "style_line": { "kind": "stroke", "stroke": "#111111", "strokeWidth": 1.0 },
             "style_shape": { "kind": "shape", "stroke": "#111111", "strokeWidth": 1.0, "fill": null }
         },

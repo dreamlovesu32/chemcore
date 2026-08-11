@@ -363,6 +363,69 @@ pub(super) fn render_symbol_object_geometry(
     let layout = charge_symbol_layout(symbol_style);
     let layout = layout.scaled(layout_scale);
     match kind {
+        "stereo-absolute" | "stereo-relative" | "stereo-racemic" => {
+            let corner_radius =
+                payload_number(&object.payload, "cornerRadius").unwrap_or(stroke_width * 4.0);
+            out.push(RenderPrimitive::Path {
+                role: RenderRole::DocumentGraphic,
+                object_id: object_id.clone(),
+                bond_id: None,
+                d: rounded_rect_path_d(x, y, width, height, corner_radius),
+                points: bounds.clone(),
+                stroke: fill.clone(),
+                stroke_width,
+                dash_array: Vec::new(),
+                line_cap: Some("round".to_string()),
+                line_join: Some("round".to_string()),
+                rotate,
+                rotate_center,
+            });
+            let label =
+                payload_string(&object.payload, "label").unwrap_or_else(|| "Abs".to_string());
+            let font_size = payload_number(&object.payload, "fontSize").unwrap_or(12.0);
+            let font_family = payload_string(&object.payload, "fontFamily")
+                .unwrap_or_else(|| "Arial".to_string());
+            let runs = object
+                .payload
+                .extra
+                .get("runs")
+                .cloned()
+                .and_then(|value| serde_json::from_value::<Vec<LabelRun>>(value).ok())
+                .unwrap_or_else(|| {
+                    vec![LabelRun {
+                        text: label.clone(),
+                        font_family: Some(font_family.clone()),
+                        font_size: Some(font_size),
+                        fill: Some(fill.clone()),
+                        font_weight: Some(400),
+                        font_style: Some("normal".to_string()),
+                        underline: Some(false),
+                        outline: Some(false),
+                        shadow: Some(false),
+                        script: Some("normal".to_string()),
+                    }]
+                });
+            out.push(RenderPrimitive::Text {
+                role: RenderRole::DocumentText,
+                object_id,
+                node_id: None,
+                x: x + 1.875,
+                y: y + payload_number(&object.payload, "baselineOffset").unwrap_or(height * 0.75),
+                baseline_offset: None,
+                dominant_baseline: None,
+                text: label,
+                font_size,
+                font_family: Some(font_family),
+                fill: Some(fill),
+                text_anchor: Some("start".to_string()),
+                line_height: None,
+                preserve_lines: false,
+                box_width: None,
+                runs,
+                rotate,
+                rotate_center,
+            });
+        }
         "circle-plus" | "circle-minus" => {
             let center = Point::new(x + width * 0.5, y + height * 0.5);
             out.push(RenderPrimitive::Path {

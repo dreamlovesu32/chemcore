@@ -259,7 +259,29 @@ export function renderCorePrimitive(svgRoot, primitive, options = {}) {
     if (transform) {
       attrs.transform = transform;
     }
-    svgRoot.appendChild(makeSvgNode("image", attrs));
+    const crop = primitive.sourceCrop || primitive.source_crop;
+    if (crop) {
+      const viewport = makeSvgNode("svg", {
+        ...attrs,
+        viewBox: `${crop.x} ${crop.y} ${crop.width} ${crop.height}`,
+        overflow: "hidden",
+      });
+      viewport.removeAttribute("href");
+      viewport.removeAttribute("opacity");
+      const image = makeSvgNode("image", {
+        x: 0,
+        y: 0,
+        width: primitive.sourceWidth || primitive.source_width,
+        height: primitive.sourceHeight || primitive.source_height,
+        href,
+        opacity: attrs.opacity,
+        preserveAspectRatio: "none",
+      });
+      viewport.appendChild(image);
+      svgRoot.appendChild(viewport);
+    } else {
+      svgRoot.appendChild(makeSvgNode("image", attrs));
+    }
     return;
   }
   if (primitive.kind === "rect") {

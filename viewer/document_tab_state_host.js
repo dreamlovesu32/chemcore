@@ -105,6 +105,17 @@ export function createDocumentTabStateHost(scope) {
     syncWindowTitle();
   }
 
+  function markCurrentDocumentRecovered() {
+    state.unsavedDocument = true;
+    const tab = activeDocumentTab();
+    if (tab) {
+      tab.unsavedDocument = true;
+    }
+    refreshCommandAvailability();
+    renderDocumentTabs();
+    syncWindowTitle();
+  }
+
   function activeTextEditorIsDirty() {
     return Boolean(getActiveTextEditor()?.hasUserEdited);
   }
@@ -422,5 +433,5 @@ export function createDocumentTabStateHost(scope) {
     return true;
   }
 
-  return { activeDocumentTab, createDocumentTab, ensureDocumentTab, saveActiveDocumentTabState, restoreDocumentTabState, documentTitleFromState, documentTitleWithDirtyMarker, currentDocumentSaveFingerprint, currentDocumentRevision, markCurrentDocumentSaved, activeTextEditorIsDirty, activeTextEditorIsNewTextObject, activeTextEditorHasVisibleText, closeActiveTextEditorForToolAction, currentDocumentIsDirty, canSaveCurrentDocument, isOleEditFilePath, markCurrentDocumentOfficeSynced, tabDocumentFingerprint, tabDocumentRevision, documentTabIsDirty, buildOleEditPayloadForTab, syncOleEditDocumentTabToOffice, autoSaveAllOleEditDocumentTabs, handleDocumentCommandCommitted, fileNameFromPath, normalizedFilePathKey, documentTabForFilePath, updateActiveDocumentTabTitle, renderDocumentTabs, activateDocumentTab, closeDocumentTab };
+  return { activeDocumentTab, createDocumentTab, ensureDocumentTab, saveActiveDocumentTabState, restoreDocumentTabState, documentTitleFromState, documentTitleWithDirtyMarker, currentDocumentSaveFingerprint, currentDocumentRevision, markCurrentDocumentSaved, markCurrentDocumentRecovered, activeTextEditorIsDirty, activeTextEditorIsNewTextObject, activeTextEditorHasVisibleText, closeActiveTextEditorForToolAction, currentDocumentIsDirty, canSaveCurrentDocument, isOleEditFilePath, markCurrentDocumentOfficeSynced, tabDocumentFingerprint, tabDocumentRevision, documentTabIsDirty, buildOleEditPayloadForTab, syncOleEditDocumentTabToOffice, autoSaveAllOleEditDocumentTabs, handleDocumentCommandCommitted, fileNameFromPath, normalizedFilePathKey, documentTabForFilePath, updateActiveDocumentTabTitle, renderDocumentTabs, activateDocumentTab, closeDocumentTab };
 }

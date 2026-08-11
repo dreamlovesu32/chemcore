@@ -258,13 +258,35 @@ function attachedAtomCases() {
   for (const alignment of ["Above", "Below"]) {
     for (const size of [7, 10, 14, 18]) {
       for (const lineHeight of [undefined, "variable", "auto", "8", "12", "18"]) {
-        add({ alignment, size, lineHeight, font: 3, fontName: "Arial", element: 7, text: "NH" });
+        add({
+          alignment,
+          size,
+          lineHeight,
+          font: 3,
+          fontName: "Arial",
+          element: 7,
+          symbol: "N",
+          text: "NH",
+          marginWidth: 1.6,
+        });
       }
     }
   }
   for (const [font, fontName] of [[3, "Arial"], [4, "Times New Roman"], [5, "Calibri"]]) {
-    add({ alignment: "Above", size: 10, lineHeight: "12", font, fontName, element: 7, text: "NH" });
-    add({ alignment: "Below", size: 10, lineHeight: "12", font, fontName, element: 7, text: "NH" });
+    add({ alignment: "Above", size: 10, lineHeight: "12", font, fontName, element: 7, symbol: "N", text: "NH", marginWidth: 1.6 });
+    add({ alignment: "Below", size: 10, lineHeight: "12", font, fontName, element: 7, symbol: "N", text: "NH", marginWidth: 1.6 });
+  }
+  for (const marginWidth of [0.8, 1.6, 2, 3.2]) {
+    for (const lineHeight of [undefined, "variable"]) {
+      add({ alignment: "Above", size: 10, lineHeight, font: 3, fontName: "Arial", element: 7, symbol: "N", text: "NH", marginWidth });
+    }
+  }
+  for (const [element, symbol, text] of [
+    [8, "O", "OH"],
+    [15, "P", "PH"],
+    [16, "S", "SH"],
+  ]) {
+    add({ alignment: "Above", size: 10, lineHeight: "variable", font: 3, fontName: "Arial", element, symbol, text, marginWidth: 1.6 });
   }
   return cases;
 }
@@ -273,7 +295,7 @@ function attachedAtomDocumentXml(probe) {
   const lineHeight = probe.lineHeight == null ? "" : ` LabelLineHeight="${probe.lineHeight}"`;
   return `<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
-<CDXML CreationProgram="ChemSema attached atom line-spacing probe" BoundingBox="0 0 180 180" LabelFont="3" LabelSize="10" LabelJustification="Auto" BondLength="14.4" LineWidth="0.6" BoldWidth="2" HashSpacing="2.5" MarginWidth="1.6" color="0" bgcolor="1">
+<CDXML CreationProgram="ChemSema attached atom line-spacing probe" BoundingBox="0 0 180 180" LabelFont="3" LabelSize="10" LabelJustification="Auto" BondLength="14.4" LineWidth="0.6" BoldWidth="2" HashSpacing="2.5" MarginWidth="${probe.marginWidth}" color="0" bgcolor="1">
 <colortable><color r="1" g="1" b="1"/><color r="0" g="0" b="0"/></colortable>
 <fonttable><font id="3" charset="iso-8859-1" name="Arial"/><font id="4" charset="iso-8859-1" name="Times New Roman"/><font id="5" charset="iso-8859-1" name="Calibri"/></fonttable>
 <page id="1" BoundingBox="0 0 180 180" HeaderPosition="36" FooterPosition="36" HeightPages="1" WidthPages="1">
@@ -304,9 +326,9 @@ async function runAttachedAtomProbe(outDir) {
       .filter((record) => record.name === "EMR_EXTTEXTOUTW" || record.name === "EMR_EXTTEXTOUTA")
       .map((record) => ({ text: record.text?.text, reference: record.text?.reference }));
     const svgH = svgRecords.find((record) => record.text === "H");
-    const svgElement = svgRecords.find((record) => record.text === "N");
+    const svgElement = svgRecords.find((record) => record.text === probe.symbol);
     const emfH = emfRecords.find((record) => record.text === "H");
-    const emfElement = emfRecords.find((record) => record.text === "N");
+    const emfElement = emfRecords.find((record) => record.text === probe.symbol);
     const pixelsPerPoint = svgElement ? svgElement.scale * svgElement.fontSize / probe.size : null;
     const savedCdxml = await fs.readFile(savedPath, "utf8");
     measurements.push({

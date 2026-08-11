@@ -1,4 +1,4 @@
-use crate::Point;
+use crate::{ImageCropRect, Point};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
@@ -214,6 +214,16 @@ pub enum RenderPrimitive {
         width: f64,
         height: f64,
         href: String,
+        #[serde(
+            rename = "sourceCrop",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        source_crop: Option<ImageCropRect>,
+        #[serde(rename = "sourceWidth")]
+        source_width: u32,
+        #[serde(rename = "sourceHeight")]
+        source_height: u32,
         #[serde(default = "default_opacity", skip_serializing_if = "is_one")]
         opacity: f64,
         #[serde(rename = "preserveAspectRatio", default)]
@@ -553,6 +563,7 @@ pub(super) fn push_text(
         object_id,
         0.0,
         None,
+        false,
     );
 }
 
@@ -571,6 +582,7 @@ pub(super) fn push_text_rotated(
     object_id: Option<String>,
     rotate: f64,
     rotate_center: Option<Point>,
+    preserve_lines: bool,
 ) {
     let underline_segments = chemdraw_text_underline_segments(
         x,
@@ -601,7 +613,7 @@ pub(super) fn push_text_rotated(
         fill,
         text_anchor,
         line_height: None,
-        preserve_lines: false,
+        preserve_lines,
         box_width: None,
         runs,
         rotate,

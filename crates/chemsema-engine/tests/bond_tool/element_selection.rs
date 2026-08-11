@@ -993,6 +993,882 @@ fn selected_arrow_style_updates_from_arrow_toolbar_options() {
 }
 
 #[test]
+fn multi_arrow_line_and_endpoint_properties_roundtrip_through_history() {
+    fn assert_arrow_properties(engine: &Engine, expected_bold: bool, expected_head: &str) {
+        let arrows = engine
+            .state()
+            .document
+            .objects
+            .iter()
+            .filter(|object| object.object_type == "line")
+            .collect::<Vec<_>>();
+        assert_eq!(arrows.len(), 2);
+        for arrow in arrows {
+            let arrow_head = arrow
+                .payload
+                .extra
+                .get("arrowHead")
+                .expect("arrow should retain its arrowHead payload");
+            assert_eq!(
+                arrow_head.get("bold").and_then(|value| value.as_bool()),
+                Some(expected_bold),
+                "{} bold state",
+                arrow.id
+            );
+            assert_eq!(
+                arrow_head.get("head").and_then(|value| value.as_str()),
+                Some(expected_head),
+                "{} endpoint state",
+                arrow.id
+            );
+        }
+    }
+
+    fn assert_checked_menu_value(engine: &Engine, label: &str, command: &str, value: &str) {
+        let menu: serde_json::Value = serde_json::from_str(
+            &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_line_1"}"#, false),
+        )
+        .expect("context menu should be valid JSON");
+        let submenu = menu
+            .as_array()
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item.get("label").and_then(serde_json::Value::as_str) == Some(label)
+                })
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(serde_json::Value::as_array)
+            .unwrap_or_else(|| {
+                panic!("{label} submenu should be available for two arrows: {menu}")
+            });
+        assert!(submenu.iter().any(|item| {
+            item.get("command").and_then(serde_json::Value::as_str) == Some(command)
+                && item.get("value").and_then(serde_json::Value::as_str) == Some(value)
+                && item.get("checked").and_then(serde_json::Value::as_bool) == Some(true)
+        }));
+    }
+
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(10.0, 20.0), Point::new(90.0, 20.0));
+    drag(&mut engine, Point::new(10.0, 60.0), Point::new(90.0, 60.0));
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Select,
+        ..ToolState::default()
+    });
+    assert!(engine.select_all());
+    assert!(
+        engine.state().selection.molecule_objects.is_empty(),
+        "select-all must not inject the default invisible empty editor molecule into a graphic-only selection"
+    );
+    assert_checked_menu_value(&engine, "Line Style", "line-style", "plain");
+    assert_checked_menu_value(&engine, "Arrow Type", "arrow-property", "variant:solid");
+    assert_checked_menu_value(
+        &engine,
+        "Arrow Head Size",
+        "arrow-property",
+        "headSize:small",
+    );
+    assert_checked_menu_value(&engine, "No-Go Mark", "arrow-property", "noGo:none");
+    assert_checked_menu_value(&engine, "Arrowheads", "arrow-endpoint", "head:full");
+
+    assert!(engine.apply_line_style_to_selection("bold"));
+    assert_arrow_properties(&engine, true, "full");
+    assert_checked_menu_value(&engine, "Line Style", "line-style", "bold");
+    assert!(engine.apply_arrow_options_to_selection(
+        ArrowVariant::Solid,
+        ArrowHeadSize::Small,
+        ArrowCurve::Arc270,
+        ArrowEndpointStyle::Left,
+        ArrowEndpointStyle::None,
+        true,
+        false,
+        true,
+        ArrowNoGo::None,
+    ));
+    assert_arrow_properties(&engine, true, "half-left");
+    assert_checked_menu_value(&engine, "Arrowheads", "arrow-endpoint", "head:left");
+
+    assert!(engine.undo());
+    assert_arrow_properties(&engine, true, "full");
+    assert!(engine.undo());
+    assert_arrow_properties(&engine, false, "full");
+    assert!(engine.redo());
+    assert_arrow_properties(&engine, true, "full");
+    assert!(engine.redo());
+    assert_arrow_properties(&engine, true, "half-left");
+
+    assert!(engine.select_all());
+    assert!(
+        engine.apply_arrow_style_patch_to_selection(ArrowStylePatch {
+            variant: Some(ArrowVariant::CurvedMirror),
+            head_size: Some(ArrowHeadSize::Large),
+            curve: Some(ArrowCurve::Arc120),
+            no_go: Some(ArrowNoGo::Hash),
+            ..ArrowStylePatch::default()
+        })
+    );
+    assert_checked_menu_value(
+        &engine,
+        "Arrow Type",
+        "arrow-property",
+        "variant:curved-mirror",
+    );
+    assert_checked_menu_value(
+        &engine,
+        "Arrow Head Size",
+        "arrow-property",
+        "headSize:large",
+    );
+    assert_checked_menu_value(&engine, "Arrow Curve", "arrow-property", "curve:120");
+    assert_checked_menu_value(&engine, "No-Go Mark", "arrow-property", "noGo:hash");
+}
+
+#[test]
+fn multi_text_selection_exposes_public_batch_property_menus() {
+    let mut engine = Engine::new();
+    let document = serde_json::json!({
+        "format": { "name": "chemsema", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_multi_text",
+            "title": "multi text",
+            "page": { "width": 160.0, "height": 100.0, "background": "#ffffff" }
+        },
+        "styles": {},
+        "objects": [
+            {
+                "id": "obj_text_1",
+                "type": "text",
+                "transform": { "translate": [10.0, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 40.0, 14.0], "text": "first", "fontFamily": "Arial", "fontSize": 10.0, "lineHeight": 12.0, "align": "left", "preserveLines": true }
+            },
+            {
+                "id": "obj_text_2",
+                "type": "text",
+                "transform": { "translate": [80.0, 50.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 40.0, 14.0], "text": "second", "fontFamily": "Arial", "fontSize": 10.0, "lineHeight": 12.0, "align": "left", "preserveLines": true }
+            }
+        ],
+        "resources": {}
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("multi-text fixture should load");
+    assert!(engine.select_all());
+
+    let menu: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_text_1"}"#, false),
+    )
+    .expect("context menu should be valid JSON");
+    let items = menu.as_array().expect("context menu should be an array");
+    for label in ["Font", "Style", "Size", "Alignment"] {
+        assert!(
+            items
+                .iter()
+                .any(
+                    |item| item.get("label").and_then(serde_json::Value::as_str) == Some(label)
+                        && item
+                            .get("submenu")
+                            .and_then(serde_json::Value::as_array)
+                            .is_some()
+                ),
+            "{label} submenu should be available for a homogeneous multi-text selection: {menu}"
+        );
+    }
+    assert!(items.iter().any(|item| {
+        item.get("command").and_then(serde_json::Value::as_str) == Some("text-line-spacing")
+    }));
+
+    assert!(engine.apply_text_style_to_selection("bold", "on"));
+    for object_id in ["obj_text_1", "obj_text_2"] {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(object_id)
+            .expect("selected text should remain in the document");
+        for key in ["runs", "sourceRuns", "displayRuns"] {
+            assert_eq!(object.payload.extra[key][0]["fontWeight"], 700);
+        }
+    }
+    let rendered = serde_json::to_string(&engine.render_list())
+        .expect("render list should serialize after applying bold");
+    assert!(
+        rendered.contains(r#""fontWeight":700"#),
+        "bold text runs must remain deserializable by the render pipeline: {rendered}"
+    );
+    let menu_after_bold: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_text_1"}"#, false),
+    )
+    .expect("post-style context menu should be valid JSON");
+    let bold_item = menu_after_bold
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Style"))
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|items| {
+            items
+                .iter()
+                .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Bold"))
+        })
+        .expect("Bold should remain available after applying the style");
+    assert_eq!(bold_item["checked"], true);
+    assert_eq!(bold_item["value"], "bold:off");
+
+    assert!(engine.apply_color_to_selection("#0000ff"));
+    for object_id in ["obj_text_1", "obj_text_2"] {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(object_id)
+            .expect("colored text should remain in the document");
+        for key in ["runs", "sourceRuns", "displayRuns"] {
+            assert_eq!(object.payload.extra[key][0]["fill"], "#0000ff");
+        }
+    }
+}
+
+#[test]
+fn multi_shape_selection_exposes_public_batch_style_menu() {
+    let mut engine = Engine::new();
+    let document = serde_json::json!({
+        "format": { "name": "chemsema", "version": "0.1", "unit": "pt" },
+        "document": {
+            "id": "doc_multi_shape",
+            "title": "multi shape",
+            "page": { "width": 160.0, "height": 100.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_circle": { "kind": "shape", "fill": null, "stroke": "#000000", "strokeWidth": 1.0, "dashArray": [] },
+            "style_rect": { "kind": "shape", "fill": "#000000", "stroke": null, "strokeWidth": 0.0, "dashArray": [] }
+        },
+        "objects": [
+            {
+                "id": "obj_shape_1",
+                "type": "shape",
+                "styleRef": "style_circle",
+                "transform": { "translate": [10.0, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 30.0, 30.0], "kind": "circle" }
+            },
+            {
+                "id": "obj_shape_2",
+                "type": "shape",
+                "styleRef": "style_rect",
+                "transform": { "translate": [80.0, 50.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                "payload": { "bbox": [0.0, 0.0, 40.0, 20.0], "kind": "rect" }
+            }
+        ],
+        "resources": {}
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("multi-shape fixture should load");
+    assert!(engine.select_all());
+
+    let menu: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_shape_1"}"#, false),
+    )
+    .expect("context menu should be valid JSON");
+    let style_items = menu
+        .as_array()
+        .and_then(|items| {
+            items.iter().find(|item| {
+                item.get("label").and_then(serde_json::Value::as_str) == Some("Shape Style")
+            })
+        })
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .unwrap_or_else(|| panic!("Shape Style submenu should be available: {menu}"));
+    assert!(style_items.iter().any(|item| {
+        item.get("command").and_then(serde_json::Value::as_str) == Some("shape-style")
+            && item.get("value").and_then(serde_json::Value::as_str) == Some("shadowed")
+    }));
+    assert!(
+        style_items
+            .iter()
+            .all(|item| item.get("checked").and_then(serde_json::Value::as_bool) != Some(true)),
+        "mixed styles must not claim a uniform checked value: {menu}"
+    );
+
+    assert!(engine.apply_shape_style_to_selection("shadowed"));
+    let menu_after: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_shape_1"}"#, false),
+    )
+    .expect("post-style context menu should be valid JSON");
+    let shadowed = menu_after
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Shape Style"))
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|items| {
+            items.iter().find(|item| {
+                item.get("value").and_then(serde_json::Value::as_str) == Some("shadowed")
+            })
+        })
+        .expect("Shadowed should remain available after applying the style");
+    assert_eq!(shadowed["checked"], true);
+
+    assert!(engine.undo());
+    assert!(
+        engine.state().selection.is_empty(),
+        "document-snapshot undo should clear the prior selection"
+    );
+    assert!(engine.select_all());
+    let menu_after_undo: serde_json::Value = serde_json::from_str(
+        &engine.context_menu_json(r#"{"kind":"object","objectId":"obj_shape_1"}"#, false),
+    )
+    .expect("undo context menu should be valid JSON");
+    let restored_style_items = menu_after_undo
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Shape Style"))
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .expect("Shape Style should remain available after undo");
+    assert!(
+        restored_style_items
+            .iter()
+            .all(|item| item.get("checked").and_then(serde_json::Value::as_bool) != Some(true)),
+        "undo must restore each shape's distinct original style: {menu_after_undo}"
+    );
+}
+
+#[test]
+fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
+    let mut engine = Engine::new();
+    for command in [
+        serde_json::json!({
+            "type": "add-orbital",
+            "template": "s",
+            "style": "hollow",
+            "phase": "plus",
+            "color": "#000000",
+            "center": { "x": 35.0, "y": 45.0 },
+            "end": { "x": 35.0, "y": 75.0 }
+        }),
+        serde_json::json!({
+            "type": "add-orbital",
+            "template": "dxy",
+            "style": "filled",
+            "phase": "minus",
+            "color": "#000000",
+            "center": { "x": 105.0, "y": 45.0 },
+            "end": { "x": 105.0, "y": 75.0 }
+        }),
+    ] {
+        let result: serde_json::Value = serde_json::from_str(
+            &engine
+                .execute_command_json(&command.to_string())
+                .expect("orbital command should execute"),
+        )
+        .expect("orbital command result should be JSON");
+        assert_eq!(result["changed"], true);
+    }
+    assert!(engine.select_all());
+
+    let menu: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_shape_orbital_1"}"#,
+        false,
+    ))
+    .expect("multi-orbital context menu should be valid JSON");
+    for label in ["Orbital Template", "Orbital Style", "Orbital Phase"] {
+        let submenu = menu
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some(label))
+            .and_then(|item| item.get("submenu"))
+            .and_then(serde_json::Value::as_array)
+            .unwrap_or_else(|| panic!("{label} should be public for homogeneous orbitals: {menu}"));
+        assert!(
+            submenu
+                .iter()
+                .all(|item| item.get("checked").and_then(serde_json::Value::as_bool) != Some(true)),
+            "mixed orbital values must not claim a uniform {label}: {menu}"
+        );
+    }
+    assert!(menu.as_array().is_some_and(|items| items.iter().all(|item| {
+        item.get("label").and_then(serde_json::Value::as_str) != Some("Shape Style")
+    })));
+
+    assert!(engine.apply_orbital_template_to_selection("dz2"));
+    let rendered_after_template = serde_json::to_string(&engine.render_list())
+        .expect("retargeted orbitals should render");
+    for id in ["obj_shape_orbital_1", "obj_shape_orbital_2"] {
+        assert!(
+            rendered_after_template.contains(id),
+            "template migration must retain visible geometry for {id}: {rendered_after_template}"
+        );
+    }
+    assert!(engine.apply_orbital_template_to_selection("oval"));
+    let rendered_after_ellipse = serde_json::to_string(&engine.render_list())
+        .expect("ellipse-retargeted orbitals should render");
+    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
+        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
+    }) {
+        assert!(rendered_after_ellipse.contains(&object.id));
+        assert!(object.payload.extra.get("center").is_some());
+        assert!(object.payload.extra.get("majorAxisEnd").is_some());
+        assert!(object.payload.extra.get("minorAxisEnd").is_some());
+        assert!(object.payload.extra.get("axisStart").is_none());
+        assert!(object.payload.extra.get("axisEnd").is_none());
+    }
+    assert!(engine.apply_orbital_template_to_selection("dz2"));
+    assert!(engine.apply_orbital_style_to_selection("filled"));
+    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
+        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
+    }) {
+        let style = engine
+            .state()
+            .document
+            .styles
+            .get(object.style_ref.as_deref().expect("filled orbital style reference"))
+            .expect("filled orbital style should exist");
+        assert_eq!(style["fill"], "#000000");
+        assert_eq!(style["stroke"], serde_json::Value::Null);
+    }
+    assert!(engine.apply_orbital_style_to_selection("shaded"));
+    assert!(engine.apply_orbital_phase_to_selection("minus"));
+    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
+        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
+    }) {
+        assert_eq!(object.payload.extra["orbitalTemplate"], "dz2");
+        assert_eq!(object.payload.extra["orbitalStyle"], "shaded");
+        assert_eq!(object.payload.extra["orbitalPhase"], "minus");
+        let style = engine
+            .state()
+            .document
+            .styles
+            .get(object.style_ref.as_deref().expect("orbital style reference"))
+            .expect("orbital style should exist");
+        assert_eq!(style["kind"], "shape");
+        assert_eq!(style["shaded"], true);
+    }
+
+    let uniform_menu: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_shape_orbital_1"}"#,
+        false,
+    ))
+    .expect("uniform orbital menu should be valid JSON");
+    for (label, value) in [
+        ("Orbital Template", "dz2"),
+        ("Orbital Style", "shaded"),
+        ("Orbital Phase", "minus"),
+    ] {
+        let checked = uniform_menu
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some(label))
+            .and_then(|item| item.get("submenu"))
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .find(|item| item.get("value").and_then(serde_json::Value::as_str) == Some(value))
+            .expect("uniform orbital value should remain public");
+        assert_eq!(checked["checked"], true);
+    }
+
+    assert!(engine.undo());
+    assert!(engine.state().selection.is_empty());
+    assert!(engine.select_all());
+    let phase_after_undo: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_shape_orbital_1"}"#,
+        false,
+    ))
+    .expect("undo orbital menu should be valid JSON");
+    let minus = phase_after_undo
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("label").and_then(serde_json::Value::as_str) == Some("Orbital Phase"))
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .find(|item| item.get("value").and_then(serde_json::Value::as_str) == Some("minus"))
+        .expect("minus phase should remain public after undo");
+    assert_ne!(minus["checked"], true, "undo must restore the mixed original phases");
+}
+
+#[test]
+fn editor_bracket_groups_expose_and_apply_visible_batch_properties() {
+    fn bracket_group(id: &str, kind: &str, x: f64) -> serde_json::Value {
+        serde_json::json!({
+            "id": id,
+            "type": "group",
+            "name": "bracket-group",
+            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "meta": { "source": "editor", "kind": "bracket-group" },
+            "payload": { "bbox": [x, 20.0, 30.0, 50.0] },
+            "children": [
+                {
+                    "id": format!("{id}_left"),
+                    "type": "bracket",
+                    "transform": { "translate": [x, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                    "payload": { "bbox": [0.0, 0.0, 5.0, 50.0], "kind": kind, "side": "left", "stroke": "#000000", "strokeWidth": 1.0 }
+                },
+                {
+                    "id": format!("{id}_right"),
+                    "type": "bracket",
+                    "transform": { "translate": [x + 25.0, 20.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+                    "payload": { "bbox": [0.0, 0.0, 5.0, 50.0], "kind": kind, "side": "right", "stroke": "#000000", "strokeWidth": 1.0 }
+                }
+            ]
+        })
+    }
+
+    let mut engine = Engine::new();
+    let document = serde_json::json!({
+        "format": { "name": "chemsema", "version": "0.1", "unit": "pt" },
+        "document": { "id": "doc_bracket_groups", "title": "bracket groups", "page": { "width": 180.0, "height": 100.0, "background": "#ffffff" } },
+        "styles": {},
+        "objects": [bracket_group("obj_bracket_1", "round", 20.0), bracket_group("obj_bracket_2", "square", 100.0)],
+        "resources": {}
+    });
+    engine
+        .load_document_json(&document.to_string())
+        .expect("editor bracket-group fixture should load");
+    assert!(engine.select_all());
+
+    let menu: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_bracket_1_left"}"#,
+        false,
+    ))
+    .expect("bracket-group context menu should be valid JSON");
+    let bracket_items = menu
+        .as_array()
+        .and_then(|items| {
+            items.iter().find(|item| {
+                item.get("label").and_then(serde_json::Value::as_str) == Some("Bracket Type")
+            })
+        })
+        .and_then(|item| item.get("submenu"))
+        .and_then(serde_json::Value::as_array)
+        .unwrap_or_else(|| {
+            panic!("Bracket Type submenu should be public for bracket groups: {menu}")
+        });
+    assert!(bracket_items
+        .iter()
+        .all(|item| item.get("checked").and_then(serde_json::Value::as_bool) != Some(true)));
+
+    assert!(engine.apply_bracket_kind_to_selection("curly"));
+    assert!(engine.apply_color_to_selection("#008000"));
+    for id in [
+        "obj_bracket_1_left",
+        "obj_bracket_1_right",
+        "obj_bracket_2_left",
+        "obj_bracket_2_right",
+    ] {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(id)
+            .unwrap_or_else(|| panic!("{id} should exist"));
+        assert_eq!(object.payload.extra["kind"], "curly");
+        assert_eq!(object.payload.extra["stroke"], "#008000");
+    }
+
+    let uniform_menu: serde_json::Value = serde_json::from_str(&engine.context_menu_json(
+        r#"{"kind":"object","objectId":"obj_bracket_1_left"}"#,
+        false,
+    ))
+    .expect("uniform bracket-group context menu should be valid JSON");
+    for (label, value) in [("Bracket Type", "curly"), ("Color", "#008000")] {
+        let checked = uniform_menu
+            .as_array()
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item.get("label").and_then(serde_json::Value::as_str) == Some(label)
+                })
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(serde_json::Value::as_array)
+            .and_then(|items| {
+                items.iter().find(|item| {
+                    item.get("value").and_then(serde_json::Value::as_str) == Some(value)
+                })
+            })
+            .and_then(|item| item.get("checked"))
+            .and_then(serde_json::Value::as_bool);
+        assert_eq!(
+            checked,
+            Some(true),
+            "{label} should report {value} uniformly"
+        );
+    }
+
+    assert!(engine.undo());
+    assert!(engine.select_all());
+    let after_color_undo = engine
+        .state()
+        .document
+        .find_scene_object("obj_bracket_1_left")
+        .expect("left bracket should survive undo");
+    assert_eq!(after_color_undo.payload.extra["kind"], "curly");
+    assert_eq!(after_color_undo.payload.extra["stroke"], "#000000");
+    assert!(engine.undo());
+    let after_kind_undo = engine
+        .state()
+        .document
+        .find_scene_object("obj_bracket_2_left")
+        .expect("second bracket should survive undo");
+    assert_eq!(after_kind_undo.payload.extra["kind"], "square");
+}
+
+#[test]
+fn locked_arrow_properties_are_immutable_in_a_mixed_selection() {
+    fn arrow_state(engine: &Engine, object_id: &str) -> (bool, String, String) {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(object_id)
+            .expect("arrow should remain in the document");
+        let arrow_head = object
+            .payload
+            .extra
+            .get("arrowHead")
+            .expect("arrow should retain its arrowHead payload");
+        (
+            arrow_head
+                .get("bold")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            arrow_head
+                .get("head")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .to_string(),
+            arrow_head
+                .get("tail")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .to_string(),
+        )
+    }
+
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(10.0, 20.0), Point::new(90.0, 20.0));
+    drag(&mut engine, Point::new(10.0, 60.0), Point::new(90.0, 60.0));
+    engine.set_tool_state(select_tool());
+
+    engine.select_at_point(Point::new(50.0, 20.0), false);
+    assert_eq!(engine.state().selection.arrow_objects, vec!["obj_line_1"]);
+    assert!(engine.set_selection_locked(true));
+    assert!(engine.select_all());
+
+    assert!(engine.apply_line_style_to_selection("bold"));
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (true, "full".into(), "none".into())
+    );
+
+    assert!(engine.apply_arrow_endpoints_to_selection(
+        Some(ArrowEndpointStyle::Right),
+        Some(ArrowEndpointStyle::Left),
+    ));
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (true, "half-right".into(), "half-left".into())
+    );
+
+    assert!(engine.undo());
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (true, "full".into(), "none".into())
+    );
+    assert!(engine.undo());
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (false, "full".into(), "none".into())
+    );
+    assert!(engine.redo());
+    assert!(engine.redo());
+    assert_eq!(
+        arrow_state(&engine, "obj_line_1"),
+        (false, "full".into(), "none".into())
+    );
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (true, "half-right".into(), "half-left".into())
+    );
+}
+
+#[test]
+fn arrow_style_patches_preserve_unrelated_fields_and_locked_objects() {
+    fn arrow_state(
+        engine: &Engine,
+        object_id: &str,
+    ) -> (String, f64, f64, String, String, bool, String) {
+        let object = engine
+            .state()
+            .document
+            .find_scene_object(object_id)
+            .expect("arrow should remain in the document");
+        let arrow = object
+            .payload
+            .extra
+            .get("arrowHead")
+            .expect("arrow should retain its arrowHead payload");
+        (
+            arrow
+                .get("kind")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("solid")
+                .into(),
+            arrow
+                .get("curve")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0),
+            arrow
+                .get("length")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0),
+            arrow
+                .get("head")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .into(),
+            arrow
+                .get("tail")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .into(),
+            arrow
+                .get("bold")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false),
+            arrow
+                .get("noGo")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("none")
+                .into(),
+        )
+    }
+
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Arrow,
+        ..ToolState::default()
+    });
+    drag(&mut engine, Point::new(10.0, 20.0), Point::new(90.0, 20.0));
+    drag(&mut engine, Point::new(10.0, 60.0), Point::new(90.0, 60.0));
+    engine.set_tool_state(select_tool());
+
+    engine.select_at_point(Point::new(50.0, 60.0), false);
+    assert!(engine.apply_arrow_endpoints_to_selection(
+        Some(ArrowEndpointStyle::Right),
+        Some(ArrowEndpointStyle::Left),
+    ));
+    assert!(
+        engine.apply_arrow_style_patch_to_selection(ArrowStylePatch {
+            no_go: Some(ArrowNoGo::Hash),
+            ..ArrowStylePatch::default()
+        })
+    );
+
+    engine.select_at_point(Point::new(50.0, 20.0), false);
+    assert!(engine.set_selection_locked(true));
+    assert!(engine.select_all());
+
+    let locked_initial = arrow_state(&engine, "obj_line_1");
+    assert!(
+        engine.apply_arrow_style_patch_to_selection(ArrowStylePatch {
+            head_size: Some(ArrowHeadSize::Large),
+            ..ArrowStylePatch::default()
+        })
+    );
+    assert_eq!(arrow_state(&engine, "obj_line_1"), locked_initial);
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (
+            "solid".into(),
+            0.0,
+            22.5,
+            "half-right".into(),
+            "half-left".into(),
+            false,
+            "hash".into()
+        )
+    );
+
+    assert!(
+        engine.apply_arrow_style_patch_to_selection(ArrowStylePatch {
+            variant: Some(ArrowVariant::CurvedMirror),
+            curve: Some(ArrowCurve::Arc120),
+            ..ArrowStylePatch::default()
+        })
+    );
+    assert_eq!(arrow_state(&engine, "obj_line_1"), locked_initial);
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (
+            "curved-mirror".into(),
+            120.0,
+            22.5,
+            "half-right".into(),
+            "half-left".into(),
+            false,
+            "hash".into()
+        )
+    );
+
+    assert!(engine.apply_line_style_to_selection("bold"));
+    assert_eq!(arrow_state(&engine, "obj_line_1"), locked_initial);
+    assert_eq!(
+        arrow_state(&engine, "obj_line_2"),
+        (
+            "curved-mirror".into(),
+            120.0,
+            45.0,
+            "half-right".into(),
+            "half-left".into(),
+            true,
+            "hash".into()
+        )
+    );
+
+    assert!(engine.undo());
+    assert!(!arrow_state(&engine, "obj_line_2").5);
+    assert!(engine.undo());
+    assert_eq!(arrow_state(&engine, "obj_line_2").0, "solid");
+    assert!(engine.undo());
+    assert_eq!(arrow_state(&engine, "obj_line_2").2, 10.0);
+    assert!(engine.redo());
+    assert!(engine.redo());
+    assert!(engine.redo());
+    assert_eq!(arrow_state(&engine, "obj_line_1"), locked_initial);
+    assert_eq!(arrow_state(&engine, "obj_line_2").2, 45.0);
+}
+
+#[test]
 fn curved_arrow_tool_stores_curve_and_renders_arc_segments() {
     let mut engine = Engine::new();
     engine.set_tool_state(ToolState {

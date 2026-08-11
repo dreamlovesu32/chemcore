@@ -1,8 +1,192 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mergeIncrementalManifestItems } from "../render-public-cdxml-visual-review.mjs";
-import { classifyBaselineChanges } from "../public-cdxml-visual-gate.mjs";
+import {
+  mapWithConcurrency,
+  mergeIncrementalManifestItems,
+  oracleGalleryCorpusErrors,
+  publicCdxmlCliEnvironment,
+  sourceAlignmentPolicy,
+} from "../render-public-cdxml-visual-review.mjs";
+import {
+  CASE_METRICS_SCHEMA,
+  classifyBaselineChanges,
+  classifyContinuousBaselineRegressions,
+  REPORT_SCHEMA,
+  visualBaselineCompatibilityErrors,
+} from "../public-cdxml-visual-gate.mjs";
 import { featuresFromCdxml, selectAffectedCases } from "../public-cdxml-impact.mjs";
+import { baselineScopeErrors } from "../plan-public-cdxml-affected-gate.mjs";
+import {
+  defaultPublicCdxmlCliRelativePath,
+  GALLERY_PROVENANCE_SCHEMA,
+  publicCdxmlCliCandidates,
+  provenanceMismatches,
+} from "../public-cdxml-provenance.mjs";
+import { bracketWorldEndpoints } from "../public-cdxml-bracket-geometry.mjs";
+import { compareVisualGeometry } from "../public-cdxml-semantic-geometry.mjs";
+import { visibleInterchangeBondCount } from "../public-cdxml-source-topology.mjs";
+import { matchesPublicCdxmlCasePattern } from "../public-cdxml-case-filter.mjs";
+
+test("visual baseline compatibility binds the corpus and ChemDraw oracle, not the old candidate", () => {
+  const corpus = {
+    manifestSha256: "manifest-a",
+    sources: [
+      { id: "rdkit", actualRevision: "revision-a" },
+      { id: "indigo", actualRevision: "revision-b" },
+    ],
+  };
+  const baseline = {
+    schema: REPORT_SCHEMA,
+    caseMetricsSchema: CASE_METRICS_SCHEMA,
+    galleryProvenance: {
+      schema: "chemsema.public-cdxml-gallery-provenance.v1",
+      repository: { identity: "old-repository" },
+      cli: { sha256: "old-cli" },
+      corpus,
+    },
+    cases: [{
+      relativeCdxml: "source/example.cdxml",
+      status: "unavailable",
+      artifactHashes: {
+        reference: "oracle-a",
+        candidate: "old-candidate",
+      },
+    }],
+  };
+  const currentProvenance = {
+    schema: "chemsema.public-cdxml-gallery-provenance.v1",
+    repository: { identity: "new-repository" },
+    cli: { sha256: "new-cli" },
+    corpus: {
+      manifestSha256: "manifest-a",
+      sources: [...corpus.sources].reverse(),
+    },
+  };
+  const currentReferences = new Map([["source/example.cdxml", "oracle-a"]]);
+  assert.deepEqual(
+    visualBaselineCompatibilityErrors(
+      baseline,
+      currentProvenance,
+      currentReferences,
+    ),
+    [],
+  );
+
+  const changedCorpus = structuredClone(currentProvenance);
+  changedCorpus.corpus.sources[0].actualRevision = "revision-changed";
+  assert.deepEqual(
+    visualBaselineCompatibilityErrors(
+      baseline,
+      changedCorpus,
+      currentReferences,
+    ),
+    ["baseline and current corpus identities differ"],
+  );
+  assert.deepEqual(
+    visualBaselineCompatibilityErrors(
+      baseline,
+      currentProvenance,
+      new Map([["source/example.cdxml", "oracle-b"]]),
+    ),
+    ["ChemDraw oracle changed for source/example.cdxml"],
+  );
+
+  const malformedMetrics = structuredClone(baseline);
+  malformedMetrics.cases[0].status = "fail";
+  assert.match(
+    visualBaselineCompatibilityErrors(
+      malformedMetrics,
+      currentProvenance,
+      currentReferences,
+    ).join("\n"),
+    /invalid metrics/,
+  );
+
+  const missingStatus = structuredClone(baseline);
+  delete missingStatus.cases[0].status;
+  assert.match(
+    visualBaselineCompatibilityErrors(
+      missingStatus,
+      currentProvenance,
+      currentReferences,
+    ).join("\n"),
+    /missing or invalid status/,
+  );
+});
+
+test("bracket semantic geometry follows ordered rotated spine endpoints", () => {
+  const endpoints = bracketWorldEndpoints({
+    bbox: [0, 0, 2, 10],
+    translate: [5, 7],
+    rotate: 90,
+    kind: "square",
+    side: "left",
+  });
+  assert.ok(endpoints);
+  assert.deepEqual(endpoints.top, [11, 11]);
+  assert.deepEqual(endpoints.bottom, [1, 11]);
+});
+
+test("visual geometry matches repeated text by tolerance instead of coordinate sort order", () => {
+  const item = (position) => ({
+    key: "[\"3\",\"left\"]",
+    position,
+    box: [position[0], position[1], position[0] + 2, position[1] + 5],
+    lineHeight: [5],
+  });
+  const before = [
+    item([202.48, 632.07]),
+    item([202.48, 705.28]),
+  ];
+  const after = [
+    item([202.47, 705.28]),
+    item([202.48, 632.07]),
+  ];
+  assert.equal(compareVisualGeometry(before, after), true);
+});
+
+test("visual geometry still rejects unmatched repeated text", () => {
+  const before = [{
+    key: "caption",
+    position: [10, 10],
+    box: [10, 10, 20, 20],
+    lineHeight: [8],
+  }];
+  const after = [{
+    key: "caption",
+    position: [10, 12],
+    box: [10, 12, 20, 22],
+    lineHeight: [8],
+  }];
+  assert.equal(compareVisualGeometry(before, after), false);
+});
+
+test("source topology ignores bonds inside node-owned fragments", () => {
+  const bond = (id) => ({ name: "b", id, children: [] });
+  const root = {
+    name: "CDXML",
+    children: [{
+      name: "page",
+      children: [
+        {
+          name: "fragment",
+          children: [bond("visible-1"), bond("visible-2")],
+        },
+        {
+          name: "fragment",
+          children: [{
+            name: "n",
+            children: [{
+              name: "fragment",
+              children: [bond("embedded-definition")],
+            }],
+          }],
+        },
+      ],
+    }],
+  };
+  assert.equal(visibleInterchangeBondCount(root), 2);
+});
 
 test("CDXML feature extraction recognizes visual rule families", () => {
   const features = featuresFromCdxml(`
@@ -13,6 +197,127 @@ test("CDXML feature extraction recognizes visual rule families", () => {
   for (const expected of ["bond", "text", "nickname", "enhanced-stereo", "hashed-wedge", "object-tag", "query"]) {
     assert.ok(features.includes(expected), expected);
   }
+});
+
+test("CDXML query extraction distinguishes content from visibility defaults", () => {
+  const visibilityOnly = featuresFromCdxml(`
+    <CDXML ShowAtomQuery="yes" ShowBondQuery="yes"><page><fragment>
+      <n id="1" p="0 0" Element="6"/>
+    </fragment></page></CDXML>
+  `);
+  assert.ok(visibilityOnly.includes("query-visibility"));
+  assert.ok(!visibilityOnly.includes("query"));
+
+  for (const source of [
+    `<CDXML><n ImplicitHydrogens="yes"/></CDXML>`,
+    `<CDXML><n FreeSites="2" RingBondCount="AsDrawn"/></CDXML>`,
+    `<CDXML><n UnsaturatedBonds="MustBePresent" SubstituentsExactly="2"/></CDXML>`,
+    `<CDXML><n Translation="Broad" IsotopicAbundance="Any"/></CDXML>`,
+    `<CDXML><n NodeType="ElementList" ElementList="6 7 8"/></CDXML>`,
+    `<CDXML><objecttag Name="query"><t><s>R</s></t></objecttag></CDXML>`,
+  ]) {
+    assert.ok(featuresFromCdxml(source).includes("query"), source);
+  }
+});
+
+test("CDXML feature extraction recognizes dative bond order", () => {
+  const features = featuresFromCdxml(`
+    <CDXML><fragment><n id="1"/><n id="2"/>
+      <b id="3" B="1" E="2" Order="dative"/>
+    </fragment></CDXML>
+  `);
+  assert.ok(features.includes("bond"));
+  assert.ok(features.includes("dative-bond"));
+});
+
+test("CDXML feature extraction recognizes triple bonds", () => {
+  const features = featuresFromCdxml(`
+    <CDXML><fragment><n id="1"/><n id="2"/>
+      <b id="3" B="1" E="2" Order="3"/>
+    </fragment></CDXML>
+  `);
+  assert.ok(features.includes("bond"));
+  assert.ok(features.includes("triple-bond"));
+});
+
+test("CDXML feature extraction recognizes double bonds", () => {
+  const features = featuresFromCdxml(`
+    <CDXML><fragment><n id="1"/><n id="2"/>
+      <b id="3" B="1" E="2" Order="2" DoublePosition="Right"/>
+    </fragment></CDXML>
+  `);
+  assert.ok(features.includes("bond"));
+  assert.ok(features.includes("double-bond"));
+});
+
+test("CDXML feature extraction treats order 1.5 lanes as double-bond rendering", () => {
+  const features = featuresFromCdxml(`
+    <CDXML><fragment><n id="1"/><n id="2"/>
+      <b id="3" B="1" E="2" Order="1.5" Display="Dash" Display2="Dash"/>
+    </fragment></CDXML>
+  `);
+  assert.ok(features.includes("bond"));
+  assert.ok(features.includes("double-bond"));
+});
+
+test("CDXML feature extraction recognizes wavy bond display", () => {
+  const features = featuresFromCdxml(`
+    <CDXML><fragment><n id="1"/><n id="2"/>
+      <b id="3" B="1" E="2" Display="Wavy"/>
+    </fragment></CDXML>
+  `);
+  assert.ok(features.includes("bond"));
+  assert.ok(features.includes("wavy-bond"));
+});
+
+test("case filters do not confuse numeric IDs or CDX and CDXML sibling paths", () => {
+  const cdx = {
+    caseId: "0059",
+    id: "0059_rdkit_ring-stereo1.cdx",
+    relativeCdxml: "rdkit/Code/GraphMol/test_data/CDXML/ring-stereo1.cdx",
+  };
+  const cdxml = {
+    caseId: "0060",
+    id: "0060_rdkit_ring-stereo1.cdxml",
+    relativeCdxml: "rdkit/Code/GraphMol/test_data/CDXML/ring-stereo1.cdxml",
+  };
+  assert.equal(matchesPublicCdxmlCasePattern(cdx, "59"), true);
+  assert.equal(matchesPublicCdxmlCasePattern(cdxml, "59"), false);
+  assert.equal(matchesPublicCdxmlCasePattern(cdx, cdx.relativeCdxml), true);
+  assert.equal(matchesPublicCdxmlCasePattern(cdxml, cdx.relativeCdxml), false);
+  assert.equal(matchesPublicCdxmlCasePattern(cdx, "ring-stereo1.cdx"), true);
+  assert.equal(matchesPublicCdxmlCasePattern(cdxml, "ring-stereo1.cdx"), false);
+});
+
+test("source alignment uses declared origins only with an authoritative document frame", () => {
+  assert.equal(
+    sourceAlignmentPolicy("cdxml", '<CDXML BoundingBox="1 2 30 40"><page/></CDXML>'),
+    "declared-transform-origin",
+  );
+  assert.equal(
+    sourceAlignmentPolicy("cdxml", "<CDXML><page><fragment/></page></CDXML>"),
+    "ink-overlap-source-without-document-bounds",
+  );
+  assert.equal(sourceAlignmentPolicy("cdx", "binary payload"), "declared-transform-origin");
+});
+
+test("affected planner rejects a baseline that cannot cover its selected scope", () => {
+  const selected = [
+    { relativeCdxml: "public/a.cdxml" },
+    { relativeCdxml: "public/b.cdxml" },
+  ];
+  assert.deepEqual(
+    baselineScopeErrors(selected, {
+      cases: [{ relativeCdxml: "public/a.cdxml" }],
+    }),
+    ["baseline report is missing 1 selected case(s); first: public/b.cdxml"],
+  );
+  assert.deepEqual(
+    baselineScopeErrors(selected, {
+      cases: selected,
+    }),
+    [],
+  );
 });
 
 test("affected selection combines feature hits and historical regressions", () => {
@@ -73,6 +378,101 @@ test("incremental manifest replacement preserves full gallery order", () => {
   ]);
 });
 
+test("visual workers run concurrently while preserving manifest order", async () => {
+  let active = 0;
+  let maximumActive = 0;
+  const results = await mapWithConcurrency([30, 10, 20, 0], 2, async (value) => {
+    active += 1;
+    maximumActive = Math.max(maximumActive, active);
+    await new Promise((resolve) => setTimeout(resolve, value));
+    active -= 1;
+    return value;
+  });
+  assert.deepEqual(results, [30, 10, 20, 0]);
+  assert.equal(maximumActive, 2);
+});
+
+test("parallel visual candidates always bypass the shared CLI cache", () => {
+  assert.deepEqual(
+    publicCdxmlCliEnvironment({
+      KEEP: "yes",
+      CHEMSEMA_CLI_DISABLE_CACHE: "0",
+    }),
+    {
+      KEEP: "yes",
+      CHEMSEMA_CLI_DISABLE_CACHE: "1",
+    },
+  );
+});
+
+test("gallery provenance invalidates stale source, CLI, corpus, and report inputs", () => {
+  const recorded = {
+    schema: GALLERY_PROVENANCE_SCHEMA,
+    repository: { identity: "repo-a" },
+    cli: { sha256: "cli-a", buildIdentity: "repo-a" },
+    corpus: {
+      manifestSha256: "manifest-a",
+      sources: [{ id: "rdkit", actualRevision: "revision-a" }],
+    },
+    roundtripReport: { sha256: "report-a" },
+  };
+  assert.deepEqual(provenanceMismatches(recorded, structuredClone(recorded)), []);
+  const current = structuredClone(recorded);
+  current.repository.identity = "repo-b";
+  current.cli.sha256 = "cli-b";
+  current.cli.buildIdentity = "repo-b";
+  current.corpus.manifestSha256 = "manifest-b";
+  current.corpus.sources[0].actualRevision = "revision-b";
+  current.roundtripReport.sha256 = "report-b";
+  assert.deepEqual(provenanceMismatches(recorded, current), [
+    "repository-state",
+    "cli-binary",
+    "cli-build-identity",
+    "corpus-manifest",
+    "corpus-source:rdkit",
+    "roundtrip-report",
+  ]);
+});
+
+test("retained ChemDraw oracle requires the exact corpus manifest and revisions", () => {
+  const current = {
+    corpus: {
+      manifestSha256: "manifest-a",
+      sources: [
+        { id: "indigo", actualRevision: "indigo-a" },
+        { id: "rdkit", actualRevision: "rdkit-a" },
+      ],
+    },
+  };
+  assert.deepEqual(oracleGalleryCorpusErrors(structuredClone(current), current), []);
+
+  const stale = structuredClone(current);
+  stale.corpus.manifestSha256 = "manifest-b";
+  stale.corpus.sources[1].actualRevision = "rdkit-b";
+  assert.deepEqual(oracleGalleryCorpusErrors(stale, current), [
+    "corpus-manifest",
+    "corpus-source:rdkit",
+  ]);
+});
+
+test("public CDXML gates prefer the release CLI produced by the canonical builder", () => {
+  assert.equal(
+    defaultPublicCdxmlCliRelativePath("win32"),
+    "target\\release\\chemsema-cli.exe",
+  );
+  assert.deepEqual(
+    publicCdxmlCliCandidates("D:\\repo", null, "win32"),
+    [
+      "D:\\repo\\target\\release\\chemsema-cli.exe",
+      "D:\\repo\\target\\debug\\chemsema-cli.exe",
+    ],
+  );
+  assert.equal(
+    publicCdxmlCliCandidates("D:\\repo", "D:\\custom\\cli.exe", "win32")[0],
+    "D:\\custom\\cli.exe",
+  );
+});
+
 test("baseline mode blocks regressions without requiring historical failures to turn green", () => {
   const baseline = new Map([
     ["old-failure.cdxml", { status: "fail" }],
@@ -87,4 +487,100 @@ test("baseline mode blocks regressions without requiring historical failures to 
   assert.equal(delta.regressions.length, 1);
   assert.equal(delta.improvements.length, 1);
   assert.equal(delta.changes.length, 2);
+});
+
+function continuousCase(relativeCdxml, overrides = {}) {
+  return {
+    relativeCdxml,
+    status: "fail",
+    reasons: ["missing-detail-area"],
+    local: { referenceCoverage: 0.5, candidateCoverage: 0.5 },
+    largestMissing: { area: 10, span: 8 },
+    largestExtra: { area: 8, span: 7 },
+    detailFeatures: {
+      compactDefectCount: 8,
+      componentCountDelta: 3,
+      relativeComponentMatchCoverage: 0.8,
+      componentPositionDistributionDelta: 0.05,
+      unmatchedReferenceComponentCount: 3,
+      unmatchedCandidateComponentCount: 2,
+      smallComponentDimensionDelta: 0.5,
+      enclosedSmallComponentDimensionDelta: 0,
+    },
+    ...overrides,
+  };
+}
+
+test("continuous baseline blocks a material worsening in an already failing case", () => {
+  const baseline = continuousCase("old-failure.cdxml");
+  const current = continuousCase("old-failure.cdxml", {
+    largestMissing: { area: 12, span: 9 },
+  });
+  const regressions = classifyContinuousBaselineRegressions(
+    [current],
+    new Map([["old-failure.cdxml", baseline]]),
+  );
+  assert.equal(regressions.length, 1);
+  assert.deepEqual(
+    regressions[0].reasons.map((reason) => reason.metric),
+    ["largestMissing.area", "largestMissing.span"],
+  );
+});
+
+test("continuous baseline tolerates sub-pixel noise but records a new defect class", () => {
+  const baseline = continuousCase("detail.cdxml");
+  const withinTolerance = continuousCase("detail.cdxml", {
+    local: { referenceCoverage: 0.495, candidateCoverage: 0.5 },
+    largestMissing: { area: 10.5, span: 8.5 },
+  });
+  assert.deepEqual(
+    classifyContinuousBaselineRegressions(
+      [withinTolerance],
+      new Map([["detail.cdxml", baseline]]),
+    ),
+    [],
+  );
+
+  const newReason = continuousCase("detail.cdxml", {
+    reasons: ["missing-detail-area", "detail-displaced-component"],
+  });
+  const regressions = classifyContinuousBaselineRegressions(
+    [newReason],
+    new Map([["detail.cdxml", baseline]]),
+  );
+  assert.equal(regressions.length, 1);
+  assert.equal(
+    regressions[0].reasons[0].metric,
+    "reason:detail-displaced-component",
+  );
+});
+
+test("continuous baseline does not treat a raw component-count delta as defect severity", () => {
+  const baseline = continuousCase("split-glyphs.cdxml");
+  const improvedMatching = continuousCase("split-glyphs.cdxml", {
+    detailFeatures: {
+      ...baseline.detailFeatures,
+      componentCountDelta: 5,
+      relativeComponentMatchCoverage: 0.9,
+      unmatchedReferenceComponentCount: 1,
+      unmatchedCandidateComponentCount: 1,
+    },
+  });
+  assert.deepEqual(
+    classifyContinuousBaselineRegressions(
+      [improvedMatching],
+      new Map([["split-glyphs.cdxml", baseline]]),
+    ),
+    [],
+  );
+});
+
+test("continuous baseline rejects loss of a comparable result", () => {
+  const baseline = continuousCase("error.cdxml");
+  const regressions = classifyContinuousBaselineRegressions(
+    [{ relativeCdxml: "error.cdxml", status: "error", reasons: [] }],
+    new Map([["error.cdxml", baseline]]),
+  );
+  assert.equal(regressions.length, 1);
+  assert.equal(regressions[0].reasons[0].metric, "status");
 });

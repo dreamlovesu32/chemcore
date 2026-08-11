@@ -1,7 +1,7 @@
 use super::Engine;
 use crate::{
-    ImageResourceData, ObjectPayload, Point, Resource, ResourceData, SceneObject, SelectionState,
-    Tool, Transform,
+    ImageCropRect, ImageResourceData, ObjectPayload, Point, Resource, ResourceData, SceneObject,
+    SelectionState, Tool, Transform,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde_json::{json, Value as JsonValue};
@@ -117,6 +117,54 @@ fn jpeg_pixel_dimensions(bytes: &[u8]) -> Option<(u32, u32)> {
 }
 
 impl Engine {
+    pub(super) fn validate_image_crop_candidate(
+        &self,
+        object_id: &str,
+        crop: Option<ImageCropRect>,
+    ) -> Result<(), String> {
+        let object = self
+            .state
+            .document
+            .find_scene_object(object_id)
+            .ok_or_else(|| format!("unknown image object {object_id}"))?;
+        if object.object_type != "image" {
+            return Err(format!("object {object_id} is not an image"));
+        }
+        let resource_ref = object
+            .payload
+            .resource_ref
+            .as_deref()
+            .ok_or_else(|| format!("image {object_id} has no resourceRef"))?;
+        let image = self
+            .state
+            .document
+            .resources
+            .get(resource_ref)
+            .and_then(Resource::display_image)
+            .ok_or_else(|| format!("image {object_id} has no decodable preview to crop"))?;
+        if let Some(crop) = crop {
+            crop.validate(image.pixel_width, image.pixel_height)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn set_image_crop_direct(
+        &mut self,
+        object_id: &str,
+        crop: Option<ImageCropRect>,
+    ) -> bool {
+        let object = self
+            .state
+            .document
+            .find_scene_object_mut(object_id)
+            .expect("image object was checked above");
+        if object.payload.image_crop().ok().flatten() == crop {
+            return false;
+        }
+        object.payload.set_image_crop(crop);
+        true
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn add_image_direct(
         &mut self,

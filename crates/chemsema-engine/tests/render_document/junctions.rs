@@ -114,60 +114,113 @@ fn render_document_keeps_same_side_single_attached_side_double_outer_line_shorte
 }
 
 #[test]
-fn render_document_recomputes_triple_outer_line_retreat_from_current_bond_length() {
-    let short_document = fragment_document(
-        json!([
-            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [56.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [8.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [68.0, 40.0], "charge": 0, "numHydrogens": 0 }
-        ]),
-        json!([
-            { "id": "b1", "begin": "n1", "end": "n2", "order": 3, "strokeWidth": 0.85 },
-            { "id": "b2", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": 0.85 },
-            { "id": "b3", "begin": "n2", "end": "n4", "order": 1, "strokeWidth": 0.85 }
-        ]),
-    );
-    let long_document = fragment_document(
-        json!([
-            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [92.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [8.0, 40.0], "charge": 0, "numHydrogens": 0 },
-            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [104.0, 40.0], "charge": 0, "numHydrogens": 0 }
-        ]),
-        json!([
-            { "id": "b1", "begin": "n1", "end": "n2", "order": 3, "strokeWidth": 0.85 },
-            { "id": "b2", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": 0.85 },
-            { "id": "b3", "begin": "n2", "end": "n4", "order": 1, "strokeWidth": 0.85 }
-        ]),
-    );
+fn render_document_uses_adjacent_angle_for_side_double_secondary_inset() {
+    let axis_length = 60.0;
+    let center_distance = axis_length * 0.12;
+    for (segmented, angle_degrees) in [false, true].into_iter().flat_map(|segmented| {
+        [30.0_f64, 60.0, 90.0, 120.0]
+            .into_iter()
+            .map(move |angle| (segmented, angle))
+    }) {
+        let angle = angle_degrees.to_radians();
+        let branch_dx = 30.0 * angle.cos();
+        let branch_dy = 30.0 * angle.sin();
+        let line_styles = if segmented {
+            json!({ "main": "dashed", "left": "dashed", "right": "dashed" })
+        } else {
+            json!({})
+        };
+        let document = fragment_document(
+            json!([
+                { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
+                { "id": "n2", "element": "C", "atomicNumber": 6, "position": [80.0, 40.0], "charge": 0, "numHydrogens": 0 },
+                { "id": "n3", "element": "C", "atomicNumber": 6, "position": [20.0 - branch_dx, 40.0 - branch_dy], "charge": 0, "numHydrogens": 0 },
+                { "id": "n4", "element": "C", "atomicNumber": 6, "position": [80.0 + branch_dx, 40.0 - branch_dy], "charge": 0, "numHydrogens": 0 }
+            ]),
+            json!([
+                {
+                    "id": "b1",
+                    "begin": "n1",
+                    "end": "n2",
+                    "order": 2,
+                    "strokeWidth": 1.0,
+                    "bondSpacing": 12.0,
+                    "lineStyles": line_styles,
+                    "double": { "placement": "right" }
+                },
+                { "id": "b2", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": 1.0 },
+                { "id": "b3", "begin": "n2", "end": "n4", "order": 1, "strokeWidth": 1.0 }
+            ]),
+        );
 
-    let retreat_for = |document: &chemsema_engine::ChemSemaDocument| {
-        let polygons: Vec<_> = object_bond_polygons_with_ids(&render_document(document))
+        let axes: Vec<_> = object_bond_polygons_with_ids(&render_document(&document))
             .into_iter()
             .filter(|(bond_id, _)| bond_id == "b1")
-            .map(|(_, points)| points)
+            .filter_map(|(_, points)| bond_axis_from_points(&points))
             .collect();
-        assert_eq!(polygons.len(), 3);
-
-        let mut lengths: Vec<_> = polygons
+        let secondary_y = axes
             .iter()
-            .map(|points| bond_axis_length(points).expect("bond axis length"))
+            .map(|(from, to)| (from.y + to.y) * 0.5)
+            .min_by(f64::total_cmp)
+            .expect("side-double secondary lane");
+        let secondary_axes: Vec<_> = axes
+            .iter()
+            .filter(|(from, to)| ((from.y + to.y) * 0.5 - secondary_y).abs() <= 0.02)
             .collect();
-        lengths.sort_by(|a, b| a.total_cmp(b));
-        let outer_length = lengths[0];
-        let main_length = lengths[2];
-        main_length - outer_length
-    };
+        let secondary_start = secondary_axes
+            .iter()
+            .flat_map(|(from, to)| [from.x, to.x])
+            .min_by(f64::total_cmp)
+            .expect("secondary start");
+        let secondary_end = secondary_axes
+            .iter()
+            .flat_map(|(from, to)| [from.x, to.x])
+            .max_by(f64::total_cmp)
+            .expect("secondary end");
+        let rendered_length = secondary_end - secondary_start;
+        let expected_inset = center_distance * (angle * 0.5).tan();
+        let expected_length = axis_length - 2.0 * expected_inset;
+        assert!(
+            (rendered_length - expected_length).abs() <= 0.02,
+            "segmented={segmented} angle={angle_degrees} rendered={rendered_length} expected={expected_length}"
+        );
+    }
+}
 
-    let short_retreat = retreat_for(&short_document);
-    let long_retreat = retreat_for(&long_document);
-
-    assert!(
-        long_retreat > short_retreat + 0.05,
-        "short_retreat={short_retreat} long_retreat={long_retreat}"
-    );
-    assert!(short_retreat > 0.0, "{short_retreat}");
+#[test]
+fn render_document_keeps_triple_outer_lines_full_at_single_bond_junctions() {
+    for angle_degrees in [
+        30.0_f64, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0,
+    ] {
+        let angle = angle_degrees.to_radians();
+        let branch = [20.0 + 30.0 * angle.cos(), 40.0 + 30.0 * angle.sin()];
+        let document = fragment_document(
+            json!([
+                { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 40.0], "charge": 0, "numHydrogens": 0 },
+                { "id": "n2", "element": "C", "atomicNumber": 6, "position": [80.0, 40.0], "charge": 0, "numHydrogens": 0 },
+                { "id": "n3", "element": "C", "atomicNumber": 6, "position": branch, "charge": 0, "numHydrogens": 0 }
+            ]),
+            json!([
+                { "id": "b1", "begin": "n1", "end": "n2", "order": 3, "strokeWidth": 1.0, "bondSpacing": 12.0 },
+                { "id": "b2", "begin": "n1", "end": "n3", "order": 1, "strokeWidth": 1.0 }
+            ]),
+        );
+        let axes: Vec<_> = object_bond_polygons_with_ids(&render_document(&document))
+            .into_iter()
+            .filter(|(bond_id, _)| bond_id == "b1")
+            .filter_map(|(_, points)| bond_axis_from_points(&points))
+            .filter(|(from, to)| ((from.y + to.y) * 0.5 - 40.0).abs() > 0.1)
+            .collect();
+        assert_eq!(axes.len(), 2, "angle={angle_degrees}");
+        for (from, to) in axes {
+            let minimum_x = from.x.min(to.x);
+            let maximum_x = from.x.max(to.x);
+            assert!(
+                (minimum_x - 20.0).abs() <= 0.02 && (maximum_x - 80.0).abs() <= 0.02,
+                "angle={angle_degrees} from={from:?} to={to:?}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -513,7 +566,7 @@ fn render_document_side_double_uses_anchor_glyph_retreat_once_and_keeps_lines_eq
 }
 
 #[test]
-fn parse_cdxml_side_double_terminal_label_stays_on_main_bond_node() {
+fn parse_cdxml_side_double_terminal_label_tracks_double_bond_midline() {
     let source = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <CDXML BoundingBox="70 80 140 130" BondLength="14.4" LabelFont="3" LabelSize="10" MarginWidth="1.6">
   <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
@@ -550,22 +603,12 @@ fn parse_cdxml_side_double_terminal_label_stays_on_main_bond_node() {
         .iter()
         .find(|node| node.id == "6")
         .expect("oxygen node");
-    let oxygen_polygon = oxygen
-        .label
-        .as_ref()
-        .and_then(|label| label.glyph_polygons.first())
-        .expect("oxygen glyph polygon");
-    let min_x = oxygen_polygon
-        .iter()
-        .map(|point| point[0])
-        .fold(f64::INFINITY, f64::min);
-    let max_x = oxygen_polygon
-        .iter()
-        .map(|point| point[0])
-        .fold(f64::NEG_INFINITY, f64::max);
+    let oxygen_label = oxygen.label.as_ref().expect("oxygen label");
+    let oxygen_baseline = oxygen_label.position.expect("oxygen baseline");
     assert!(
-        (((min_x + max_x) * 0.5) - oxygen.position[0]).abs() <= 0.05,
-        "terminal O glyph must stay on the structural node/main bond axis: {oxygen:?}"
+        (oxygen_baseline[0] - oxygen.position[0] + 5.16).abs() <= 0.02
+            && (oxygen_baseline[1] - oxygen.position[1] - 3.90).abs() <= 0.02,
+        "terminal O baseline must follow the midpoint of the asymmetric double-bond lines: {oxygen:?}"
     );
 
     let axes: Vec<_> = render_document(&document)

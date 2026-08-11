@@ -1,4 +1,135 @@
 use super::*;
+use serde_json::Value;
+
+#[test]
+fn cdxml_round_rectangle_radius_uses_normal_line_width_as_its_basis() {
+    let source = r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BoundingBox="0 0 240 80" LineWidth="0.6" BoldWidth="2">
+  <page id="1" BoundingBox="0 0 240 80">
+    <graphic id="10" BoundingBox="10 10 54 40" GraphicType="Rectangle" RectangleType="RoundEdge" CornerRadius="600" LineWidth="0.6"/>
+    <graphic id="11" BoundingBox="70 10 114 40" GraphicType="Rectangle" RectangleType="RoundEdge" CornerRadius="600" LineWidth="2"/>
+    <graphic id="12" BoundingBox="130 10 174 40" GraphicType="Rectangle" RectangleType="RoundEdge Bold" CornerRadius="600"/>
+    <graphic id="13" BoundingBox="190 10 234 40" GraphicType="Rectangle" RectangleType="RoundEdge" CornerRadius="0"/>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(source, Some("round rectangle radius"))
+        .expect("round rectangle probe should import");
+    let shapes = document
+        .objects
+        .iter()
+        .filter(|object| object.object_type == "shape")
+        .collect::<Vec<_>>();
+    assert_eq!(shapes.len(), 4);
+
+    let radii = shapes
+        .iter()
+        .map(|object| {
+            object
+                .payload
+                .extra
+                .get("cornerRadius")
+                .and_then(Value::as_f64)
+                .expect("round rectangle radius")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(radii, vec![3.6, 12.0, 3.6, 3.6]);
+
+    let bold_style = document
+        .styles
+        .get(shapes[2].style_ref.as_deref().expect("bold style ref"))
+        .expect("bold style");
+    assert_eq!(
+        bold_style.get("strokeWidth").and_then(Value::as_f64),
+        Some(2.0)
+    );
+}
+
+#[test]
+fn cdxml_round_rectangle_export_preserves_absolute_radius() {
+    let document: ChemSemaDocument = serde_json::from_value(json!({
+        "format": { "name": "chemsema", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "test",
+            "page": { "width": 100.0, "height": 80.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "shape": {
+                "kind": "shape",
+                "fill": null,
+                "stroke": "#000000",
+                "strokeWidth": 0.6
+            }
+        },
+        "objects": [{
+            "id": "rounded",
+            "type": "shape",
+            "visible": true,
+            "zIndex": 1,
+            "transform": { "translate": [10.0, 10.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "shape",
+            "payload": {
+                "kind": "roundRect",
+                "bbox": [0.0, 0.0, 44.0, 30.0],
+                "cornerRadius": 6.0
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("document should deserialize");
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("CornerRadius=\"1000\""));
+    let reopened = parse_cdxml_document(&exported, Some("round rectangle reopened"))
+        .expect("exported round rectangle should reimport");
+    let radius = reopened.objects[0]
+        .payload
+        .extra
+        .get("cornerRadius")
+        .and_then(Value::as_f64);
+    assert_eq!(radius, Some(6.0));
+}
+
+#[test]
+fn round_rectangle_clamps_corner_axes_independently() {
+    let document: ChemSemaDocument = serde_json::from_value(json!({
+        "format": { "name": "chemsema", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "test",
+            "page": { "width": 80.0, "height": 60.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "shape": { "kind": "shape", "stroke": "#000000", "strokeWidth": 1.0 }
+        },
+        "objects": [{
+            "id": "rounded",
+            "type": "shape",
+            "visible": true,
+            "zIndex": 1,
+            "transform": { "translate": [0.0, 0.0], "rotate": 0.0, "scale": [1.0, 1.0] },
+            "styleRef": "shape",
+            "payload": {
+                "kind": "roundRect",
+                "bbox": [0.0, 0.0, 44.0, 30.0],
+                "cornerRadius": 16.0
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("document should deserialize");
+
+    let path = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Path { d, .. } => Some(d),
+            _ => None,
+        })
+        .expect("round rectangle outline");
+    assert!(path.starts_with("M 0,15 "), "unexpected path: {path}");
+    assert!(path.contains(" 16,0 "), "unexpected path: {path}");
+    assert!(path.contains(" 28,0 "), "unexpected path: {path}");
+}
 
 #[test]
 fn render_document_emits_shape_rect_with_style() {
@@ -749,6 +880,107 @@ fn render_document_keeps_terminal_triple_outer_lines_full_length() {
 }
 
 #[test]
+fn render_document_uses_one_label_cut_plane_for_all_triple_bond_lanes() {
+    let document = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 20.0], "charge": 0, "numHydrogens": 0 },
+            {
+                "id": "n2",
+                "element": "N",
+                "atomicNumber": 7,
+                "position": [45.9808, 35.0],
+                "charge": 0,
+                "numHydrogens": 0,
+                "label": {
+                    "text": "N",
+                    "position": [42.0, 40.0],
+                    "box": [42.0, 30.0, 49.0, 40.0],
+                    "glyphPolygons": [[
+                        [42.0, 30.0], [49.0, 30.0], [49.0, 40.0], [44.0, 40.0]
+                    ]]
+                }
+            }
+        ]),
+        json!([{
+            "id": "b1",
+            "begin": "n1",
+            "end": "n2",
+            "order": 3,
+            "strokeWidth": 1.0
+        }]),
+    );
+    let centerlines = object_bond_centerlines(&render_document(&document));
+
+    assert_eq!(centerlines.len(), 3, "{centerlines:?}");
+    let radians = 30_f64.to_radians();
+    let axis = (radians.cos(), radians.sin());
+    let label_side_projections = centerlines
+        .iter()
+        .map(|(from, to)| {
+            let from_projection = from.x * axis.0 + from.y * axis.1;
+            let to_projection = to.x * axis.0 + to.y * axis.1;
+            from_projection.max(to_projection)
+        })
+        .collect::<Vec<_>>();
+    let spread = label_side_projections
+        .iter()
+        .copied()
+        .fold(f64::NEG_INFINITY, f64::max)
+        - label_side_projections
+            .iter()
+            .copied()
+            .fold(f64::INFINITY, f64::min);
+    assert!(spread < 0.001, "{label_side_projections:?}");
+}
+
+#[test]
+fn triple_bond_shared_label_cut_plane_does_not_expand_with_line_width() {
+    let nodes = json!([
+        { "id": "n1", "element": "C", "atomicNumber": 6, "position": [20.0, 20.0], "charge": 0, "numHydrogens": 0 },
+        {
+            "id": "n2",
+            "element": "N",
+            "atomicNumber": 7,
+            "position": [45.9808, 35.0],
+            "charge": 0,
+            "numHydrogens": 0,
+            "label": {
+                "text": "N",
+                "position": [42.0, 40.0],
+                "box": [42.0, 30.0, 49.0, 40.0],
+                "glyphPolygons": [[
+                    [42.0, 30.0], [49.0, 30.0], [49.0, 40.0], [44.0, 40.0]
+                ]]
+            }
+        }
+    ]);
+    let radians = 30_f64.to_radians();
+    let axis = (radians.cos(), radians.sin());
+    let label_projection_for_width = |stroke_width| {
+        let document = fragment_document(
+            nodes.clone(),
+            json!([{
+                "id": "b1",
+                "begin": "n1",
+                "end": "n2",
+                "order": 3,
+                "strokeWidth": stroke_width
+            }]),
+        );
+        object_bond_centerlines(&render_document(&document))
+            .iter()
+            .map(|(from, to)| {
+                (from.x * axis.0 + from.y * axis.1).max(to.x * axis.0 + to.y * axis.1)
+            })
+            .fold(f64::NEG_INFINITY, f64::max)
+    };
+
+    let narrow = label_projection_for_width(0.2);
+    let wide = label_projection_for_width(4.0);
+    assert!((narrow - wide).abs() < 0.0001, "{narrow} != {wide}");
+}
+
+#[test]
 fn render_document_preserves_dashed_double_line_styles() {
     let document = fragment_document(
         json!([
@@ -1001,7 +1233,7 @@ fn render_document_emits_equal_length_cross_segments_for_bold_dashed_bond() {
     let polygons = object_bond_polygons(&primitives);
     let knockouts = object_knockout_polygons(&primitives);
 
-    assert_eq!(polygons.len(), 11);
+    assert_eq!(polygons.len(), 6);
     assert!(polygons.iter().all(|points| points.len() == 4));
     assert!(knockouts.is_empty(), "{knockouts:?}");
     let black_segments: Vec<_> = polygons
@@ -1015,7 +1247,10 @@ fn render_document_emits_equal_length_cross_segments_for_bold_dashed_bond() {
             .all(|length| (length - first_black).abs() < 0.02),
         "{black_segments:?}"
     );
-    assert!((first_black - 1.0).abs() < 0.02, "{black_segments:?}");
+    assert!(
+        (first_black - 30.0 / 11.0).abs() < 0.02,
+        "{black_segments:?}"
+    );
     assert!(!primitives.iter().any(|primitive| matches!(
         primitive,
         RenderPrimitive::Line { role, object_id, .. }
@@ -1423,12 +1658,12 @@ fn render_document_retreats_hash_bond_against_connected_single_bond() {
                 "order": 1,
                 "strokeWidth": 0.85,
                 "lineStyles": {
-                    "main": "dashed",
+                    "main": "hash",
                     "left": "solid",
                     "right": "solid"
                 },
                 "lineWeights": {
-                    "main": "bold",
+                    "main": "normal",
                     "left": "normal",
                     "right": "normal"
                 }

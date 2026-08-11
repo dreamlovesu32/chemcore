@@ -28,6 +28,16 @@ pub(crate) fn desktop_engine_load_document_json(
 }
 
 #[tauri::command]
+pub(crate) fn desktop_engine_hydrate_document_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+    json: String,
+) -> Result<usize, String> {
+    let mut service = state.service.lock().map_err(|error| error.to_string())?;
+    service.hydrate_document_json(session_id, &json)
+}
+
+#[tauri::command]
 pub(crate) fn desktop_engine_load_document_cdxml(
     state: tauri::State<'_, DesktopState>,
     session_id: SessionId,
@@ -555,6 +565,15 @@ pub(crate) fn desktop_engine_context_menu_json(
 ) -> Result<String, String> {
     let service = state.service.lock().map_err(|error| error.to_string())?;
     service.context_menu_json(session_id, &hit_json, has_paste)
+}
+
+#[tauri::command]
+pub(crate) fn desktop_engine_logical_objects_dialog_json(
+    state: tauri::State<'_, DesktopState>,
+    session_id: SessionId,
+) -> Result<String, String> {
+    let service = state.service.lock().map_err(|error| error.to_string())?;
+    service.logical_objects_dialog_json(session_id)
 }
 
 #[tauri::command]

@@ -9,7 +9,50 @@ pub(super) fn document_node<'a>(document: &'a ChemSemaDocument, node_id: &str) -
     })
 }
 
+pub(super) fn document_node_world_point(
+    document: &ChemSemaDocument,
+    node_id: &str,
+) -> Option<Point> {
+    document.editable_fragments().into_iter().find_map(|entry| {
+        entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == node_id)
+            .map(|node| entry.world_point_for_node(node))
+    })
+}
+
+pub(super) fn document_bond_world_midpoint(
+    document: &ChemSemaDocument,
+    bond_id: &str,
+) -> Option<Point> {
+    document.editable_fragments().into_iter().find_map(|entry| {
+        let bond = entry
+            .fragment
+            .bonds
+            .iter()
+            .find(|bond| bond.id == bond_id)?;
+        let begin = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == bond.begin)
+            .map(|node| entry.world_point_for_node(node))?;
+        let end = entry
+            .fragment
+            .nodes
+            .iter()
+            .find(|node| node.id == bond.end)
+            .map(|node| entry.world_point_for_node(node))?;
+        Some(Point::new((begin.x + end.x) * 0.5, (begin.y + end.y) * 0.5))
+    })
+}
+
 pub(super) fn preserved_cdxml_bond_order(bond: &Bond) -> Option<String> {
+    if canonicalizes_topology_only_aromatic_dash(bond) {
+        return None;
+    }
     let source = bond
         .meta
         .pointer("/import/cdxml/order")
@@ -24,6 +67,13 @@ pub(super) fn preserved_cdxml_bond_order(bond: &Bond) -> Option<String> {
     } else {
         None
     }
+}
+
+pub(super) fn canonicalizes_topology_only_aromatic_dash(bond: &Bond) -> bool {
+    bond.meta
+        .pointer("/import/cdxml/topologyOnlyAromaticDash")
+        .and_then(Value::as_bool)
+        == Some(true)
 }
 
 pub(super) fn collect_document_colors(document: &ChemSemaDocument, colors: &mut CdxmlColorTable) {
@@ -43,6 +93,11 @@ pub(super) fn collect_document_colors(document: &ChemSemaDocument, colors: &mut 
             if let Some(color) = style_nullable_string_value(style, key) {
                 colors.ensure(&color);
             }
+        }
+    }
+    for group in &document.logical_objects.alternative_groups {
+        if let Some(color) = &group.color {
+            colors.ensure(color);
         }
     }
     for object in &document.objects {

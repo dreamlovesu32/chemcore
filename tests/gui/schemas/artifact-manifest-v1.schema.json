@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsema.org/schemas/gui/artifact-manifest-v1.schema.json",
+  "title": "ChemSema GUI Artifact Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "runId", "artifacts"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.artifact-manifest.v1" },
+    "runId": { "type": "string", "minLength": 1 },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "mediaType", "uri", "size", "sha256", "retention"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$" },
+          "mediaType": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+          "uri": { "type": "string", "minLength": 1 },
+          "size": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "retention": { "enum": ["sample", "failure", "qualification", "temporary"] }
+        }
+      }
+    }
+  }
+}

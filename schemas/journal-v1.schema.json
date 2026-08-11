@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemsema.org/schemas/journal-v1.schema.json",
+  "title": "ChemSema Recovery Journal Record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "sequence", "baseDocumentSha256", "patch", "recordSha256"],
+  "properties": {
+    "schema": { "const": "chemsema.journal.v1" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "baseDocumentSha256": { "$ref": "#/$defs/hash" },
+    "previousRecordSha256": { "$ref": "#/$defs/hash" },
+    "patch": { "type": "object" },
+    "recordSha256": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+  }
+}

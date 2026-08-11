@@ -189,6 +189,91 @@ fn parse_cdxml_auto_double_bond_prefers_alternating_ring_over_short_fused_cycle(
 }
 
 #[test]
+fn parse_cdxml_terminal_label_tracks_asymmetric_double_bond_centerline() {
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
+<CDXML BondLength="14.40" BondSpacing="18" LineWidth="0.60" LabelSize="10"
+ LabelFont="3" LabelFace="96">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="p1" BoundingBox="0 0 180 120">
+    <fragment id="right">
+      <n id="right_o" p="20 20" Element="8" NumHydrogens="0">
+        <t p="16.75 23.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="right_c" p="33.82 15.97"/>
+      <b id="right_b" B="right_o" E="right_c" Order="2" DoublePosition="Right"/>
+    </fragment>
+    <fragment id="left">
+      <n id="left_o" p="70 20" Element="8" NumHydrogens="0">
+        <t p="66.75 23.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="left_c" p="83.82 15.97"/>
+      <b id="left_b" B="left_o" E="left_c" Order="2" DoublePosition="Left"/>
+    </fragment>
+    <fragment id="reversed">
+      <n id="reverse_o" p="120 20" Element="8" NumHydrogens="0">
+        <t p="116.75 23.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="reverse_c" p="133.82 15.97"/>
+      <b id="reverse_b" B="reverse_c" E="reverse_o" Order="2" DoublePosition="Right"/>
+    </fragment>
+    <fragment id="degree2">
+      <n id="degree2_o" p="20 80" Element="8" NumHydrogens="0">
+        <t p="16.75 83.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="degree2_c" p="33.82 75.97"/>
+      <n id="degree2_other" p="9.82 69.82"/>
+      <b id="degree2_b" B="degree2_o" E="degree2_c" Order="2" DoublePosition="Right"/>
+      <b id="degree2_single" B="degree2_o" E="degree2_other"/>
+    </fragment>
+    <fragment id="automatic">
+      <n id="auto_o" p="70 80" Element="8" NumHydrogens="0">
+        <t p="66.75 83.52"><s font="3" size="10" face="96">O</s></t>
+      </n>
+      <n id="auto_c" p="83.82 75.97"/>
+      <n id="auto_next" p="87.55 62.06"/>
+      <b id="auto_b" B="auto_o" E="auto_c" Order="2"/>
+      <b id="auto_single" B="auto_c" E="auto_next"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("asymmetric terminal labels"))
+        .expect("cdxml should parse");
+    let label_offset = |node_id: &str| {
+        let node = document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .find(|node| node.id == node_id)
+            .unwrap_or_else(|| panic!("missing node {node_id}"));
+        let position = node
+            .label
+            .as_ref()
+            .and_then(|label| label.position)
+            .unwrap_or_else(|| panic!("missing label position for {node_id}"));
+        [
+            position[0] - node.position[0],
+            position[1] - node.position[1],
+        ]
+    };
+
+    for (node_id, expected) in [
+        ("right_o", [-4.25, 2.66]),
+        ("left_o", [-3.53, 5.14]),
+        ("reverse_o", [-3.53, 5.14]),
+        ("degree2_o", [-3.89, 3.90]),
+        ("auto_o", [-4.25, 2.66]),
+    ] {
+        let actual = label_offset(node_id);
+        assert!(
+            (actual[0] - expected[0]).abs() < 0.04 && (actual[1] - expected[1]).abs() < 0.04,
+            "{node_id}: expected={expected:?}, actual={actual:?}"
+        );
+    }
+}
+
+#[test]
 fn parse_cdxml_attached_atom_label_rebuilds_active_bbox_from_glyph_metrics() {
     let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE CDXML SYSTEM "http://www.cambridgesoft.com/xml/cdxml.dtd" >
@@ -413,6 +498,70 @@ fn parse_cdxml_node_label_keeps_face_style_independent_of_nonchemical_semantics(
         "{exported}"
     );
     assert!(exported.contains("BoundingBox="), "{exported}");
+}
+
+#[test]
+fn public_patent_ammonium_label_preserves_formula_count_below_explicit_charge() {
+    // Reduced from the byte-identical public RDKit patent fixtures
+    // US11707511-20230725-C00001.CDX and US20200222518A1-20200716-C00001.CDX.
+    // Their CDX styled string authors NH3 with chemical face 96 and the
+    // terminal + in a separate superscript face 64 run.
+    let cdxml = r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML BondLength="14.40" LabelFont="3" LabelSize="10" LabelFace="96" InterpretChemically="yes">
+  <fonttable><font id="3" charset="iso-8859-1" name="Times New Roman"/></fonttable>
+  <page id="p1" BoundingBox="0 0 80 32">
+    <fragment id="f1" BoundingBox="0 0 80 32">
+      <n id="11" p="52 16" Element="7" Charge="1" NumHydrogens="3">
+        <t p="52 20" BoundingBox="42 8 74 22" InterpretChemically="yes">
+          <s font="3" size="10" face="96" color="0">NH3</s>
+          <s font="3" size="10" face="64" color="0">+</s>
+        </t>
+      </n>
+      <n id="12" p="20 16"/>
+      <b id="14" B="11" E="12"/>
+    </fragment>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("public patent ammonium")).expect("CDXML should parse");
+    let label = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.nodes.iter().find(|node| node.id == "11"))
+        .and_then(|node| node.label.as_ref())
+        .expect("NH3+ label should import");
+
+    let source_runs = label
+        .meta
+        .get("sourceRuns")
+        .cloned()
+        .and_then(|value| serde_json::from_value::<Vec<chemsema_engine::LabelRun>>(value).ok())
+        .expect("authored CDX/CDXML runs should survive import");
+    assert_eq!(
+        source_runs
+            .iter()
+            .map(|run| (run.text.as_str(), run.script.as_deref()))
+            .collect::<Vec<_>>(),
+        vec![("NH3", Some("chemical")), ("+", Some("superscript")),]
+    );
+    assert_eq!(
+        label
+            .runs
+            .iter()
+            .map(|run| (run.text.as_str(), run.script.as_deref()))
+            .collect::<Vec<_>>(),
+        vec![
+            ("NH", Some("normal")),
+            ("3", Some("subscript")),
+            ("+", Some("superscript")),
+        ]
+    );
+
+    let svg = document_to_svg(&document);
+    assert!(svg.contains(">3</text>"), "{svg}");
+    assert!(svg.contains(">+</text>"), "{svg}");
+    assert!(!svg.contains(">3+</text>"), "{svg}");
 }
 
 #[test]
@@ -642,7 +791,10 @@ fn parse_cdxml_preserves_document_drawing_defaults_without_using_cached_label_ge
         .and_then(|fragment| fragment.nodes.iter().find(|node| node.id == "n1"))
         .and_then(|node| node.label.as_ref())
         .expect("node label should import");
-    assert_eq!(label.font_family.as_deref(), Some("Times New Roman"));
+    // ChemDraw keeps the document LabelFont as the editing default, but a
+    // styled string whose first <s> omits font starts its own run state at
+    // Arial instead of inheriting that document default.
+    assert_eq!(label.font_family.as_deref(), Some("Arial"));
     assert_eq!(label.font_size, Some(11.0));
     assert_eq!(label.align.as_deref(), Some("right"));
     assert_eq!(label.meta.pointer("/defaultChemical"), Some(&json!(false)));
@@ -679,7 +831,7 @@ fn parse_cdxml_preserves_document_drawing_defaults_without_using_cached_label_ge
         .styles
         .get(text_object.style_ref.as_deref().expect("text style ref"))
         .expect("text style should exist");
-    assert_eq!(style.get("fontFamily"), Some(&json!("Courier New")));
+    assert_eq!(style.get("fontFamily"), Some(&json!("Arial")));
     assert_eq!(style.get("fontSize"), Some(&json!(9.0)));
     assert_eq!(
         text_object.payload.extra.get("align"),
@@ -1024,7 +1176,10 @@ fn parse_cdxml_normal_face_attached_label_uses_connection_aware_group_layout() {
         .find(|node| node.id == "n4")
         .and_then(|node| node.label.as_ref())
         .expect("mixed-direction NTs label should import");
-    assert_eq!(mixed_direction.text, "NTs");
+    // ChemDraw applies the same two-connection bisector flow to a collapsed
+    // Fragment label: the visible order reverses while the canonical label
+    // below remains NTs.
+    assert_eq!(mixed_direction.text, "TsN");
     assert_eq!(
         mixed_direction
             .meta
@@ -1235,6 +1390,52 @@ fn parse_cdxml_centered_multichar_label_uses_internal_center_anchor() {
         label.meta.pointer("/import/cdxml/labelDisplay"),
         Some(&json!("Center"))
     );
+}
+
+#[test]
+fn inferred_centered_label_exports_center_alignment_without_becoming_right_aligned() {
+    let cdxml = r#"<CDXML BondLength="14.4" LabelSize="10">
+      <page id="1">
+        <fragment id="2">
+          <n id="3" p="30 20">
+            <t p="30 20" Justification="Center"><s font="3" size="10">CH4</s></t>
+          </n>
+        </fragment>
+      </page>
+    </CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("inferred centered label")).expect("CDXML parses");
+    let imported_label = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.nodes.first())
+        .and_then(|node| node.label.as_ref())
+        .expect("label imports");
+    assert_eq!(imported_label.align.as_deref(), Some("center"));
+    assert_eq!(
+        imported_label.layout.as_deref(),
+        Some("attached-group-center")
+    );
+    assert_eq!(
+        imported_label.meta.pointer("/import/cdxml/labelAlignment"),
+        Some(&json!(null))
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("LabelAlignment=\"Center\""), "{exported}");
+    assert!(!exported.contains("LabelAlignment=\"Right\""), "{exported}");
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened centered label")).expect("export reopens");
+    let reopened_label = reopened
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .and_then(|fragment| fragment.nodes.first())
+        .and_then(|node| node.label.as_ref())
+        .expect("label reopens");
+    assert_eq!(reopened_label.align.as_deref(), Some("center"));
+    assert_eq!(reopened_label.anchor.as_deref(), Some("middle"));
 }
 
 #[test]
@@ -1641,7 +1842,10 @@ fn parse_cdxml_node_labels_use_internal_attached_layout() {
     assert!(exported.contains("Element=\"7\""), "{exported}");
     assert!(exported.contains("NumHydrogens=\"1\""), "{exported}");
     assert!(exported.contains("LabelAlignment=\"Above\""), "{exported}");
-    assert!(exported.contains("LineStarts=\"2 4\""), "{exported}");
+    assert!(
+        !exported.contains("LineStarts="),
+        "directional NH layout is represented by LabelAlignment, not authored line breaks: {exported}"
+    );
     assert!(exported.contains("BoundingBox="), "{exported}");
     assert!(
         exported.contains("InterpretChemically=\"yes\""),
@@ -1675,6 +1879,79 @@ fn parse_cdxml_node_labels_use_internal_attached_layout() {
         reimported_label.layout.as_deref(),
         Some("attached-group-above")
     );
+}
+
+#[test]
+fn parse_cdxml_near_trigonal_implicit_hydrogen_labels_follow_the_stereobond_axis() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="16" LineWidth="0.60" BoldWidth="2" HashSpacing="2.50">
+  <page id="1">
+    <fragment id="2" BoundingBox="0 0 180 100">
+      <n id="plain" p="20 50" Element="6" NumHydrogens="1">
+        <t p="20 54" BoundingBox="14 42 32 56" LabelAlignment="Below" LineStarts="2 3"><s font="3" size="10" color="0">CH</s></t>
+      </n>
+      <n id="plain_a" p="33.856 58"/><n id="plain_b" p="6.144 58"/><n id="plain_c" p="20 34"/>
+      <b id="plain_bond_a" B="plain" E="plain_a"/>
+      <b id="plain_bond_b" B="plain" E="plain_b"/>
+      <b id="plain_bond_c" B="plain" E="plain_c"/>
+
+      <n id="below" p="80 50" Element="6" NumHydrogens="1">
+        <t p="80 54" BoundingBox="74 42 92 56" LabelAlignment="Below" LineStarts="2 3"><s font="3" size="10" color="0">CH</s></t>
+      </n>
+      <n id="below_a" p="93.856 58"/><n id="below_b" p="66.144 58"/><n id="below_c" p="80 34"/>
+      <b id="below_bond_a" B="below" E="below_a"/>
+      <b id="below_bond_b" B="below" E="below_b"/>
+      <b id="below_bond_c" B="below" E="below_c" Display="WedgedHashBegin"/>
+
+      <n id="reverse" p="140 50" Element="6" NumHydrogens="1">
+        <t p="140 54" BoundingBox="134 42 152 56" LabelAlignment="Below" LineStarts="2 3"><s font="3" size="10" color="0">CH</s></t>
+      </n>
+      <n id="reverse_a" p="153.856 58"/><n id="reverse_b" p="126.144 58"/><n id="reverse_c" p="140 34"/>
+      <b id="reverse_bond_a" B="reverse" E="reverse_a" Display="WedgeEnd"/>
+      <b id="reverse_bond_b" B="reverse" E="reverse_b"/>
+      <b id="reverse_bond_c" B="reverse" E="reverse_c"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("trigonal stereobond labels"))
+        .expect("CDXML should parse");
+    let label = |node_id: &str| {
+        document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .find(|node| node.id == node_id)
+            .and_then(|node| node.label.as_ref())
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing label for {node_id}; imported labels: {:?}",
+                    document
+                        .resources
+                        .iter()
+                        .filter_map(|(_, resource)| resource.data.as_fragment())
+                        .flat_map(|fragment| fragment.nodes.iter())
+                        .filter_map(|node| {
+                            node.label
+                                .as_ref()
+                                .map(|label| (node.id.as_str(), label.text.as_str()))
+                        })
+                        .collect::<Vec<_>>()
+                )
+            })
+    };
+
+    assert_eq!(label("plain").text, "CH");
+    assert_eq!(label("plain").layout.as_deref(), Some("attached-group"));
+
+    assert_eq!(label("below").lines, ["C", "H"]);
+    assert_eq!(
+        label("below").layout.as_deref(),
+        Some("attached-group-below")
+    );
+
+    assert_eq!(label("reverse").text, "HC");
+    assert_eq!(label("reverse").layout.as_deref(), Some("attached-group"));
 }
 
 #[test]
@@ -1862,9 +2139,13 @@ fn parse_cdxml_label_fields_keep_their_official_layout_roles() {
             .collect::<String>(),
         "Zr"
     );
-    assert_eq!(label("authored_offsets").text, "Cl2\nZr");
-    assert_eq!(label("authored_offsets").lines, ["Cl2", "Zr"]);
-    assert_eq!(label("authored_offsets").line_runs.len(), 2);
+    assert_eq!(
+        label("authored_offsets").source_text.as_deref(),
+        Some("Cl2Zr")
+    );
+    assert_eq!(label("authored_offsets").text, "ZrCl2");
+    assert!(label("authored_offsets").lines.is_empty());
+    assert!(label("authored_offsets").line_runs.is_empty());
 }
 
 #[test]
@@ -1943,7 +2224,7 @@ fn cdxml_caption_fields_override_obsolete_text_fields_and_roundtrip() {
         "CaptionLineHeight=\"auto\"",
         "LineHeight=\"9\"",
         "WordWrapWidth=\"72\"",
-        "LineStarts=\"6 12\"",
+        "LineStarts=\"6 10\"",
     ] {
         assert!(
             exported.contains(expected),
@@ -1951,4 +2232,9 @@ fn cdxml_caption_fields_override_obsolete_text_fields_and_roundtrip() {
         );
     }
     assert!(!exported.contains("LabelJustification=\"Center\""));
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened caption fields")).expect("export reopens");
+    let exported_again = document_to_cdxml(&reopened);
+    assert!(exported_again.contains("LineStarts=\"6 10\""));
+    assert!(!exported_again.contains("LineStarts=\"6 12\""));
 }

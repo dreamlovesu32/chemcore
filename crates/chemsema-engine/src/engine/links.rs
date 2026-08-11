@@ -115,7 +115,8 @@ impl Engine {
     }
 
     pub fn selection_can_link(&self) -> bool {
-        self.selection_can_link_stoichiometry()
+        self.selection_can_link_reaction()
+            || self.selection_can_link_stoichiometry()
             || compatible_selection_link(&self.state.document, &self.state.selection)
                 .is_some_and(|candidate| !relation_exists(&self.state.document, &candidate))
     }
@@ -134,12 +135,13 @@ impl Engine {
                     .endpoints
                     .iter()
                     .any(|ep| ids.contains(&ep.entity_id))
-            }) || ids.iter().any(|id| {
-                self.state
-                    .document
-                    .find_scene_object(id)
-                    .is_some_and(|object| object.link_policy != LinkPolicy::Unlinked)
-            }))
+            }) || self.reaction_relations_contain_any(&ids)
+                || ids.iter().any(|id| {
+                    self.state
+                        .document
+                        .find_scene_object(id)
+                        .is_some_and(|object| object.link_policy != LinkPolicy::Unlinked)
+                }))
     }
 
     pub fn selection_can_unlink_bracket_text(&self) -> bool {
@@ -163,6 +165,14 @@ impl Engine {
     }
 
     fn link_selection_untracked(&mut self) -> bool {
+        if self.selection_can_link_reaction() {
+            self.push_undo_snapshot();
+            let changed = self.link_reaction_selection_untracked();
+            if !changed {
+                self.undo_stack.pop();
+            }
+            return changed;
+        }
         if self.selection_can_link_stoichiometry() {
             self.push_undo_snapshot();
             let changed = self.link_stoichiometry_selection_untracked();
@@ -235,6 +245,9 @@ impl Engine {
             })
             .cloned()
             .collect::<Vec<_>>();
+        if policy != LinkPolicy::Linked {
+            changed |= self.detach_reaction_relations_for_entities(&ids);
+        }
         for grid_id in selected_grid_ids {
             changed |= self.bind_stoichiometry_grid_untracked(&grid_id, None, policy);
         }

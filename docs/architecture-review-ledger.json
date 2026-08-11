@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "entries": {
     "apps/chemsema-desktop/src-tauri/src/lib.rs:run": {
-      "lines": 205,
+      "lines": 209,
       "owner": "Desktop composition root",
       "reason": "The function registers the complete Tauri command surface, shared state, plugins, window lifecycle, and startup hooks in one declarative application boundary."
     },
@@ -27,12 +27,12 @@
       "reason": "The function owns one transaction lifecycle: load, execute, scope-check, report, and persist."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:$file": {
-      "lines": 3032,
+      "lines": 3302,
       "owner": "CDXML serialization boundary",
       "reason": "The module owns source-order-aware serialization for every native document object; object-family writers remain separate functions and share one ID, style, and interchange context."
     },
     "crates/chemsema-engine/src/cdxml.rs:parse_cdxml_document": {
-      "lines": 272,
+      "lines": 281,
       "owner": "CDXML document parser",
       "reason": "One ordered document parse pipeline preserves table, page, object, normalization, and verification precedence."
     },
@@ -47,47 +47,52 @@
       "reason": "One exhaustive node writer keeps atom identity, query, reaction, label, style, and source-interchange precedence in the official attribute order."
     },
     "crates/chemsema-engine/src/cdxml/export.rs:write_shape_object": {
-      "lines": 331,
+      "lines": 335,
       "owner": "CDXML graphic serialization",
       "reason": "The exhaustive graphic writer maps one normalized shape payload to the official Graphic attributes."
     },
     "crates/chemsema-engine/src/cdxml/import_lines.rs:append_line_objects": {
-      "lines": 222,
+      "lines": 223,
       "owner": "CDXML line/arrow import",
       "reason": "The function resolves the interdependent ArrowType, endpoint, curve, and style fields as one official-field rule."
     },
     "crates/chemsema-engine/src/cdxml/import_brackets.rs:append_bracket_objects": {
-      "lines": 310,
+      "lines": 313,
       "owner": "CDXML bracket import",
       "reason": "Bracket geometry, attachments, repeat semantics, and linked labels are one source-order-sensitive import transaction."
     },
     "crates/chemsema-engine/src/cdxml/import_graphics.rs:append_tlc_plate_shape_objects": {
-      "lines": 224,
+      "lines": 225,
       "owner": "CDXML TLC plate import",
       "reason": "The function imports one nested TLC plate transaction whose plate geometry, lanes, spots, visibility, styling, and source IDs must be resolved together."
     },
     "crates/chemsema-engine/src/cdxml/import_stoichiometry.rs:append_stoichiometry_grids": {
-      "lines": 207,
+      "lines": 208,
       "owner": "CDXML stoichiometry grid import",
       "reason": "The function constructs one dependency-closed reaction table from nested rows, cells, molecule references, authored values, and link semantics."
     },
     "crates/chemsema-engine/src/document.rs:$file": {
-      "lines": 2803,
+      "lines": 3380,
       "owner": "Native document schema and normalization",
       "reason": "The module is the authoritative serialized document model and its version-normalization boundary; format-specific importers, renderers, and editor behavior are owned by separate modules."
     },
     "crates/chemsema-engine/src/engine/command_runtime.rs:execute_command": {
-      "lines": 302,
+      "lines": 334,
       "owner": "Exhaustive editor command dispatcher",
       "reason": "Immediate, creation, semantic, relationship, and style command families are separated; the remaining body is an exhaustive variant-to-domain dispatch with shared completion semantics."
     },
+    "crates/chemsema-engine/src/engine/command_runtime.rs:execute_creation_command": {
+      "lines": 221,
+      "owner": "Exhaustive object creation dispatcher",
+      "reason": "One creation boundary dispatches already typed creation commands into object-family implementations while preserving the shared command result and undo transaction."
+    },
     "crates/chemsema-engine/src/engine/clipboard.rs:clipboard_content_from_selection": {
-      "lines": 210,
+      "lines": 213,
       "owner": "Portable clipboard graph extraction",
       "reason": "The function builds one dependency-closed clipboard transaction across molecule subsets, scene objects, table cell contents, resources, links, and chemical properties."
     },
     "crates/chemsema-engine/src/engine/clipboard.rs:paste_clipboard_untracked": {
-      "lines": 200,
+      "lines": 227,
       "owner": "Portable clipboard paste transaction",
       "reason": "The function restores one dependency-closed clipboard payload while remapping every object, resource, molecule, group, and link identity in a single undoable transaction."
     },
@@ -102,7 +107,7 @@
       "reason": "The function creates one chemistry graph while preserving target filtering, stereochemistry, and source authority."
     },
     "crates/chemsema-engine/src/engine/context_menu.rs:$file": {
-      "lines": 2527,
+      "lines": 2572,
       "owner": "Kernel context-menu schema",
       "reason": "The module owns the complete kernel-generated context-menu contract, with object-family menus and value normalization separated into named helpers."
     },
@@ -120,6 +125,11 @@
       "lines": 2192,
       "owner": "Selection state machine",
       "reason": "The module owns shared selection state and gesture transitions; arrange, arrow, drag, geometry, and rendering families are already split into dedicated child modules."
+    },
+    "crates/chemsema-engine/src/engine/shapes.rs:shape_scene_object": {
+      "lines": 205,
+      "owner": "Shape object construction",
+      "reason": "One typed construction table maps every shape kind to its native payload, bounds, style, and interaction defaults without a secondary fallback path."
     },
     "crates/chemsema-engine/src/engine/text_edit/labels.rs:$file": {
       "lines": 2064,
@@ -141,13 +151,18 @@
       "owner": "Orbital renderer",
       "reason": "Orbital template, phase, fill, outline, and rotation are one geometry rule with shared axes."
     },
+    "crates/chemsema-engine/src/render_objects/graphics/bio_shapes.rs:render_helix_protein": {
+      "lines": 275,
+      "owner": "Helix protein renderer",
+      "reason": "The renderer owns one continuous measured ribbon geometry whose shading, clipping, caps, outline, and handles share the same sampled path."
+    },
     "crates/chemsema-engine/src/render_objects/graphics/tables.rs:render_tlc_plate_shape_object": {
       "lines": 209,
       "owner": "TLC plate renderer",
       "reason": "The function renders one nested TLC plate layer so plate rotation, origin and solvent guides, lanes, spots, labels, visibility, and style share one coordinate system."
     },
     "crates/chemsema-engine/src/render_svg.rs:write_primitive_svg": {
-      "lines": 272,
+      "lines": 297,
       "owner": "SVG primitive serializer",
       "reason": "One exhaustive RenderPrimitive serializer guarantees identical role, identity, transform, and style emission."
     },
@@ -187,17 +202,27 @@
       "reason": "Geometry and move commits are already separate; this function retains the ordered state-machine transition and shared cleanup."
     },
     "viewer/app.js:$file": {
-      "lines": 2043,
+      "lines": 2153,
       "owner": "Browser and desktop viewer composition root",
       "reason": "The file wires independently implemented hosts and controllers into one runtime; editing, tabs, dialogs, rendering, viewport, files, and lifecycle behavior are owned by imported modules."
     },
+    "viewer/editor_context_menu.js:runCanvasContextMenuDialogCommand": {
+      "lines": 204,
+      "owner": "Canvas context-menu dialog router",
+      "reason": "The function is one exhaustive asynchronous router from kernel-owned dialog specifications to their domain hosts and typed mutation commands."
+    },
     "viewer/editor_context_menu.js:runCanvasContextMenuCommand": {
-      "lines": 248,
+      "lines": 254,
       "owner": "Canvas context-menu command router",
       "reason": "The function is one exhaustive asynchronous router from kernel menu command identifiers to domain hosts, with shared menu-close and error-settlement semantics."
     },
+    "viewer/editor_bindings.js:handleSecondaryToolbarValue": {
+      "lines": 204,
+      "owner": "Secondary toolbar value dispatcher",
+      "reason": "One exhaustive UI event boundary translates toolbar values into typed controller calls; object-family behavior remains in the imported controllers and kernel commands."
+    },
     "viewer/primitive_dom_renderer.js:renderCorePrimitive": {
-      "lines": 250,
+      "lines": 272,
       "owner": "DOM primitive renderer",
       "reason": "One exhaustive primitive dispatch keeps identity attributes, roles, transforms, and SVG z-order consistent."
     }

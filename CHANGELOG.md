@@ -4,6 +4,10 @@ All notable public changes to ChemSema are tracked here.
 
 ## Unreleased
 
+- Upgraded the native document system to CCJS 0.2 plus CCJZ Container v1: canonical flat scenes, independent hierarchy/relations, deterministic chunked ZIP storage, content-addressed resources, opaque attachments, read-only legacy-gzip migration, atomic saves, and a hash-chain recovery journal.
+- Added precise Document Patch updates on desktop, cross-reading among Rust, browser JavaScript, and an independent Python reader, `validate`/`canonicalize`/`migrate`/`conformance` CLI tools, and container plus 5,000-atom interaction performance gates.
+- Closed the previously listed CCJS 0.2 implementation gaps: stable structured diagnostics, explicit molecular validation, CCJS/CCJZ/CDXML/CDX/SDF target-format round trips, editor visible-region chunk loading, undo-preserving hydration, unchanged-entry and attachment copy-on-write, browser Zip64, and corresponding conformance/performance gates.
+- Established the long-term GUI test platform and demo reliability architecture: the in-repository platform versions scenarios, results, coverage, impact graphs, and Test ABI; isolated-VM real input never takes the user's foreground, all workers share a 10-CPU-unit/30-GiB cap, and content-addressed evidence avoids rerunning unchanged closures while covering every feature/object/property, single/multi-object work, complex/large documents, model/fault/mutation testing, and demo qualification.
 - Added a reproducible public CDXML/CDX round-trip corpus pinned to 413
   license-clear files from RDKit, Indigo, cdxml-toolkit, SAMPL6, and SAMPL9,
   together with machine-readable baseline reporting.

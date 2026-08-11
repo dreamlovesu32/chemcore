@@ -97,6 +97,68 @@ fn fragment_label_position_world(label: &crate::NodeLabel, object: &SceneObject)
     )
 }
 
+fn imported_authored_label_left_world(
+    label: &crate::NodeLabel,
+    object: &SceneObject,
+) -> Option<f64> {
+    if label.attachment.as_deref() != Some("node")
+        || label.align.as_deref() != Some("right")
+        || label.anchor.as_deref() != Some("end")
+    {
+        return None;
+    }
+    let bounding_box = label
+        .meta
+        .pointer("/import/cdxml/boundingBox")?
+        .as_array()?;
+    let local_bounding_box = label
+        .meta
+        .pointer("/import/cdxml/localBoundingBox")?
+        .as_array()?;
+    let text_position = label
+        .meta
+        .pointer("/import/cdxml/textPosition")?
+        .as_array()?;
+    if bounding_box.len() != 4 || local_bounding_box.len() != 4 || text_position.len() != 2 {
+        return None;
+    }
+    let authored_left = bounding_box[0].as_f64()?;
+    let authored_right = bounding_box[2].as_f64()?;
+    let authored_local_left = local_bounding_box[0].as_f64()?;
+    let authored_local_right = local_bounding_box[2].as_f64()?;
+    let authored_text_x = text_position[0].as_f64()?;
+    let natural_outset = label
+        .meta
+        .pointer("/import/cdxml/naturalOutsetPt")?
+        .as_f64()?;
+    let resolved_left = object.transform.translate[0] + label.bbox()?[0];
+    let authored_world_left = object.transform.translate[0] + authored_local_left;
+    if !authored_left.is_finite()
+        || !authored_right.is_finite()
+        || !authored_local_left.is_finite()
+        || !authored_local_right.is_finite()
+        || !authored_text_x.is_finite()
+        || !natural_outset.is_finite()
+        || natural_outset < 0.0
+        || authored_right < authored_left
+        || authored_local_right < authored_local_left
+        || (authored_text_x - authored_right).abs() > 0.02
+        || authored_world_left - resolved_left <= natural_outset
+    {
+        return None;
+    }
+
+    // Preserve the authored rectangle in fragment-local coordinates at the
+    // import boundary. Using it directly avoids reconstructing an origin from
+    // rounded node/text positions, and it follows later whole-object movement.
+    // ChemDraw also writes some nominally right-displayed labels with p at the
+    // authored left edge (notably single-character labels); those are
+    // left-origin records and remain on the resolved-geometry branch. A
+    // committed endpoint-text edit deliberately drops this import metadata, so
+    // edited labels take that branch as well.
+    Some(authored_world_left)
+}
+
 fn polygon_list_bounds(polygons: &[Vec<Point>]) -> Option<(f64, f64, f64, f64)> {
     let mut min_x = f64::INFINITY;
     let mut min_y = f64::INFINITY;
@@ -470,6 +532,8 @@ fn render_fragment_bond_annotations(
     fill: &str,
     object_id: Option<String>,
 ) {
+    let has_explicit_query_display = has_linked_bond_annotation(document, &bond.id, &["query"]);
+    let has_explicit_stereo_display = has_linked_bond_annotation(document, &bond.id, &["stereo"]);
     let show_query = bond.properties.show_query.unwrap_or_else(|| {
         document
             .document
@@ -496,7 +560,7 @@ fn render_fragment_bond_annotations(
     });
 
     let mut query = String::new();
-    if show_query {
+    if show_query && !has_explicit_query_display {
         query.push_str(match bond.properties.topology {
             crate::BondTopology::Unspecified => "",
             crate::BondTopology::Ring => "Rng",
@@ -504,7 +568,8 @@ fn render_fragment_bond_annotations(
             crate::BondTopology::RingOrChain => "R/C",
         });
     }
-    if show_reaction
+    if !has_explicit_query_display
+        && show_reaction
         && matches!(
             bond.properties.reaction_participation,
             crate::BondReactionParticipation::ReactionCenter
@@ -515,7 +580,7 @@ fn render_fragment_bond_annotations(
     {
         query.push_str("Rxn");
     }
-    if bond.properties.query_orders.len() >= 2 {
+    if !has_explicit_query_display && bond.properties.query_orders.len() >= 2 {
         query.push_str(
             &bond
                 .properties
@@ -526,7 +591,7 @@ fn render_fragment_bond_annotations(
                 .join("/"),
         );
     }
-    let stereo = if show_stereo {
+    let stereo = if show_stereo && !has_explicit_stereo_display {
         match bond.properties.absolute_stereo {
             crate::BondAbsoluteStereo::E => Some("(E)"),
             crate::BondAbsoluteStereo::Z => Some("(Z)"),
@@ -540,13 +605,16 @@ fn render_fragment_bond_annotations(
     }
 
     let (Some(begin), Some(end)) = (
-        node_map.get(bond.begin.as_str()),
-        node_map.get(bond.end.as_str()),
+        node_map.get(bond.begin.as_str()).copied(),
+        node_map.get(bond.end.as_str()).copied(),
     ) else {
         return;
     };
-    let begin = world_point(object, begin);
-    let end = world_point(object, end);
+    let Some(body) = bond_label_clipped_body_geometry(document, object, begin, end, bond) else {
+        return;
+    };
+    let begin = body.start;
+    let end = body.finish;
     let mut axis = Vector::new(end.x - begin.x, end.y - begin.y);
     let length = axis.length();
     if length <= EPSILON {
@@ -570,6 +638,7 @@ fn render_fragment_bond_annotations(
         .as_ref()
         .and_then(|style_ref| document.styles.get(style_ref))
         .and_then(|style| style_string(style, "fontFamily"));
+    let stroke_width = bond_stroke_width(document, object, bond);
 
     if let Some(stereo) = stereo {
         push_bond_annotation_text(
@@ -580,6 +649,7 @@ fn render_fragment_bond_annotations(
             stereo,
             true,
             font_size,
+            stroke_width,
             font_family.clone(),
             fill,
             object_id.clone(),
@@ -594,6 +664,7 @@ fn render_fragment_bond_annotations(
             &query,
             false,
             font_size,
+            stroke_width,
             font_family,
             fill,
             object_id,
@@ -610,24 +681,35 @@ fn push_bond_annotation_text(
     text: &str,
     italic: bool,
     font_size: f64,
+    stroke_width: f64,
     font_family: Option<String>,
     fill: &str,
     object_id: Option<String>,
 ) {
     let width = annotation_text_width(text, font_size);
-    let height = font_size * 1.061_333_333;
-    let horizontal_gap = font_size * 0.29;
-    let vertical_gap = font_size * if side > 0.0 { 0.29 } else { 0.11 };
-    let center = Point::new(
-        midpoint.x + side * normal.x * (width * 0.5 + horizontal_gap),
-        midpoint.y + side * normal.y * (height * 0.5 + vertical_gap),
-    );
-    let top = center.y - height * 0.5;
+    let half_stroke = stroke_width * 0.5;
+    let horizontal_gap = font_size * 0.25 + half_stroke;
+    let metrics = chemdraw_bond_annotation_vertical_metrics(font_family.as_deref());
+    let baseline_bias = font_size
+        * if italic {
+            metrics.italic_baseline_bias
+        } else {
+            metrics.normal_baseline_bias
+        };
+    let normal_distance = font_size * metrics.normal_distance + half_stroke * normal.y.abs();
+    let center_x = midpoint.x + side * normal.x * (width * 0.5 + horizontal_gap);
+    let baseline_y = midpoint.y + baseline_bias + side * normal.y * normal_distance;
+    let baseline_offset = font_size
+        * if italic {
+            metrics.italic_top_to_baseline
+        } else {
+            metrics.normal_top_to_baseline
+        };
     push_text_for_node(
         out,
-        center.x,
-        top,
-        Some(font_size * 0.82),
+        center_x,
+        baseline_y,
+        Some(baseline_offset),
         String::new(),
         font_size,
         font_family.clone(),
@@ -650,6 +732,61 @@ fn push_bond_annotation_text(
     );
 }
 
+#[derive(Clone, Copy)]
+struct BondAnnotationVerticalMetrics {
+    normal_baseline_bias: f64,
+    italic_baseline_bias: f64,
+    normal_distance: f64,
+    normal_top_to_baseline: f64,
+    italic_top_to_baseline: f64,
+}
+
+fn chemdraw_bond_annotation_vertical_metrics(
+    font_family: Option<&str>,
+) -> BondAnnotationVerticalMetrics {
+    let metrics = |normal_baseline_bias,
+                   italic_baseline_bias,
+                   normal_distance,
+                   normal_top_to_baseline,
+                   italic_top_to_baseline| BondAnnotationVerticalMetrics {
+        normal_baseline_bias,
+        italic_baseline_bias,
+        normal_distance,
+        normal_top_to_baseline,
+        italic_top_to_baseline,
+    };
+    match font_family
+        .unwrap_or("Arial")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        // ChemDraw 21 GDI text boxes measured by
+        // scripts/chemdraw-bond-query-reaction-probe.mjs. These are
+        // font-family metrics: size and MarginWidth do not change the ratio.
+        "arial" | "helvetica" | "tex gyre heros" => metrics(0.408, 0.408, 0.690_667, 0.848, 0.848),
+        "arial narrow" => metrics(0.410_667, 0.410_667, 0.686_667, 0.848, 0.848),
+        "arial black" => metrics(0.450_667, 0.450_667, 0.646_667, 0.846_667, 0.846_667),
+        "times new roman" => metrics(0.378_667, 0.378_667, 0.68, 0.808, 0.808),
+        "georgia" => metrics(0.434_667, 0.434_667, 0.686_667, 0.872, 0.872),
+        "cambria" => metrics(0.376, 0.376, 0.689_333, 0.817_333, 0.817_333),
+        "calibri" => metrics(0.422_667, 0.392, 0.666, 0.841_333, 0.809_333),
+        "courier new" => metrics(0.38, 0.302_667, 0.664, 0.793_333, 0.716),
+        "consolas" => metrics(0.377_333, 0.424, 0.673_333, 0.801_333, 0.848),
+        "verdana" | "tahoma" => metrics(0.44, 0.44, 0.697_333, 0.886_667, 0.886_667),
+        "trebuchet ms" => metrics(0.430_667, 0.422_667, 0.666, 0.848, 0.841_333),
+        "symbol" => metrics(0.369_333, 0.369_333, 0.690_667, 0.809_333, 0.809_333),
+        "segoe ui symbol" => metrics(0.409_333, 0.393_333, 0.673_333, 0.833_333, 0.817_333),
+        "simsun" => metrics(0.429_333, 0.461_333, 0.73, 0.910_667, 0.941_333),
+        "noto sans sc" => metrics(0.518_667, 0.549_333, 0.656, 0.926_667, 0.957_333),
+        "noto serif sc" => metrics(0.496, 0.549_333, 0.656_667, 0.902_667, 0.957_333),
+        // Imported families outside ChemSema's supported font menu follow
+        // ChemDraw's default ANSI sans baseline class. The original family is
+        // still retained in CCJS/CDXML; this branch defines synthesis only.
+        _ => metrics(0.408, 0.408, 0.690_667, 0.848, 0.848),
+    }
+}
+
 fn render_fragment_nmr_assignments(
     out: &mut Vec<RenderPrimitive>,
     document: &ChemSemaDocument,
@@ -666,6 +803,53 @@ fn render_fragment_nmr_assignments(
         annotation_node.nmr_assignments.clear();
         render_fragment_label(out, document, object, &annotation_node, object_id.clone());
     }
+}
+
+fn isotope_mass_is_encoded_by_authored_label(node: &Node) -> bool {
+    let Some(isotope_mass) = node.atom_properties.isotope_mass else {
+        return false;
+    };
+    let authored_text = node
+        .label
+        .as_ref()
+        .filter(|label| label.has_visible_text())
+        .map(|label| {
+            label
+                .source_text
+                .as_deref()
+                .filter(|text| !text.trim().is_empty())
+                .unwrap_or(&label.text)
+                .chars()
+                .filter(|character| !character.is_whitespace())
+                .collect::<String>()
+        });
+    let Some(authored_text) = authored_text else {
+        return false;
+    };
+    if node.atomic_number == 1
+        && matches!((isotope_mass, authored_text.as_str()), (2, "D") | (3, "T"))
+    {
+        return true;
+    }
+    let Some(after_mass) = authored_text.strip_prefix(&isotope_mass.to_string()) else {
+        return false;
+    };
+    let mut element = String::new();
+    let mut characters = after_mass.chars();
+    let Some(first) = characters
+        .next()
+        .filter(|character| character.is_ascii_uppercase())
+    else {
+        return false;
+    };
+    element.push(first);
+    if let Some(second) = characters
+        .next()
+        .filter(|character| character.is_ascii_lowercase())
+    {
+        element.push(second);
+    }
+    element == node.element.trim()
 }
 
 fn render_fragment_atom_properties(
@@ -749,7 +933,10 @@ fn render_fragment_atom_properties(
         };
     }
 
-    if let Some(mass) = properties.isotope_mass {
+    if let Some(mass) = properties
+        .isotope_mass
+        .filter(|_| !isotope_mass_is_encoded_by_authored_label(node))
+    {
         let annotation_top = (bounds.y1 + bounds.y2 - annotation_size) * 0.5;
         push_atom_property_text(
             out,
@@ -777,7 +964,27 @@ fn render_fragment_atom_properties(
                     .unwrap_or(0)
                     > 0
             });
-    if !has_attached_radical_symbol {
+    let automatic_label_encodes_radical = node.label.as_ref().is_some_and(|label| {
+        label
+            .meta
+            .pointer("/carbonValenceLabel/source")
+            .and_then(JsonValue::as_str)
+            == Some("cdxml-generated")
+            && match properties.radical {
+                crate::AtomRadical::None => false,
+                crate::AtomRadical::Doublet => label
+                    .source_text
+                    .as_deref()
+                    .unwrap_or(label.text.as_str())
+                    .contains('•'),
+                crate::AtomRadical::Singlet | crate::AtomRadical::Triplet => label
+                    .source_text
+                    .as_deref()
+                    .unwrap_or(label.text.as_str())
+                    .contains(':'),
+            }
+    });
+    if !has_attached_radical_symbol && !automatic_label_encodes_radical {
         let radical_text = match properties.radical {
             crate::AtomRadical::None => None,
             crate::AtomRadical::Singlet => Some("••"),
@@ -895,6 +1102,21 @@ fn has_linked_atom_annotation(document: &ChemSemaDocument, node_id: &str, roles:
             .get("attachedNodeId")
             .and_then(JsonValue::as_str)
             == Some(node_id)
+            && object
+                .meta
+                .get("role")
+                .and_then(JsonValue::as_str)
+                .is_some_and(|role| roles.contains(&role))
+    })
+}
+
+fn has_linked_bond_annotation(document: &ChemSemaDocument, bond_id: &str, roles: &[&str]) -> bool {
+    document.scene_objects().into_iter().any(|object| {
+        object
+            .meta
+            .get("attachedBondId")
+            .and_then(JsonValue::as_str)
+            == Some(bond_id)
             && object
                 .meta
                 .get("role")
@@ -1443,6 +1665,9 @@ fn render_fragment_atom_query_annotations(
     if !show_atom_query {
         return;
     }
+    if has_linked_atom_annotation(document, &node.id, &["query"]) {
+        return;
+    }
 
     let properties = &node.atom_properties;
     let mut query = String::new();
@@ -1455,6 +1680,14 @@ fn render_fragment_atom_query_annotations(
         if value != 1 {
             query.push_str(&value.to_string());
         }
+    }
+    let restrict_implicit_hydrogens = node
+        .meta
+        .pointer("/import/cdxml/restrictImplicitHydrogens")
+        .and_then(JsonValue::as_bool)
+        == Some(true);
+    if restrict_implicit_hydrogens {
+        query.push('H');
     }
     if properties.unsaturated_bonds != crate::UnsaturatedBonds::Unspecified {
         query.push('S');
@@ -1474,12 +1707,7 @@ fn render_fragment_atom_query_annotations(
     if properties.isotopic_abundance != crate::IsotopicAbundance::Unspecified {
         query.push('I');
     }
-    let restrict_implicit_hydrogens = node
-        .meta
-        .pointer("/import/cdxml/restrictImplicitHydrogens")
-        .and_then(JsonValue::as_bool)
-        == Some(true);
-    if query.is_empty() && !restrict_implicit_hydrogens {
+    if query.is_empty() {
         return;
     }
 
@@ -1512,86 +1740,104 @@ fn render_fragment_atom_query_annotations(
                 .and_then(|style| style_string(style, "fill"))
         });
     let center = world_point(object, node);
-    let bounds = label_box_world(node, object).unwrap_or(RectBox {
+    let bounds = atom_query_label_bounds(node, object, font_size).unwrap_or(RectBox {
         x1: center.x - font_size * 0.3,
         y1: center.y - font_size * 0.45,
         x2: center.x + font_size * 0.3,
         y2: center.y + font_size * 0.45,
     });
-    if restrict_implicit_hydrogens {
-        push_text_for_node(
-            out,
-            center.x + font_size * 0.17,
-            bounds.y1 - font_size * 0.07,
-            Some(font_size * 0.82),
-            String::new(),
-            font_size,
-            font_family.clone(),
-            fill.clone(),
-            Some("start".to_string()),
-            vec![LabelRun {
-                text: "H".to_string(),
-                font_family: font_family.clone(),
-                font_size: Some(font_size),
-                fill: fill.clone(),
-                font_weight: Some(400),
-                font_style: Some("normal".to_string()),
-                underline: Some(false),
-                outline: Some(false),
-                shadow: Some(false),
-                script: Some("normal".to_string()),
-            }],
-            object_id.clone(),
-            Some(node.id.clone()),
-        );
-    }
-    if query.is_empty() {
-        return;
-    }
     let direction = query_connection_direction(fragment, node);
-    let horizontal = direction.x.abs() >= direction.y.abs();
     let left_annotation_width = properties
         .isotope_mass
+        .filter(|_| !isotope_mass_is_encoded_by_authored_label(node))
         .map(|mass| annotation_text_width(&mass.to_string(), query_size))
         .unwrap_or(0.0);
-    let (x, y, anchor) = if horizontal && direction.x >= 0.0 {
-        (
-            bounds.x1 - font_size * 0.1875 - left_annotation_width,
-            (bounds.y1 + bounds.y2 - query_size) * 0.5,
-            "end",
-        )
-    } else if horizontal {
-        (
-            bounds.x2 + font_size * 0.1875,
-            (bounds.y1 + bounds.y2 - query_size) * 0.5,
-            "start",
-        )
-    } else if direction.y < 0.0 {
-        (
-            (bounds.x1 + bounds.x2) * 0.5,
-            bounds.y2 + query_size * 0.15,
-            "middle",
-        )
-    } else {
-        (
-            (bounds.x1 + bounds.x2) * 0.5,
-            bounds.y1 - query_size * 1.05,
-            "middle",
-        )
-    };
+    let obstacle_x1 = bounds.x1 - left_annotation_width;
+    let obstacle_center_x = (obstacle_x1 + bounds.x2) * 0.5;
+    let obstacle_center_y = (bounds.y1 + bounds.y2) * 0.5;
+    let obstacle_half_width = (bounds.x2 - obstacle_x1) * 0.5;
+    let obstacle_half_height = (bounds.y2 - bounds.y1) * 0.5;
+    let query_metrics = atom_query_text_metrics(&query, query_size);
+    let query_half_width = query_metrics.width * 0.5;
+    let query_half_height = (query_metrics.bottom - query_metrics.top) * 0.5;
+    let gap = atom_query_annotation_gap(document);
+    let query_center_x =
+        obstacle_center_x - direction.x * (obstacle_half_width + gap + query_half_width);
+    let query_center_y =
+        obstacle_center_y - direction.y * (obstacle_half_height + gap + query_half_height);
+    let baseline_y = query_center_y - (query_metrics.top + query_metrics.bottom) * 0.5;
     push_atom_query_text(
         out,
         document,
-        x,
-        y,
+        query_center_x,
+        baseline_y,
         &query,
         query_size,
         font_family,
         fill.as_deref().unwrap_or("#000000"),
-        anchor,
+        "middle",
         object_id,
         &node.id,
     );
+}
+
+fn atom_query_label_bounds(node: &Node, object: &SceneObject, font_size: f64) -> Option<RectBox> {
+    let layout_bounds = label_box_world(node, object);
+    if let Some((x1, y1, x2, y2)) = polygon_list_bounds(&label_polygons_world(node, object)) {
+        return Some(RectBox {
+            x1: layout_bounds.map_or(x1, |bounds| bounds.x1),
+            y1: y1 - font_size * 0.09,
+            x2: layout_bounds.map_or(x2, |bounds| bounds.x2),
+            y2,
+        });
+    }
+    layout_bounds
+}
+
+fn atom_query_annotation_gap(document: &ChemSemaDocument) -> f64 {
+    let margin_width = document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/marginWidth")
+        .and_then(JsonValue::as_f64)
+        .or_else(|| document.style.defaults.get("marginWidth").copied())
+        .unwrap_or(crate::DEFAULT_BOND_MARGIN_WIDTH_PT.value());
+    let line_width = document
+        .document
+        .meta
+        .pointer("/import/cdxml/defaults/lineWidth")
+        .and_then(JsonValue::as_f64)
+        .or_else(|| document.style.defaults.get("lineWidth").copied())
+        .unwrap_or(DEFAULT_BOND_STROKE);
+    margin_width + line_width * 0.5
+}
+
+#[derive(Debug, Clone, Copy)]
+struct AtomQueryTextMetrics {
+    width: f64,
+    top: f64,
+    bottom: f64,
+}
+
+fn atom_query_text_metrics(text: &str, query_size: f64) -> AtomQueryTextMetrics {
+    let (width, has_symbol_star) = if let Some(rest) = text.strip_prefix('*') {
+        let star_size = query_size + 0.8;
+        (
+            star_size * 0.5 + annotation_text_width(rest, query_size),
+            true,
+        )
+    } else {
+        (annotation_text_width(text, query_size), false)
+    };
+    AtomQueryTextMetrics {
+        width,
+        top: -query_size * if has_symbol_star { 0.848 } else { 0.832 },
+        bottom: if has_symbol_star {
+            query_size * 0.013
+        } else {
+            0.0
+        },
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1609,10 +1855,9 @@ fn push_atom_query_text(
     node_id: &str,
 ) {
     let mut runs = Vec::new();
-    let mut width = 0.0;
+    let metrics = atom_query_text_metrics(text, query_size);
     if let Some(rest) = text.strip_prefix('*') {
         let star_size = query_size + 0.8;
-        width += annotation_text_width("*", star_size);
         runs.push(LabelRun {
             text: "*".to_string(),
             font_family: Some("Symbol".to_string()),
@@ -1626,7 +1871,6 @@ fn push_atom_query_text(
             script: Some("normal".to_string()),
         });
         if !rest.is_empty() {
-            width += annotation_text_width(rest, query_size);
             runs.push(LabelRun {
                 text: rest.to_string(),
                 font_family: font_family.clone(),
@@ -1641,7 +1885,6 @@ fn push_atom_query_text(
             });
         }
     } else {
-        width = annotation_text_width(text, query_size);
         runs.push(LabelRun {
             text: text.to_string(),
             font_family: font_family.clone(),
@@ -1656,8 +1899,8 @@ fn push_atom_query_text(
         });
     }
     let left = match anchor {
-        "end" => x - width,
-        "middle" => x - width * 0.5,
+        "end" => x - metrics.width,
+        "middle" => x - metrics.width * 0.5,
         _ => x,
     };
     out.push(RenderPrimitive::Rect {
@@ -1665,9 +1908,9 @@ fn push_atom_query_text(
         object_id: object_id.clone(),
         node_id: Some(node_id.to_string()),
         x: left - 0.35,
-        y: y - query_size * 0.18,
-        width: width + 0.7,
-        height: query_size + 1.15,
+        y: y + metrics.top - 0.35,
+        width: metrics.width + 0.7,
+        height: metrics.bottom - metrics.top + 0.7,
         fill: Some(document.document.page.background.clone()),
         stroke: None,
         stroke_width: 0.0,
@@ -1859,8 +2102,18 @@ fn bond_world_segment(
     node_map: &BTreeMap<&str, &Node>,
     bond: &Bond,
 ) -> Option<(Point, Point)> {
-    let begin = world_point(object, node_map.get(bond.begin.as_str()).copied()?);
-    let end = world_point(object, node_map.get(bond.end.as_str()).copied()?);
+    let begin = bond_endpoint_world(
+        object,
+        node_map.get(bond.begin.as_str()).copied()?,
+        bond,
+        "begin",
+    );
+    let end = bond_endpoint_world(
+        object,
+        node_map.get(bond.end.as_str()).copied()?,
+        bond,
+        "end",
+    );
     Some((begin, end))
 }
 
@@ -2004,11 +2257,25 @@ pub(super) fn render_fragment_label(
         .filter(|value| value.is_finite() && *value > 0.0)
         .unwrap_or_else(|| crate::molecule_label_line_advance(font_size));
     if lines.len() == 1 {
+        // Fresh CDX/CDXML imports preserve the authored text rectangle. Its
+        // left edge is the SVG origin; the active box may extend farther for
+        // glyph retreat and knockout. Once the user commits an edit, the text
+        // editor deliberately replaces the imported metadata with resolved
+        // geometry, whose active-box left edge is then authoritative.
+        let resolved_left = label_box_world(node, object).map(|box_value| box_value.x1);
+        let (render_x, render_anchor) = match (
+            imported_authored_label_left_world(label, object),
+            resolved_left,
+        ) {
+            (Some(authored_left), _) => (authored_left, "start".to_string()),
+            (None, Some(active_left)) => (active_left, "start".to_string()),
+            (None, None) => (world_position.x, text_anchor),
+        };
         let primitive = RenderPrimitive::Text {
             role: RenderRole::DocumentText,
             object_id,
             node_id: Some(node.id.clone()),
-            x: world_position.x,
+            x: render_x,
             y: world_position.y,
             baseline_offset: Some(font_size * 0.82),
             dominant_baseline: None,
@@ -2016,7 +2283,7 @@ pub(super) fn render_fragment_label(
             font_size,
             font_family,
             fill,
-            text_anchor: Some(text_anchor),
+            text_anchor: Some(render_anchor),
             line_height: Some(line_height),
             preserve_lines: false,
             box_width: None,

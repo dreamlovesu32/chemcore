@@ -1,4 +1,5 @@
 mod agent;
+mod format_tools;
 mod protocol;
 
 use chemsema_desktop_service::DesktopDocumentService;
@@ -84,6 +85,13 @@ fn run() -> CliResult<()> {
         "about" => about_command(&args[1..]).map_err(CliError::message),
         "examples" => examples_command(&args[1..]).map_err(CliError::message),
         "guide" => guide_command(&args[1..]).map_err(CliError::message),
+        "validate" => format_tools::validate_command(&args[1..]),
+        "canonicalize" => format_tools::canonicalize_command(&args[1..])
+            .map_err(|error| CliError::for_command("canonicalize", error)),
+        "migrate" => format_tools::migrate_command(&args[1..])
+            .map_err(|error| CliError::for_command("migrate", error)),
+        "conformance" => format_tools::conformance_command(&args[1..])
+            .map_err(|error| CliError::for_command("conformance", error)),
         "label-query" | "label" => label_query_command(&args[1..])
             .map_err(|error| CliError::for_command("label-query", error)),
         "insert-smiles" => insert_smiles_command(&args[1..])
@@ -2367,12 +2375,28 @@ fn import_cache_path(source_text: &str, format: &str) -> PathBuf {
 }
 
 fn import_cache_key(source_text: &str, format: &str) -> String {
+    import_cache_key_with_identity(
+        source_text,
+        format,
+        protocol::build_identity().unwrap_or("development-build"),
+        &current_exe_cache_stamp(),
+    )
+}
+
+fn import_cache_key_with_identity(
+    source_text: &str,
+    format: &str,
+    build_identity: &str,
+    executable_stamp: &str,
+) -> String {
     let mut digest = Sha256::new();
     digest.update(IMPORT_CACHE_VERSION.as_bytes());
     digest.update(b"\0");
     digest.update(env!("CARGO_PKG_VERSION").as_bytes());
     digest.update(b"\0");
-    digest.update(current_exe_cache_stamp().as_bytes());
+    digest.update(build_identity.as_bytes());
+    digest.update(b"\0");
+    digest.update(executable_stamp.as_bytes());
     digest.update(b"\0");
     digest.update(format.as_bytes());
     digest.update(b"\0");
@@ -3236,6 +3260,10 @@ mod tests {
         assert_eq!(value["ok"], true);
         assert_eq!(value["cli"], "chemsema-cli");
         assert_eq!(value["version"], env!("CARGO_PKG_VERSION"));
+        match option_env!("CHEMSEMA_BUILD_IDENTITY") {
+            Some(identity) => assert_eq!(value["buildIdentity"], identity),
+            None => assert!(value["buildIdentity"].is_null()),
+        }
         assert_eq!(value["protocol"], protocol::CLI_PROTOCOL_VERSION);
         assert_eq!(
             value["protocols"]["session"],
@@ -3381,6 +3409,14 @@ mod tests {
             import_cache_key("<CDXML><page id=\"2\" /></CDXML>", "cdxml")
         );
         assert_ne!(base_key, import_cache_key("<CDXML><page /></CDXML>", "cdx"));
+    }
+
+    #[test]
+    fn import_cache_key_changes_with_source_build_identity() {
+        let source = "<CDXML><page /></CDXML>";
+        let first = import_cache_key_with_identity(source, "cdxml", "source-a", "same-exe");
+        let second = import_cache_key_with_identity(source, "cdxml", "source-b", "same-exe");
+        assert_ne!(first, second);
     }
 
     #[test]
@@ -3631,9 +3667,9 @@ mod tests {
 
         let document: Value = serde_json::from_str(&document_json(&engine).expect("document json"))
             .expect("document value");
-        let text_x = document["objects"]
+        let text_x = document["entities"]["scene"]
             .as_array()
-            .expect("objects")
+            .expect("scene entities")
             .iter()
             .filter(|object| object["type"].as_str() == Some("text"))
             .map(|object| object["transform"]["translate"][0].as_f64().expect("x"))

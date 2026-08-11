@@ -1,3 +1,8 @@
+import {
+  pageTextAnnotations,
+  pageTrimMarkSegments,
+} from "./document_page_decorations.js";
+
 export function createDocumentLayoutHost(options) {
   const {
     root = document.body,
@@ -313,8 +318,8 @@ class DocumentLayoutDialog {
             ${selectField("orientation", "Orientation", orientation, [["portrait", "Portrait"], ["landscape", "Landscape"]])}
             ${selectField("drawingSpace", "Drawing space", data.drawingSpace, [["pages", "Pages"], ["poster", "Poster"]])}
             ${checkboxField("autoPaginate", "Automatically add pages to cover all content", data.autoPaginate)}
-            ${numberField("paperWidth", "Paper width", data.paper.width, 0.01, "pt", 1)}
-            ${numberField("paperHeight", "Paper height", data.paper.height, 0.01, "pt", 1)}
+            ${numberField("paperWidth", "Paper width", data.paper.width, "any", "pt", 1)}
+            ${numberField("paperHeight", "Paper height", data.paper.height, "any", "pt", 1)}
             ${numberField("widthPages", "Minimum pages across", data.widthPages, 1, "", 1, 256)}
             ${numberField("heightPages", "Minimum pages down", data.heightPages, 1, "", 1, 256)}
             ${nullablePairFields("pageOrigin", "Original page origin", data.pageOrigin, null)}
@@ -339,9 +344,23 @@ class DocumentLayoutDialog {
         <section class="document-layout-page" data-layout-page="view">
           <div class="document-layout-grid">
             ${numberField("magnificationPercent", "Saved magnification", data.magnificationPercent, 1, "%", 1, 999)}
-            ${textField("splitterPositions", "Splitter positions", (data.splitterPositions || []).join(" "))}
+            ${selectField("pageDefinition", "Page definition", data.pageDefinition || "undefined", [
+              ["undefined", "Undefined"],
+              ["center", "Center"],
+              ["tl4", "TL4"],
+              ["id-term", "ID term"],
+              ["flush-left", "Flush left"],
+              ["flush-right", "Flush right"],
+              ["reaction1", "Reaction 1"],
+              ["reaction2", "Reaction 2"],
+              ["multicolumn-tl4", "Multicolumn TL4"],
+              ["multicolumn-non-tl4", "Multicolumn non-TL4"],
+              ["user-defined", "User defined"],
+            ])}
+            ${textField("legacySplitterPositionIds", "Legacy splitter object IDs", (data.legacySplitterPositionIds || []).join(" "))}
+            ${textareaField("splitters", "Splitter objects", JSON.stringify(data.splitters || [], null, 2), 8)}
           </div>
-          <p class="document-layout-hint">View settings are saved with the document but do not change printed or exported geometry.</p>
+          <p class="document-layout-hint">A splitter is an official logical page object with an optional point and page definition. Legacy SplitterPositions values are object IDs, not coordinates.</p>
         </section>
         <section class="document-layout-page" data-layout-page="embedding">
           <div class="document-layout-grid">
@@ -409,7 +428,14 @@ class DocumentLayoutDialog {
       next.footer = valueOf(this.backdrop, "footer");
       next.footerPosition = numberOf(this.backdrop, "footerPosition");
       next.magnificationPercent = numberOf(this.backdrop, "magnificationPercent");
-      next.splitterPositions = numericList(valueOf(this.backdrop, "splitterPositions"));
+      next.pageDefinition = valueOf(this.backdrop, "pageDefinition");
+      next.legacySplitterPositionIds = stringList(valueOf(this.backdrop, "legacySplitterPositionIds"));
+      try {
+        next.splitters = JSON.parse(valueOf(this.backdrop, "splitters") || "[]");
+      } catch {
+        this.backdrop.querySelector("[data-layout-error]").textContent = "Splitter objects must contain valid structured data.";
+        return;
+      }
       next.fixInPlaceExtent = nullablePair(this.backdrop, "fixInPlaceExtent");
       next.fixInPlaceGap = nullablePair(this.backdrop, "fixInPlaceGap");
       const error = validateLayout(next);
@@ -518,62 +544,35 @@ function resolvePaginationAxis(contentMin, contentMax, anchorOrigin, minimumPage
   };
 }
 function appendHeaderFooter(layer, makeSvgNode, context) {
-  const { documentData, layout, x, y, width, height, pageNumber } = context;
-  const dynamic = {
-    f: documentData?.document?.title || "Untitled",
-    p: String(pageNumber),
-    d: new Intl.DateTimeFormat(undefined, { dateStyle: "short" }).format(new Date()),
-    t: new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date()),
-  };
-  for (const [text, baseline] of [
-    [layout.header, y + Number(layout.headerPosition || 0)],
-    [layout.footer, y + height - Number(layout.footerPosition || 0)],
-  ]) {
-    if (!text) continue;
-    const sections = headerFooterSections(text, dynamic);
-    for (const [anchor, value, position] of [
-      ["start", sections.left, x + 6],
-      ["middle", sections.center, x + width / 2],
-      ["end", sections.right, x + width - 6],
-    ]) {
-      if (!value) continue;
-      const node = makeSvgNode("text", {
-        x: position,
-        y: baseline,
-        fill: "#4d535b",
-        "font-family": "Arial, sans-serif",
-        "font-size": 9,
-        "text-anchor": anchor,
-      });
-      node.textContent = value;
-      layer.appendChild(node);
-    }
+  for (const annotation of pageTextAnnotations(
+    context.documentData,
+    context.layout,
+    context,
+  )) {
+    const node = makeSvgNode("text", {
+      x: annotation.x,
+      y: annotation.y,
+      fill: "#4d535b",
+      "font-family": "Arial, sans-serif",
+      "font-size": 9,
+      "text-anchor": annotation.anchor,
+      "data-page-annotation": annotation.role,
+      "data-page-number": annotation.pageNumber,
+    });
+    node.textContent = annotation.text;
+    layer.appendChild(node);
   }
-}
-function headerFooterSections(source, dynamic) {
-  const sections = { left: "", center: "", right: "" };
-  let target = "left";
-  const chunks = String(source).split(/(&[lcr])/i);
-  for (const chunk of chunks) {
-    if (/^&[lcr]$/i.test(chunk)) {
-      target = { l: "left", c: "center", r: "right" }[chunk[1].toLowerCase()];
-    } else {
-      sections[target] += chunk.replace(/&([fpdt])/gi, (_, token) => dynamic[token.toLowerCase()] || "");
-    }
-  }
-  return sections;
 }
 function appendTrimMarks(layer, makeSvgNode, x, y, width, height) {
-  const length = 9;
-  const gap = 3;
-  for (const [x1, y1, x2, y2] of [
-    [x - gap - length, y, x - gap, y], [x, y - gap - length, x, y - gap],
-    [x + width + gap, y, x + width + gap + length, y], [x + width, y - gap - length, x + width, y - gap],
-    [x - gap - length, y + height, x - gap, y + height], [x, y + height + gap, x, y + height + gap + length],
-    [x + width + gap, y + height, x + width + gap + length, y + height], [x + width, y + height + gap, x + width, y + height + gap + length],
-  ]) {
+  for (const [x1, y1, x2, y2] of pageTrimMarkSegments(x, y, width, height)) {
     layer.appendChild(makeSvgNode("line", {
-      x1, y1, x2, y2, stroke: "#60666e", "stroke-width": 0.55,
+      x1,
+      y1,
+      x2,
+      y2,
+      stroke: "#60666e",
+      "stroke-width": 0.55,
+      "data-page-trim-mark": "true",
     }));
   }
 }
@@ -596,7 +595,17 @@ function validateLayout(layout) {
   for (const [label, pair] of [["In-place extent", layout.fixInPlaceExtent], ["In-place gap", layout.fixInPlaceGap]]) {
     if (pair?.some((value) => !Number.isFinite(value) || value < 0)) return `${label} requires two non-negative coordinates.`;
   }
-  if ((layout.splitterPositions || []).some((value) => !Number.isFinite(value) || value < 0)) return "Splitter positions must be non-negative numbers.";
+  const definitions = new Set(["undefined", "center", "tl4", "id-term", "flush-left", "flush-right", "reaction1", "reaction2", "multicolumn-tl4", "multicolumn-non-tl4", "user-defined"]);
+  if (!definitions.has(layout.pageDefinition)) return "Page definition is not supported.";
+  if (!Array.isArray(layout.legacySplitterPositionIds) || layout.legacySplitterPositionIds.some((id) => typeof id !== "string" || !id.trim())) return "Legacy splitter object IDs must be non-empty strings.";
+  if (!Array.isArray(layout.splitters)) return "Splitter objects must be a list.";
+  const splitterIds = new Set();
+  for (const splitter of layout.splitters) {
+    if (!splitter || typeof splitter.id !== "string" || !splitter.id.trim() || splitterIds.has(splitter.id)) return "Splitter IDs must be non-empty and unique.";
+    splitterIds.add(splitter.id);
+    if (splitter.position != null && (!Array.isArray(splitter.position) || splitter.position.length !== 2 || splitter.position.some((value) => !Number.isFinite(value)))) return `Splitter '${splitter.id}' requires exactly two finite position coordinates.`;
+    if (!definitions.has(splitter.pageDefinition || "undefined")) return `Splitter '${splitter.id}' has an unsupported page definition.`;
+  }
   return "";
 }
 function tabButton(key, label, active = false) {
@@ -609,6 +618,9 @@ function numberField(name, label, value, step, unit = "", minimum = null, maximu
 }
 function textField(name, label, value) {
   return `<label class="numeric-dialog-field document-layout-wide-field"><span>${escapeHtml(label)}</span><input name="${name}" type="text" value="${escapeHtml(value)}"><em></em></label>`;
+}
+function textareaField(name, label, value, rows = 5) {
+  return `<label class="numeric-dialog-field document-layout-wide-field"><span>${escapeHtml(label)}</span><textarea name="${name}" rows="${rows}">${escapeHtml(value)}</textarea><em></em></label>`;
 }
 function checkboxField(name, label, value) {
   return `<label class="document-layout-checkbox"><input name="${name}" type="checkbox"${value ? " checked" : ""}><span>${escapeHtml(label)}</span></label>`;
@@ -626,9 +638,9 @@ function nullablePair(root, name) {
   if (!x || !y) return [Number.NaN, Number.NaN];
   return [Number(x), Number(y)];
 }
-function numericList(value) {
+function stringList(value) {
   if (!String(value).trim()) return [];
-  return String(value).split(/[\s,;]+/).filter(Boolean).map(Number);
+  return String(value).split(/[\s,;]+/).filter(Boolean).map((entry) => entry.trim());
 }
 function valueOf(root, name) {
   return String(root.querySelector(`[name="${CSS.escape(name)}"]`)?.value ?? "");

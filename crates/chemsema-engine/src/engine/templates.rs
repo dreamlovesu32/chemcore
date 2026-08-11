@@ -1730,6 +1730,7 @@ fn insert_ring_bond(
         label_clip_margin: None,
         hash_spacing: Some(engine.options.hash_spacing_world_pt().value()),
         bond_spacing: Some(engine.options.bond_spacing_percent()),
+        bond_spacing_absolute: None,
         margin_width: Some(engine.options.margin_width_world_pt().value()),
         line_styles,
         line_weights,

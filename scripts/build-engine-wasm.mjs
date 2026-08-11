@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
+const wasmPackToolchain = JSON.parse(
+  readFileSync(join(rootDir, "tools", "wasm-pack.json"), "utf8"),
+);
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -44,11 +47,39 @@ function wasmBuildEnv() {
   };
 }
 
+function assertWasmPackVersion() {
+  const result = spawnSync("wasm-pack", ["--version"], {
+    cwd: rootDir,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.error) {
+    console.error(
+      `wasm-pack ${wasmPackToolchain.version} is required; install the pinned version declared in tools/wasm-pack.json.`,
+    );
+    process.exit(1);
+  }
+  if (result.status !== 0) {
+    process.stdout.write(result.stdout || "");
+    process.stderr.write(result.stderr || "");
+    process.exit(result.status ?? 1);
+  }
+  const match = /^wasm-pack\s+(\S+)\s*$/.exec(result.stdout.trim());
+  const actual = match?.[1] || "unknown";
+  if (actual !== wasmPackToolchain.version) {
+    console.error(
+      `wasm-pack ${wasmPackToolchain.version} is required by tools/wasm-pack.json; found ${actual}.`,
+    );
+    process.exit(1);
+  }
+}
+
 function normalizeGeneratedText(filePath) {
   const content = readFileSync(filePath, "utf8").replace(/\r\n/g, "\n");
   writeFileSync(filePath, content.endsWith("\n") ? content : `${content}\n`);
 }
 
+assertWasmPackVersion();
 run("wasm-pack", [
   "build",
   "--target",

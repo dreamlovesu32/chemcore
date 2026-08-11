@@ -8,6 +8,12 @@ import {
   buildFeatureIndex,
   selectAffectedCases,
 } from "./public-cdxml-impact.mjs";
+import {
+  CACHE_IDENTITY,
+  CASE_METRICS_SCHEMA,
+  REPORT_SCHEMA,
+} from "./public-cdxml-visual-gate.mjs";
+import { defaultPublicCdxmlCliRelativePath } from "./public-cdxml-provenance.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -19,7 +25,7 @@ function parseArgs(argv) {
     impactMap: "benchmarks/public-cdxml/visual-impact-map.json",
     featureIndex: "tmp/public-cdxml-feature-index.json",
     plan: "tmp/public-cdxml-affected-gate-plan.json",
-    cli: process.platform === "win32" ? "target/debug/chemsema-cli.exe" : "target/debug/chemsema-cli",
+    cli: defaultPublicCdxmlCliRelativePath(),
     jobs: 8,
     extras: [],
   };
@@ -74,6 +80,23 @@ async function run(command) {
   });
 }
 
+export function baselineScopeErrors(selectedCases, baseline) {
+  if (!Array.isArray(baseline?.cases)) {
+    return ["baseline report has no cases array"];
+  }
+  const baselinePaths = new Set(
+    baseline.cases.map((entry) => entry.relativeCdxml).filter(Boolean),
+  );
+  const missing = selectedCases
+    .map((entry) => entry.relativeCdxml)
+    .filter((relativeCdxml) => !baselinePaths.has(relativeCdxml));
+  return missing.length === 0
+    ? []
+    : [
+      `baseline report is missing ${missing.length} selected case(s); first: ${missing[0]}`,
+    ];
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -124,6 +147,7 @@ async function main() {
     "--report", roundtripReportPath,
     "--out", gallery,
     "--cli", cli,
+    "--jobs", String(options.jobs),
     ...onlyArgs,
   ];
   const gateCommand = [
@@ -133,6 +157,7 @@ async function main() {
     "--baseline-report", baselineReport,
     "--out", outputReport,
     "--passed-gallery", passedGallery,
+    "--jobs", String(options.jobs),
   ];
   const plan = {
     schema: AFFECTED_PLAN_SCHEMA,
@@ -175,10 +200,23 @@ async function main() {
   if (options.dryRun) return;
 
   const baseline = JSON.parse(await fs.readFile(baselineReport, "utf8"));
-  const unstamped = baseline.cacheIdentity !== "chemsema-public-cdxml-visual-gate-cache-v2"
+  const unstamped = baseline.schema !== REPORT_SCHEMA
+    || baseline.caseMetricsSchema !== CASE_METRICS_SCHEMA
+    || baseline.cacheIdentity !== CACHE_IDENTITY
     || baseline.cases.some((entry) => !entry.artifactHashes);
   if (unstamped) {
-    throw new Error(`Baseline report is not cache-stamped. Run: node scripts/public-cdxml-visual-gate.mjs --gallery "${gallery}" --stamp-report "${baselineReport}"`);
+    throw new Error(
+      `Baseline report does not use the current complete gate schema. Re-run: `
+      + `node scripts/public-cdxml-visual-gate.mjs --gallery "${gallery}" `
+      + `--out "${baselineReport}"`,
+    );
+  }
+  const scopeErrors = baselineScopeErrors(selection.selected, baseline);
+  if (scopeErrors.length > 0) {
+    throw new Error(
+      `Baseline report cannot cover the affected plan: ${scopeErrors.join("; ")}. `
+      + "Generate a baseline with the same case scope before rendering.",
+    );
   }
   await run(renderCommand);
   await run(gateCommand);

@@ -6,15 +6,15 @@
   "platforms": {
     "win-x64": {
       "path": "bin/win-x64/chemsema-cli.exe",
-      "size": 21621248,
-      "sha256": "E5DF9EB82E458FD4E164BAC9744F0E07D550CA3880398BAFA87160432B3F162C",
+      "size": 28532224,
+      "sha256": "1952A7426A0914D1E25AA72B3E6E98EAA185CAEB98D0D01FC8E3A38028F1B73B",
       "signed": false,
       "signature": "unsigned"
     },
     "linux-x64": {
       "path": "bin/linux-x64/chemsema-cli",
-      "size": 11910520,
-      "sha256": "312F826B2294FFC0749265D1EA56BB880F7C8BE6B27F789760D508872E05B9D7",
+      "size": 28643440,
+      "sha256": "EADA20A6A745F40CD1C9558A9452EDF416B277E65DCF7DA3EDB4A81E0BEE92E8",
       "signed": false,
       "signature": "unsigned"
     }

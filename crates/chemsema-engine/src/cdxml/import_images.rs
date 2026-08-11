@@ -35,28 +35,23 @@ pub(in crate::cdxml) fn append_embedded_image_objects(
             }
             Some((attribute, mime_type, bytes, pixel_width, pixel_height))
         });
-        let opaque = raster
-            .is_none()
-            .then(|| {
-                [
-                    "TIFF",
-                    "EnhancedMetafile",
-                    "CompressedEnhancedMetafile",
-                    "WindowsMetafile",
-                    "CompressedWindowsMetafile",
-                    "OLEObject",
-                    "CompressedOLEObject",
-                    "PDF",
-                    "MacPICT",
-                ]
-                .into_iter()
-                .find_map(|attribute| {
-                    crate::decode_hex_bytes(node.attr(attribute)?)
-                        .filter(|bytes| !bytes.is_empty())
-                        .map(|bytes| (attribute, bytes))
-                })
-            })
-            .flatten();
+        let opaque = [
+            "TIFF",
+            "EnhancedMetafile",
+            "CompressedEnhancedMetafile",
+            "WindowsMetafile",
+            "CompressedWindowsMetafile",
+            "OLEObject",
+            "CompressedOLEObject",
+            "PDF",
+            "MacPICT",
+        ]
+        .into_iter()
+        .find_map(|attribute| {
+            decode_embedded_payload(attribute, node.attr(attribute)?)
+                .filter(|bytes| !bytes.is_empty())
+                .map(|bytes| (attribute, bytes))
+        });
         if raster.is_none() && opaque.is_none() {
             continue;
         }
@@ -65,33 +60,66 @@ pub(in crate::cdxml) fn append_embedded_image_objects(
         if width <= crate::EPSILON || height <= crate::EPSILON {
             continue;
         }
-        let attribute = raster
+        let attribute = opaque
             .as_ref()
-            .map(|(attribute, _, _, _, _)| *attribute)
-            .or_else(|| opaque.as_ref().map(|(attribute, _)| *attribute))
+            .map(|(attribute, _)| *attribute)
+            .or_else(|| raster.as_ref().map(|(attribute, _, _, _, _)| *attribute))
             .unwrap_or("EmbeddedObject");
         let resource_id = format!("image_cdxml_{index:03}");
         let object_id = format!("obj_image_{index:03}");
-        let (resource_type, data) =
-            if let Some((_, mime_type, bytes, pixel_width, pixel_height)) = raster {
-                let image = crate::ImageResourceData {
-                    mime_type: mime_type.to_string(),
-                    data_base64: BASE64.encode(&bytes),
-                    pixel_width,
-                    pixel_height,
-                    source_name: None,
-                };
-                let Ok(data) = serde_json::to_value(image) else {
-                    continue;
-                };
-                ("image", data)
+        let (resource_type, data) = if let Some((opaque_attribute, bytes)) = opaque {
+            let declared_uncompressed_size = uncompressed_size_attribute(opaque_attribute)
+                .and_then(|name| node.attr(name))
+                .and_then(|value| value.parse::<u64>().ok());
+            let extracted = crate::extract_embedded_preview(
+                opaque_attribute,
+                &bytes,
+                declared_uncompressed_size,
+            );
+            let imported_preview =
+                raster.map(|(_, mime_type, bytes, pixel_width, pixel_height)| {
+                    crate::ImageResourceData {
+                        mime_type: mime_type.to_string(),
+                        data_base64: BASE64.encode(&bytes),
+                        pixel_width,
+                        pixel_height,
+                        source_name: None,
+                    }
+                });
+            let preview = imported_preview.or(extracted.preview);
+            let status = if preview.is_some() {
+                crate::EmbeddedPreviewStatus::Decoded
             } else {
-                let (_, bytes) = opaque.expect("opaque embedded payload was checked above");
-                (
-                    "embedded-object",
-                    json!({ "format": attribute, "dataBase64": BASE64.encode(bytes) }),
-                )
+                extracted.status
             };
+            let embedded = crate::EmbeddedObjectResourceData {
+                schema: "chemsema.resource.embedded-object.v1".to_string(),
+                format: opaque_attribute.to_string(),
+                data_base64: BASE64.encode(bytes),
+                preview_status: status,
+                preview,
+                preview_detail: extracted.detail,
+                uncompressed_size: extracted.uncompressed_size.or(declared_uncompressed_size),
+            };
+            let Ok(data) = serde_json::to_value(embedded) else {
+                continue;
+            };
+            ("embedded-object", data)
+        } else if let Some((_, mime_type, bytes, pixel_width, pixel_height)) = raster {
+            let image = crate::ImageResourceData {
+                mime_type: mime_type.to_string(),
+                data_base64: BASE64.encode(&bytes),
+                pixel_width,
+                pixel_height,
+                source_name: None,
+            };
+            let Ok(data) = serde_json::to_value(image) else {
+                continue;
+            };
+            ("image", data)
+        } else {
+            continue;
+        };
         resources.insert(
             resource_id.clone(),
             Resource {
@@ -145,6 +173,30 @@ pub(in crate::cdxml) fn append_embedded_image_objects(
             children: Vec::new(),
         });
         index += 1;
+    }
+}
+
+fn uncompressed_size_attribute(format: &str) -> Option<&'static str> {
+    match format {
+        "CompressedEnhancedMetafile" => Some("UncompressedEnhancedMetafileSize"),
+        "CompressedWindowsMetafile" => Some("UncompressedWindowsMetafileSize"),
+        "CompressedOLEObject" => Some("UncompressedOLEObjectSize"),
+        _ => None,
+    }
+}
+
+fn decode_embedded_payload(format: &str, value: &str) -> Option<Vec<u8>> {
+    if matches!(
+        format,
+        "CompressedEnhancedMetafile" | "CompressedWindowsMetafile" | "CompressedOLEObject"
+    ) {
+        let compact = value
+            .bytes()
+            .filter(|byte| !byte.is_ascii_whitespace())
+            .collect::<Vec<_>>();
+        BASE64.decode(compact).ok()
+    } else {
+        crate::decode_hex_bytes(value)
     }
 }
 

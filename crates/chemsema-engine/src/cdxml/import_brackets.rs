@@ -5,6 +5,7 @@ pub(in crate::cdxml) fn append_bracket_objects(
     objects: &mut Vec<SceneObject>,
     defaults: CdxmlDefaults,
     colors: &CdxmlColorTable,
+    fonts: &BTreeMap<String, String>,
 ) {
     let mut brackets = Vec::new();
     let mut symbol_index = 1;
@@ -49,6 +50,21 @@ pub(in crate::cdxml) fn append_bracket_objects(
                 let Some(raw_bbox) = parse_ordered_bbox(node.attr("BoundingBox")) else {
                     continue;
                 };
+                if is_stereo_badge_symbol(kind) {
+                    append_stereo_badge_symbol(
+                        objects,
+                        node,
+                        kind,
+                        raw_bbox,
+                        defaults,
+                        colors,
+                        fonts,
+                        parse_f64(root.attr("CaptionSize")).unwrap_or(12.0),
+                        symbol_index,
+                    );
+                    symbol_index += 1;
+                    continue;
+                }
                 let style = crate::cdxml_symbol_style_from_line_width(defaults.line_width);
                 let metrics =
                     crate::cdxml_symbol_metrics_from_bbox(kind, raw_bbox, defaults.line_width);
@@ -75,11 +91,13 @@ pub(in crate::cdxml) fn append_bracket_objects(
                 if let Some(stroke_width) = metrics.stroke_width {
                     extra.insert("strokeWidth".to_string(), json!(stroke_width));
                 }
-                if let Some(attribute) = node
-                    .direct_children("represent")
-                    .find_map(|represent| represent.attr("attribute"))
-                {
-                    extra.insert("representAttribute".to_string(), json!(attribute));
+                if let Some(represent) = node.direct_children("represent").next() {
+                    if let Some(attribute) = represent.attr("attribute") {
+                        extra.insert("representAttribute".to_string(), json!(attribute));
+                    }
+                    if let Some(object_id) = represent.attr("object") {
+                        extra.insert("representObjectId".to_string(), json!(object_id));
+                    }
                 }
                 objects.push(SceneObject {
                     id: format!("obj_symbol_{symbol_index:03}"),
@@ -95,7 +113,11 @@ pub(in crate::cdxml) fn append_bracket_objects(
                     },
                     style_ref: None,
                     link_policy: Default::default(),
-                    meta: json!({"source": "cdxml", "graphicId": node.attr("id")}),
+                    meta: json!({
+                        "source": "cdxml",
+                        "graphicId": node.attr("id"),
+                        "graphicFingerprint": idless_graphic_fingerprint(node),
+                    }),
                     payload: ObjectPayload {
                         resource_ref: None,
                         bbox: Some([0.0, 0.0, width, height]),
@@ -191,12 +213,11 @@ pub(in crate::cdxml) fn append_bracket_objects(
         let right = &brackets[right_index];
         let lb = normalized_bbox(left.bbox);
         let rb = normalized_bbox(right.bbox);
-        let (left_bracket, right_bracket, left_bounds, right_bounds) =
-            if center_x(lb) <= center_x(rb) {
-                (left, right, lb, rb)
-            } else {
-                (right, left, rb, lb)
-            };
+        let (left_bracket, right_bracket) = if center_x(lb) <= center_x(rb) {
+            (left, right)
+        } else {
+            (right, left)
+        };
         let min_x = lb[0].min(rb[0]);
         let min_y = lb[1].min(rb[1]);
         let max_x = lb[2].max(rb[2]);
@@ -216,16 +237,12 @@ pub(in crate::cdxml) fn append_bracket_objects(
             format!("{group_id}_left"),
             "left",
             left_bracket,
-            left_bounds,
-            min_x,
             pair_width,
         );
         let right_child = cdxml_bracket_side_scene_object(
             format!("{group_id}_right"),
             "right",
             right_bracket,
-            right_bounds,
-            min_x,
             pair_width,
         );
         objects.push(SceneObject {
@@ -258,67 +275,39 @@ pub(in crate::cdxml) fn append_bracket_objects(
     }
 
     // A single CDXML bracket is a complete authored graphic, not necessarily
-    // one side of a polymer pair.  Horizontal curly braces used as scheme
-    // annotations are commonly stored as two ordered points with identical
-    // y coordinates; retain that orientation and render one rotated side.
+    // one side of a polymer pair. Curly Graphic BoundingBox points define the
+    // directed centerline of the brace at every angle. Square and round
+    // standalone annotations retain the previously verified horizontal form.
     for (index, bracket) in brackets.iter().enumerate() {
         if used[index] {
             continue;
         }
         let dx = bracket.bbox[2] - bracket.bbox[0];
         let dy = bracket.bbox[3] - bracket.bbox[1];
-        if dx.abs() <= dy.abs() || dx.abs() <= crate::EPSILON {
+        let length = dx.hypot(dy);
+        if length <= crate::EPSILON || (bracket.kind != "curly" && dx.abs() <= dy.abs()) {
             continue;
         }
-        let length = dx.abs();
-        let depth =
-            cdxml_bracket_side_width(&bracket.kind, length, length).max(bracket.stroke_width);
-        let min_x = bracket.bbox[0].min(bracket.bbox[2]);
-        let y = bracket.bbox[1];
-        let mut extra = BTreeMap::new();
-        extra.insert("kind".to_string(), json!(bracket.kind.clone()));
-        extra.insert("side".to_string(), json!("left"));
-        extra.insert("stroke".to_string(), json!(bracket.stroke.clone()));
-        extra.insert("strokeWidth".to_string(), json!(bracket.stroke_width));
-        extra.insert("lipSize".to_string(), json!(bracket.lip_size));
-        extra.insert("orientation".to_string(), json!("horizontal"));
-        objects.push(SceneObject {
-            id: format!("obj_bracket_{object_index:03}"),
-            object_type: "bracket".to_string(),
-            name: "standalone horizontal bracket".to_string(),
-            visible: true,
-            locked: false,
-            z_index: bracket.z_index,
-            transform: Transform {
-                translate: [
-                    round2(min_x + (length - depth) * 0.5),
-                    round2(y - (length - depth) * 0.5),
-                ],
-                rotate: -90.0,
-                scale: [1.0, 1.0],
-            },
-            style_ref: None,
-            link_policy: Default::default(),
-            meta: json!({
-                "source": "cdxml",
-                "graphicId": bracket.graphic_id.clone(),
-                "standalone": true,
-            }),
-            payload: ObjectPayload {
-                resource_ref: None,
-                bbox: Some([0.0, 0.0, round2(depth), round2(length)]),
-                spectrum: None,
-                geometry: None,
-                constraint: None,
-                table: None,
-                stoichiometry_grid: None,
-                gel_electrophoresis: None,
-                plasmid_map: None,
-                bio_shape: None,
-                extra,
-            },
-            children: Vec::new(),
-        });
+        let mut object = cdxml_bracket_side_scene_object(
+            format!("obj_bracket_{object_index:03}"),
+            "left",
+            bracket,
+            length,
+        );
+        let orientation = if dy.abs() <= crate::EPSILON {
+            "horizontal"
+        } else if dx.abs() <= crate::EPSILON {
+            "vertical"
+        } else {
+            "diagonal"
+        };
+        object.name = format!("standalone {orientation} bracket");
+        object.meta["standalone"] = json!(true);
+        object
+            .payload
+            .extra
+            .insert("orientation".to_string(), json!(orientation));
+        objects.push(object);
         object_index += 1;
     }
 }
@@ -327,21 +316,32 @@ pub(super) fn cdxml_bracket_side_scene_object(
     object_id: String,
     side: &str,
     bracket: &PendingCdxmlBracket,
-    bounds: [f64; 4],
-    pair_x: f64,
     pair_width: f64,
 ) -> SceneObject {
     let stroke_width = bracket.stroke_width;
-    let side_height = height_of(bounds);
+    // Graphic BoundingBox is an ordered pair of authored points, not an
+    // axis-aligned box. ChemDraw writes a left side bottom-to-top and a right
+    // side top-to-bottom. Preserve those authoritative endpoints at source
+    // precision, then derive every local component from the same pair. Rounding
+    // length, angle, depth, and translation independently creates 0.01 pt
+    // threshold drift and cannot represent rotated endpoints exactly.
+    let first = crate::Point::new(bracket.bbox[0], bracket.bbox[1]);
+    let second = crate::Point::new(bracket.bbox[2], bracket.bbox[3]);
+    let (top, bottom) = if side == "right" {
+        (first, second)
+    } else {
+        (second, first)
+    };
+    let side_height = top.distance(bottom);
     let side_width = cdxml_bracket_side_width(&bracket.kind, pair_width, side_height)
         .max(stroke_width)
-        .max(bounds[2] - bounds[0]);
-    let translate_x = match side {
-        "right" if bracket.kind == "round" => pair_x + pair_width,
-        "right" => pair_x + pair_width - side_width,
-        "left" if bracket.kind == "round" => pair_x - side_width,
-        _ => pair_x,
-    };
+        .max(0.0);
+    let rotate = crate::angle_between(top, bottom) - 90.0;
+    let anchor_x = cdxml_bracket_side_anchor_x(&bracket.kind, side, side_width);
+    let local_center = crate::Point::new(side_width * 0.5, side_height * 0.5);
+    let rotated_top =
+        crate::rotate_point_around(crate::Point::new(anchor_x, 0.0), local_center, rotate);
+    let translate = crate::Point::new(top.x - rotated_top.x, top.y - rotated_top.y);
     let mut extra = BTreeMap::new();
     extra.insert("kind".to_string(), json!(bracket.kind.clone()));
     extra.insert("side".to_string(), json!(side));
@@ -356,8 +356,8 @@ pub(super) fn cdxml_bracket_side_scene_object(
         locked: false,
         z_index: bracket.z_index,
         transform: Transform {
-            translate: [round2(translate_x), round2(bounds[1])],
-            rotate: 0.0,
+            translate: [translate.x, translate.y],
+            rotate,
             scale: [1.0, 1.0],
         },
         style_ref: None,
@@ -369,7 +369,7 @@ pub(super) fn cdxml_bracket_side_scene_object(
         }),
         payload: ObjectPayload {
             resource_ref: None,
-            bbox: Some([0.0, 0.0, round2(side_width), round2(side_height)]),
+            bbox: Some([0.0, 0.0, side_width, side_height]),
             spectrum: None,
             geometry: None,
             constraint: None,
@@ -381,6 +381,16 @@ pub(super) fn cdxml_bracket_side_scene_object(
             extra,
         },
         children: Vec::new(),
+    }
+}
+
+pub(in crate::cdxml) fn cdxml_bracket_side_anchor_x(kind: &str, side: &str, width: f64) -> f64 {
+    if kind == "curly" {
+        return width * 0.5;
+    }
+    match (kind, side) {
+        ("square", "left") | ("round", "right") => 0.0,
+        _ => width,
     }
 }
 
@@ -474,6 +484,127 @@ pub(super) fn cdxml_symbol_kind(symbol_type: &str) -> Option<&'static str> {
         "Minus" => "minus",
         "RadicalAnion" => "radical-anion",
         "Electron" => "electron",
+        "Absolute" => "stereo-absolute",
+        "Relative" => "stereo-relative",
+        "Racemic" => "stereo-racemic",
         _ => return None,
     })
+}
+
+fn is_stereo_badge_symbol(kind: &str) -> bool {
+    matches!(
+        kind,
+        "stereo-absolute" | "stereo-relative" | "stereo-racemic"
+    )
+}
+
+fn idless_graphic_fingerprint(node: &XmlNode) -> Option<String> {
+    node.attr("id").is_none().then(|| {
+        format!(
+            "{}|{}|{}",
+            node.attr("GraphicType").unwrap_or_default(),
+            node.attr("SymbolType").unwrap_or_default(),
+            node.attr("BoundingBox").unwrap_or_default(),
+        )
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_stereo_badge_symbol(
+    objects: &mut Vec<SceneObject>,
+    node: &XmlNode,
+    kind: &str,
+    raw_bbox: [f64; 4],
+    defaults: CdxmlDefaults,
+    colors: &CdxmlColorTable,
+    fonts: &BTreeMap<String, String>,
+    font_size: f64,
+    symbol_index: usize,
+) {
+    let label = "Abs";
+    let font_family = fonts
+        .get(&defaults.caption_font.to_string())
+        .cloned()
+        .unwrap_or_else(|| "Arial".to_string());
+    let run = LabelRun {
+        text: label.to_string(),
+        font_family: Some(font_family.clone()),
+        font_size: Some(font_size),
+        fill: Some(colors.resolve(node.attr("color"))),
+        font_weight: Some(400),
+        font_style: Some("normal".to_string()),
+        underline: Some(false),
+        outline: Some(false),
+        shadow: Some(false),
+        script: Some("normal".to_string()),
+    };
+    let (advance, ink) = crate::shared_text_advance_and_ink_bounds(
+        label,
+        std::slice::from_ref(&run),
+        font_size,
+        Some(&font_family),
+    );
+    let line_width = parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width);
+    let width = advance + 3.75;
+    let family = font_family.to_ascii_lowercase();
+    let (ink_height, baseline_from_anchor) =
+        if family.contains("arial") || family.contains("times new roman") {
+            (font_size * 0.875, font_size * 0.447_916_667)
+        } else if family.contains("courier new") {
+            (font_size * 0.775, font_size * 0.4)
+        } else {
+            ((ink[3] - ink[1]).max(0.0), -(ink[1] + ink[3]) * 0.5)
+        };
+    let height = ink_height + 4.0;
+    let anchor = [raw_bbox[0], raw_bbox[1]];
+    let left = anchor[0] + line_width * 0.5 - 1.40625;
+    let top = anchor[1] - height * 0.5;
+    let baseline = anchor[1] + baseline_from_anchor;
+    let fill = colors.resolve(node.attr("color"));
+    let mut extra = BTreeMap::new();
+    extra.insert("kind".to_string(), json!(kind));
+    extra.insert("fill".to_string(), json!(fill));
+    extra.insert("strokeWidth".to_string(), json!(line_width));
+    extra.insert("fontFamily".to_string(), json!(font_family));
+    extra.insert("fontSize".to_string(), json!(font_size));
+    extra.insert("label".to_string(), json!(label));
+    extra.insert("baselineOffset".to_string(), json!(round2(baseline - top)));
+    extra.insert("cornerRadius".to_string(), json!(round2(line_width * 4.0)));
+    extra.insert("symbolAnchorPoint".to_string(), json!(anchor));
+    extra.insert("cdxmlBoundingBox".to_string(), json!(raw_bbox));
+    extra.insert("runs".to_string(), json!([run]));
+    objects.push(SceneObject {
+        id: format!("obj_symbol_{symbol_index:03}"),
+        object_type: "symbol".to_string(),
+        name: format!("symbol {symbol_index}"),
+        visible: true,
+        locked: false,
+        z_index: parse_i32(node.attr("Z")).unwrap_or(15),
+        transform: Transform {
+            translate: [round2(left), round2(top)],
+            rotate: 0.0,
+            scale: [1.0, 1.0],
+        },
+        style_ref: None,
+        link_policy: Default::default(),
+        meta: json!({
+            "source": "cdxml",
+            "graphicId": node.attr("id"),
+            "graphicFingerprint": idless_graphic_fingerprint(node),
+        }),
+        payload: ObjectPayload {
+            resource_ref: None,
+            bbox: Some([0.0, 0.0, round2(width), round2(height)]),
+            spectrum: None,
+            geometry: None,
+            constraint: None,
+            table: None,
+            stoichiometry_grid: None,
+            gel_electrophoresis: None,
+            plasmid_map: None,
+            bio_shape: None,
+            extra,
+        },
+        children: Vec::new(),
+    });
 }

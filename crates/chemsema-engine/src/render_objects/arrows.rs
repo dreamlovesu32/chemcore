@@ -3,6 +3,7 @@ use super::*;
 const CURVED_ARROW_SAMPLE_DEGREES: f64 = 3.0;
 const CURVED_ARROW_MIN_SAMPLE_STEPS: usize = 16;
 const CURVED_ARROW_MAX_SAMPLE_STEPS: usize = 128;
+const CHEMDRAW_SOLID_ARROW_HEAD_OUTLINE_WIDTH: f64 = 0.133_333;
 
 fn arrow_head_points(from: Point, to: Point, arrow_head: ArrowHeadGeometry) -> Vec<Point> {
     let direction = Vector::new(to.x - from.x, to.y - from.y);
@@ -270,7 +271,7 @@ fn endpoint_flag_enabled(value: &str, expected: &str) -> bool {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RenderArrowEndpointStyle {
+pub(super) enum RenderArrowEndpointStyle {
     None,
     Full,
     Left,
@@ -278,7 +279,7 @@ enum RenderArrowEndpointStyle {
 }
 
 impl RenderArrowEndpointStyle {
-    fn enabled(self) -> bool {
+    pub(super) fn enabled(self) -> bool {
         !matches!(self, Self::None)
     }
 }
@@ -1487,74 +1488,114 @@ fn render_solid_arrow_head(
 ) {
     if style == RenderArrowEndpointStyle::Full {
         if let Some(path) = solid_full_arrow_head_path(from, to, arrow_head) {
-            out.push(RenderPrimitive::FilledPath {
-                role: RenderRole::DocumentGraphic,
-                object_id,
-                node_id: None,
-                bond_id: None,
-                d: path.d,
-                points: path.points,
-                fill: fill.to_string(),
-                fill_rule: None,
-                clip_path_d: None,
-                clip_rule: None,
-                rotate: 0.0,
-                rotate_center: None,
-            });
+            push_solid_arrow_head_path(out, path, fill, object_id);
         }
         return;
     }
     if let Some(path) = solid_half_arrow_head_path(from, to, arrow_head, style, line_width) {
-        out.push(RenderPrimitive::FilledPath {
-            role: RenderRole::DocumentGraphic,
-            object_id,
-            node_id: None,
-            bond_id: None,
-            d: path.d,
-            points: path.points,
-            fill: fill.to_string(),
-            fill_rule: None,
-            clip_path_d: None,
-            clip_rule: None,
-            rotate: 0.0,
-            rotate_center: None,
-        });
+        push_solid_arrow_head_path(out, path, fill, object_id);
     }
+}
+
+fn push_solid_arrow_head_path(
+    out: &mut Vec<RenderPrimitive>,
+    path: SolidArrowHeadPath,
+    fill: &str,
+    object_id: Option<String>,
+) {
+    out.push(RenderPrimitive::FilledPath {
+        role: RenderRole::DocumentGraphic,
+        object_id: object_id.clone(),
+        node_id: None,
+        bond_id: None,
+        d: path.d.clone(),
+        points: path.points.clone(),
+        fill: fill.to_string(),
+        fill_rule: None,
+        clip_path_d: None,
+        clip_rule: None,
+        rotate: 0.0,
+        rotate_center: None,
+    });
+    push_path(
+        out,
+        path.d,
+        path.points,
+        fill,
+        CHEMDRAW_SOLID_ARROW_HEAD_OUTLINE_WIDTH,
+        Vec::new(),
+        None,
+        None,
+        RenderRole::DocumentGraphic,
+        object_id,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn render_curve_solid_arrow_head(
     out: &mut Vec<RenderPrimitive>,
-    from: Point,
-    to: Point,
+    notch: Point,
+    outward_guide: Point,
     length: f64,
     center_length: f64,
     width: f64,
-    half: bool,
+    style: RenderArrowEndpointStyle,
     line_width: f64,
     fill: &str,
     object_id: Option<String>,
 ) {
-    let geometry = ArrowHeadGeometry {
-        length,
-        center_length,
-        width,
-        ..ArrowHeadGeometry::default()
+    let Some((unit, normal, _)) = arrow_axis(notch, outward_guide) else {
+        return;
     };
-    render_solid_arrow_head(
-        out,
-        from,
-        to,
-        geometry,
-        if half {
-            RenderArrowEndpointStyle::Left
-        } else {
-            RenderArrowEndpointStyle::Full
-        },
-        line_width,
-        fill,
+    let length = length.max(0.0);
+    let center_length = center_length.max(0.0).min(length);
+    let base = notch.translated(unit.scaled(-(length - center_length)));
+    let tip = notch.translated(unit.scaled(center_length));
+    let width = width.max(0.0);
+    let points = match style {
+        RenderArrowEndpointStyle::Full => vec![
+            base.translated(normal.scaled(width)),
+            notch,
+            base.translated(normal.scaled(-width)),
+            tip,
+        ],
+        RenderArrowEndpointStyle::Left | RenderArrowEndpointStyle::Right => {
+            // Curve half-heads are straight triangles. ChemDraw offsets the
+            // line-side edge by 5/12 of the effective stroke width and keeps
+            // the opposite wing at the full ArrowheadWidth.
+            let side = if style == RenderArrowEndpointStyle::Left {
+                1.0
+            } else {
+                -1.0
+            };
+            let edge_offset = line_width.max(0.0) * crate::CURVE_HALF_ARROW_EDGE_STROKE_RATIO;
+            vec![
+                notch.translated(normal.scaled(side * edge_offset)),
+                base.translated(normal.scaled(-side * width)),
+                tip.translated(normal.scaled(side * edge_offset)),
+            ]
+        }
+        RenderArrowEndpointStyle::None => return,
+    };
+    let mut d = format!("M {},{}", points[0].x, points[0].y);
+    for point in &points[1..] {
+        d.push_str(&format!(" L {},{}", point.x, point.y));
+    }
+    d.push_str(" Z");
+    out.push(RenderPrimitive::FilledPath {
+        role: RenderRole::DocumentGraphic,
         object_id,
-    );
+        node_id: None,
+        bond_id: None,
+        d,
+        points,
+        fill: fill.to_string(),
+        fill_rule: None,
+        clip_path_d: None,
+        clip_rule: None,
+        rotate: 0.0,
+        rotate_center: None,
+    });
 }
 
 struct SolidArrowHeadPath {
@@ -2023,5 +2064,49 @@ mod tests {
             "path points: {}",
             path.points.len()
         );
+    }
+
+    #[test]
+    fn solid_arrow_heads_repeat_the_filled_path_as_chemdraws_fixed_outline() {
+        for style in [
+            RenderArrowEndpointStyle::Full,
+            RenderArrowEndpointStyle::Left,
+            RenderArrowEndpointStyle::Right,
+        ] {
+            let mut out = Vec::new();
+            render_solid_arrow_head(
+                &mut out,
+                Point::new(0.0, 0.0),
+                Point::new(100.0, 0.0),
+                ArrowHeadGeometry {
+                    length: 10.0,
+                    center_length: 8.75,
+                    width: 2.5,
+                    ..ArrowHeadGeometry::default()
+                },
+                style,
+                1.0,
+                "#123456",
+                Some("arrow".to_string()),
+            );
+            let [RenderPrimitive::FilledPath {
+                d: fill_d,
+                points: fill_points,
+                ..
+            }, RenderPrimitive::Path {
+                d: outline_d,
+                points: outline_points,
+                stroke,
+                stroke_width,
+                ..
+            }] = out.as_slice()
+            else {
+                panic!("solid {style:?} arrow head must emit fill then outline: {out:?}");
+            };
+            assert_eq!(fill_d, outline_d);
+            assert_eq!(fill_points, outline_points);
+            assert_eq!(stroke, "#123456");
+            assert!((*stroke_width - CHEMDRAW_SOLID_ARROW_HEAD_OUTLINE_WIDTH).abs() <= EPSILON);
+        }
     }
 }

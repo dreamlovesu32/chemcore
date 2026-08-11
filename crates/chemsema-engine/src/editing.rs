@@ -144,9 +144,13 @@ pub enum ArrowNoGo {
 #[serde(rename_all = "kebab-case")]
 pub enum ArrowCurve {
     #[default]
+    #[serde(alias = "270")]
     Arc270,
+    #[serde(alias = "180")]
     Arc180,
+    #[serde(alias = "120")]
     Arc120,
+    #[serde(alias = "90")]
     Arc90,
 }
 

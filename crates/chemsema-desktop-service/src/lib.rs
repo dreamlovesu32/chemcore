@@ -1,3 +1,9 @@
+#[cfg(test)]
+use chemsema_container::encode_ccjz;
+use chemsema_container::{
+    decode_ccjz, write_ccjz, write_ccjz_reusing, CcjzReader, DecodeLimits,
+    DEFAULT_SCENE_CHUNK_RECORDS,
+};
 use chemsema_engine::{
     cdx_to_cdxml, cdxml_to_cdx, parse_bond_tool_value, parse_bracket_tool_value, ArrowCurve,
     ArrowEndpointStyle, ArrowHeadSize, ArrowNoGo, ArrowVariant, BioDrawKind, BioShapeFillType,
@@ -7,13 +13,9 @@ use chemsema_engine::{
     WorldPt,
 };
 use encoding_rs::WINDOWS_1252;
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 pub type SessionId = u64;
@@ -158,6 +160,14 @@ impl DesktopDocumentService {
 
     pub fn load_document_json(&mut self, session_id: SessionId, json: &str) -> Result<(), String> {
         self.session_mut(session_id)?.load_document_json(json)
+    }
+
+    pub fn hydrate_document_json(
+        &mut self,
+        session_id: SessionId,
+        json: &str,
+    ) -> Result<usize, String> {
+        self.session_mut(session_id)?.hydrate_document_json(json)
     }
 
     pub fn load_document_cdxml(
@@ -390,7 +400,7 @@ impl DesktopDocumentService {
         line_type: &str,
         color: &str,
     ) -> Result<(), String> {
-        let bio_draw_kind = parse_bio_draw_kind(kind)?;
+        let bio_draw_kind = kind.parse::<BioDrawKind>()?;
         let bio_shape_fill_type = parse_bio_shape_fill_type(fill_type)?;
         let bio_shape_line_type = parse_bio_shape_line_type(line_type)?;
         let session = self.session_mut(session_id)?;
@@ -783,6 +793,10 @@ impl DesktopDocumentService {
         Ok(self
             .session(session_id)?
             .context_menu_json(hit_json, has_paste))
+    }
+
+    pub fn logical_objects_dialog_json(&self, session_id: SessionId) -> Result<String, String> {
+        self.session(session_id)?.logical_objects_dialog_json()
     }
 
     pub fn selection_contains_point(
@@ -1523,7 +1537,7 @@ mod tests {
         let render_list: Value =
             serde_json::from_str(&service.render_list_json(session_id).unwrap()).unwrap();
 
-        assert!(!document["objects"].as_array().unwrap().is_empty());
+        assert!(!document["entities"]["scene"].as_array().unwrap().is_empty());
         assert!(!render_list.as_array().unwrap().is_empty());
         assert!(service.can_undo(session_id).unwrap());
         assert!(service.undo(session_id).unwrap());
@@ -1697,13 +1711,20 @@ mod tests {
         assert!(service.group_selection(session_id).unwrap());
         let document: Value = serde_json::from_str(&service.document_json(session_id).unwrap())
             .expect("document json");
-        let group = document["objects"]
+        let group = document["entities"]["scene"]
             .as_array()
             .unwrap()
             .iter()
             .find(|object| object["type"] == "group")
             .expect("group object");
-        assert_eq!(group["children"].as_array().unwrap().len(), 2);
+        let group_id = group["id"].as_str().expect("group id");
+        assert_eq!(
+            document["hierarchy"]["children"][group_id]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
         assert!(service.ungroup_selection(session_id).unwrap());
     }
 
@@ -1781,7 +1802,7 @@ mod tests {
 
         let document: Value =
             serde_json::from_str(&service.document_json(session_id).unwrap()).unwrap();
-        let shape = document["objects"]
+        let shape = document["entities"]["scene"]
             .as_array()
             .unwrap()
             .iter()
@@ -1825,7 +1846,7 @@ mod tests {
         service.load_document_sdf(session_id, sdf).unwrap();
         let document: Value =
             serde_json::from_str(&service.document_json(session_id).unwrap()).unwrap();
-        assert_eq!(document["objects"][0]["type"], "molecule");
+        assert_eq!(document["entities"]["scene"][0]["type"], "molecule");
 
         let exported = service.document_sdf(session_id).unwrap();
         assert!(exported.contains("M  END"));
@@ -1856,6 +1877,30 @@ mod tests {
         let saved = saved.unwrap();
         assert_eq!(saved.file_name, file_name);
         assert!(exists);
+    }
+
+    #[test]
+    fn recovery_journal_sidecar_is_atomic_readable_and_compactable() {
+        let service = DesktopDocumentService::new();
+        let document_path = std::env::temp_dir().join(format!(
+            "chemsema-recovery-sidecar-{}-{}.ccjz",
+            std::process::id(),
+            1
+        ));
+        let journal_path = PathBuf::from(format!("{}.journal", document_path.display()));
+        let _ = fs::remove_file(&journal_path);
+
+        assert_eq!(service.read_recovery_journal(&document_path).unwrap(), None);
+        service
+            .write_recovery_journal(&document_path, "{\"sequence\":1}\n")
+            .unwrap();
+        assert_eq!(
+            service.read_recovery_journal(&document_path).unwrap(),
+            Some("{\"sequence\":1}\n".to_string())
+        );
+        service.delete_recovery_journal(&document_path).unwrap();
+        service.delete_recovery_journal(&document_path).unwrap();
+        assert!(!journal_path.exists());
     }
 
     #[test]
@@ -1964,10 +2009,20 @@ mod tests {
     }
 
     #[test]
-    fn gzip_round_trip_preserves_document_text() {
-        let text = "{\"format\":{\"name\":\"chemsema\"}}\n";
-        let compressed = compress_gzip_text(text).unwrap();
-        assert!(compressed.starts_with(&[0x1f, 0x8b]));
-        assert_eq!(decompress_gzip_text(&compressed).unwrap(), text);
+    fn ccjz_container_round_trip_preserves_document_value() {
+        let text = serde_json::json!({
+            "format": {"name": "chemsema", "version": "0.2", "unit": "pt", "profile": "snapshot"},
+            "entities": {"scene": []},
+            "resources": {}
+        })
+        .to_string();
+        let encoded = encode_ccjz(&text).unwrap();
+        assert!(encoded.starts_with(b"PK"));
+        let decoded: serde_json::Value =
+            serde_json::from_str(&decode_ccjz(&encoded).unwrap()).unwrap();
+        assert_eq!(
+            decoded,
+            serde_json::from_str::<serde_json::Value>(&text).unwrap()
+        );
     }
 }

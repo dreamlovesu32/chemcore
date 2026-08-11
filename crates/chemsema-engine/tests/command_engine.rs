@@ -35,25 +35,13 @@ fn created_bond_id(result: &Value) -> String {
 }
 
 fn find_object(value: &Value, object_id: &str) -> Value {
-    fn search(objects: &[Value], object_id: &str) -> Option<Value> {
-        for object in objects {
-            if object["id"].as_str() == Some(object_id) {
-                return Some(object.clone());
-            }
-            if let Some(found) = object["children"]
-                .as_array()
-                .and_then(|children| search(children, object_id))
-            {
-                return Some(found);
-            }
-        }
-        None
-    }
-    search(
-        value["objects"].as_array().expect("objects array"),
-        object_id,
-    )
-    .expect("object by id")
+    value["entities"]["scene"]
+        .as_array()
+        .expect("scene entities array")
+        .iter()
+        .find(|object| object["id"].as_str() == Some(object_id))
+        .cloned()
+        .expect("object by id")
 }
 
 fn find_node(value: &Value, node_id: &str) -> Value {
@@ -1322,14 +1310,185 @@ fn select_targets_can_drive_group_selection_without_ids() {
     assert_eq!(grouped["changed"], true);
     assert_eq!(grouped["command"]["type"], "group-selection");
     let document = document_value(&engine);
-    let groups = document["objects"]
+    let groups = document["entities"]["scene"]
         .as_array()
-        .expect("objects")
+        .expect("scene entities")
         .iter()
         .filter(|object| object["type"].as_str() == Some("group"))
         .collect::<Vec<_>>();
     assert_eq!(groups.len(), 1);
-    assert_eq!(groups[0]["children"].as_array().expect("children").len(), 2);
+    let group_id = groups[0]["id"].as_str().expect("group id");
+    assert_eq!(
+        document["hierarchy"]["children"][group_id]
+            .as_array()
+            .expect("group children")
+            .len(),
+        2
+    );
+}
+
+#[test]
+fn select_all_groups_and_ungroups_a_molecule_with_a_graphic() {
+    let mut engine = Engine::new();
+    let bond = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 20.0, "y": 30.0 },
+            "end": { "x": 68.0, "y": 30.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    assert_eq!(bond["changed"], true);
+    let molecule_id = document_value(&engine)["entities"]["scene"]
+        .as_array()
+        .expect("scene entities")
+        .iter()
+        .find(|object| object["type"].as_str() == Some("molecule"))
+        .and_then(|object| object["id"].as_str())
+        .expect("molecule id")
+        .to_string();
+    let arrow = execute(
+        &mut engine,
+        json!({
+            "type": "add-arrow",
+            "begin": { "x": 20.0, "y": 70.0 },
+            "end": { "x": 80.0, "y": 70.0 },
+            "variant": "solid",
+            "headSize": "small",
+            "curve": "arc270",
+            "headStyle": "full",
+            "tailStyle": "none",
+            "head": true,
+            "tail": false,
+            "bold": false,
+            "noGo": "none"
+        }),
+    );
+    let arrow_id = created_object_id(&arrow);
+    execute(&mut engine, json!({ "type": "select-all" }));
+
+    let grouped = execute(&mut engine, json!({ "type": "group-selection" }));
+
+    assert_eq!(grouped["changed"], true);
+    let grouped_document = document_value(&engine);
+    let group = grouped_document["entities"]["scene"]
+        .as_array()
+        .expect("scene entities")
+        .iter()
+        .find(|object| object["type"].as_str() == Some("group"))
+        .expect("mixed group");
+    let group_id = group["id"].as_str().expect("group id");
+    assert_eq!(
+        grouped_document["hierarchy"]["children"][group_id],
+        json!([molecule_id, arrow_id])
+    );
+
+    let ungrouped = execute(&mut engine, json!({ "type": "ungroup-selection" }));
+
+    assert_eq!(ungrouped["changed"], true);
+    assert_eq!(engine.state().selection.molecule_objects, vec![molecule_id]);
+    assert_eq!(engine.state().selection.arrow_objects, vec![arrow_id]);
+    assert_eq!(engine.state().selection.nodes.len(), 2);
+    assert_eq!(engine.state().selection.bonds.len(), 1);
+    assert!(document_value(&engine)["entities"]["scene"]
+        .as_array()
+        .expect("scene entities")
+        .iter()
+        .all(|object| object["type"].as_str() != Some("group")));
+}
+
+#[test]
+fn nested_grouping_uses_outermost_selected_objects() {
+    let mut engine = Engine::new();
+    execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 20.0, "y": 30.0 },
+            "end": { "x": 68.0, "y": 30.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    execute(
+        &mut engine,
+        json!({
+            "type": "add-arrow",
+            "begin": { "x": 20.0, "y": 70.0 },
+            "end": { "x": 80.0, "y": 70.0 },
+            "variant": "solid",
+            "headSize": "small",
+            "curve": "arc270",
+            "headStyle": "full",
+            "tailStyle": "none",
+            "head": true,
+            "tail": false,
+            "bold": false,
+            "noGo": "none"
+        }),
+    );
+    execute(&mut engine, json!({ "type": "select-all" }));
+    assert_eq!(
+        execute(&mut engine, json!({ "type": "group-selection" }))["changed"],
+        true
+    );
+    let inner_group_id = engine.state().selection.arrow_objects[0].clone();
+    let second_arrow = execute(
+        &mut engine,
+        json!({
+            "type": "add-arrow",
+            "begin": { "x": 110.0, "y": 70.0 },
+            "end": { "x": 170.0, "y": 70.0 },
+            "variant": "solid",
+            "headSize": "small",
+            "curve": "arc270",
+            "headStyle": "full",
+            "tailStyle": "none",
+            "head": true,
+            "tail": false,
+            "bold": false,
+            "noGo": "none"
+        }),
+    );
+    let second_arrow_id = created_object_id(&second_arrow);
+    execute(&mut engine, json!({ "type": "select-all" }));
+
+    let nested = execute(&mut engine, json!({ "type": "group-selection" }));
+
+    assert_eq!(nested["changed"], true);
+    let outer_group_id = engine.state().selection.arrow_objects[0].clone();
+    let document = document_value(&engine);
+    assert_eq!(
+        document["hierarchy"]["children"][&outer_group_id],
+        json!([inner_group_id, second_arrow_id])
+    );
+    assert_eq!(
+        document["entities"]["scene"]
+            .as_array()
+            .expect("scene entities")
+            .iter()
+            .filter(|object| object["type"].as_str() == Some("group"))
+            .count(),
+        2
+    );
+
+    execute(&mut engine, json!({ "type": "select-all" }));
+    let ungrouped = execute(&mut engine, json!({ "type": "ungroup-selection" }));
+
+    assert_eq!(ungrouped["changed"], true);
+    assert_eq!(engine.state().selection.arrow_objects.len(), 2);
+    let document = document_value(&engine);
+    assert_eq!(
+        document["entities"]["scene"]
+            .as_array()
+            .expect("scene entities")
+            .iter()
+            .filter(|object| object["type"].as_str() == Some("group"))
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -1464,6 +1623,107 @@ fn set_shape_geometry_updates_rect_bounds() {
     let object = find_object(&document, &object_id);
     assert_eq!(object["transform"]["translate"], json!([30.0, 35.0]));
     assert_eq!(object["payload"]["bbox"], json!([0.0, 0.0, 40.0, 30.0]));
+}
+
+#[test]
+fn editor_commands_create_native_tlc_and_gel_plate_models() {
+    let mut engine = Engine::new();
+    let tlc = execute(
+        &mut engine,
+        json!({
+            "type": "add-shape",
+            "kind": "tlc-plate",
+            "style": "solid",
+            "color": "#008000",
+            "begin": { "x": 10.0, "y": 20.0 },
+            "end": { "x": 90.0, "y": 140.0 }
+        }),
+    );
+    let tlc_id = created_object_id(&tlc);
+    let gel = execute(
+        &mut engine,
+        json!({
+            "type": "add-shape",
+            "kind": "gel-plate",
+            "style": "solid",
+            "color": "#ff0000",
+            "begin": { "x": 110.0, "y": 20.0 },
+            "end": { "x": 190.0, "y": 140.0 }
+        }),
+    );
+    let gel_id = created_object_id(&gel);
+    let document = document_value(&engine);
+
+    let tlc = find_object(&document, &tlc_id);
+    assert_eq!(tlc["payload"]["kind"], "tlcPlate");
+    assert_eq!(tlc["payload"]["originFraction"], 0.1);
+    assert_eq!(tlc["payload"]["solventFrontFraction"], 0.1);
+    assert_eq!(tlc["payload"]["showOrigin"], true);
+    assert_eq!(tlc["payload"]["showSolventFront"], true);
+    assert_eq!(tlc["payload"]["showBorders"], true);
+    assert_eq!(tlc["payload"]["showSideTicks"], true);
+    let tlc_lanes = tlc["payload"]["lanes"].as_array().expect("TLC lanes");
+    assert!((3..=12).contains(&tlc_lanes.len()));
+    assert!(tlc_lanes.iter().all(|lane| lane["spots"].as_array().is_some_and(|spots| {
+        spots.len() == 1 && spots[0]["rf"] == 0.15
+    })));
+
+    let gel = find_object(&document, &gel_id);
+    assert_eq!(gel["payload"]["kind"], "gelPlate");
+    let gel_data = &gel["payload"]["gelElectrophoresis"];
+    let gel_lanes = gel_data["lanes"].as_array().expect("gel lanes");
+    assert_eq!(gel_data["color"], "#ff0000");
+    assert!((3..=12).contains(&gel_lanes.len()));
+    assert!(gel_lanes.iter().all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+        bands.len() == 1
+            && bands[0]["value"] == 0.5
+            && bands[0]["color"] == "#ff0000"
+            && bands[0]["visible"] == true
+    })));
+
+    assert!(engine.select_all());
+    assert!(engine.apply_color_to_selection("#0000ff"));
+    let recolored = document_value(&engine);
+    let tlc = find_object(&recolored, &tlc_id);
+    assert!(tlc["payload"]["lanes"].as_array().expect("recolored TLC lanes").iter().all(|lane| {
+        lane["spots"].as_array().is_some_and(|spots| {
+            spots.iter().all(|spot| spot["color"] == "#0000ff")
+        })
+    }));
+    let gel = find_object(&recolored, &gel_id);
+    assert_eq!(gel["payload"]["gelElectrophoresis"]["color"], "#0000ff");
+    assert!(gel["payload"]["gelElectrophoresis"]["lanes"]
+        .as_array()
+        .expect("recolored gel lanes")
+        .iter()
+        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+            bands.iter().all(|band| band["color"] == "#0000ff")
+        })));
+    assert!(engine.undo(), "batch chromatography color should be one history step");
+    let undone = document_value(&engine);
+    let tlc = find_object(&undone, &tlc_id);
+    assert!(tlc["payload"]["lanes"].as_array().expect("undone TLC lanes").iter().all(|lane| {
+        lane["spots"].as_array().is_some_and(|spots| {
+            spots.iter().all(|spot| spot.get("color").is_none())
+        })
+    }));
+    let gel = find_object(&undone, &gel_id);
+    assert!(gel["payload"]["gelElectrophoresis"]["lanes"]
+        .as_array()
+        .expect("undone gel lanes")
+        .iter()
+        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+            bands.iter().all(|band| band["color"] == "#ff0000")
+        })));
+    assert!(engine.redo());
+    let redone = document_value(&engine);
+    assert!(find_object(&redone, &gel_id)["payload"]["gelElectrophoresis"]["lanes"]
+        .as_array()
+        .expect("redone gel lanes")
+        .iter()
+        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+            bands.iter().all(|band| band["color"] == "#0000ff")
+        })));
 }
 
 #[test]

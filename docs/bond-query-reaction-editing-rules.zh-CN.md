@@ -36,7 +36,7 @@
 npm run probe:chemdraw-bond-query-reaction
 ```
 
-探针通过 ChemDraw COM 静默生成 CDXML、CDX、SVG 和 EMF，不依赖鼠标操作。当前已覆盖各枚举、显示继承、字段组合、水平/垂直/斜向和端点反转。
+探针通过 ChemDraw COM 静默生成 CDXML、CDX、SVG 和 EMF，不依赖鼠标操作。当前已覆盖各枚举、显示继承、字段组合、水平/垂直/浅斜/陡斜方向、端点反转、8/10/14/18 pt、`MarginWidth=0.5/1.6/3/6`，以及编辑器可选的全部 19 个字体族。
 
 ### 文本内容与顺序
 
@@ -58,11 +58,13 @@ npm run probe:chemdraw-bond-query-reaction
 - 标注字号为标签字号的 `0.75`，字体继承标签字体。
 - 先把键轴规范化为与端点顺序无关的方向：优先令 `dx > 0`；垂直键令 `dy > 0`。法向量为 `(-dy, dx)`。
 - 只有一组标注时放在负法向侧；E/Z 与查询同时存在时，E/Z 在负法向侧，查询在正法向侧。
-- 不做 360 度搜索。位置采用按轴分离的确定函数：
-  - `center.x = midpoint.x + side * normal.x * (textWidth / 2 + 0.29em)`
-  - `center.y = midpoint.y + side * normal.y * (textHeight / 2 + verticalGap)`
-  - 负法向 `verticalGap = 0.11em`，正法向 `verticalGap = 0.29em`
-  - 实测文本高度为 `1.061333em`
+- 不做 360 度搜索。标注先以标签裁剪后的**可见键段**中点为锚点，而不是原始两个原子坐标的中点；因此一端带 `M`、`N` 等可见标签时，查询文字会沿键轴同步移到剩余可见线段的中央。
+- 位置采用按轴分离的确定函数。横坐标是文本中心：
+  - `center.x = midpoint.x + side * normal.x * (textWidth / 2 + 0.25em + LineWidth / 2)`
+- 纵坐标直接计算字母基线，不再先算框顶后误当基线：
+  - `baseline.y = midpoint.y + baselineBias × em + side × normal.y × (normalDistance × em + LineWidth / 2 × abs(normal.y))`
+  - `baselineBias`、`normalDistance` 都是字体族的 GDI 指标；Arial regular/italic 分别为 `0.408em` 和 `0.408em`，共同的 `normalDistance` 为 `0.690667em`。
+- `baselineBias`、`normalDistance` 和文本框顶部到基线比例与字号和 `MarginWidth` 无关，但与字体族以及 normal/italic 字形有关。探针完整覆盖编辑器 19 个字体选项；代码使用实测表，而不是把 Arial 比例套给所有字体。
 - SVG、PNG、EMF 和 GUI 都只消费同一组 `RenderPrimitive::Text`，不得在某个导出器中另写偏移。
 
 ## 编辑行为
@@ -78,4 +80,3 @@ npm run probe:chemdraw-bond-query-reaction
 - CCJS、CDXML、CDX 三向往返必须保持所有枚举和对象级显示覆盖。
 - 测试必须覆盖默认值、非默认值、继承、显式显示/隐藏、查询与 E/Z 组合、端点反转及至少水平/垂直/斜向。
 - 渲染测试以文本内容、样式和相对键中点/法向的位置为准；视觉门禁再检查 SVG/EMF 的局部细节，不得用整张画布尺寸稀释误差。
-

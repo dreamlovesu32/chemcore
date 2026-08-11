@@ -27,7 +27,7 @@
 | `LabelLineHeight` | Node / INT16 | 原子标签行高 | 原子标签首选行高；再回退对象/根级旧字段 |
 | `CaptionLineHeight` | Text / INT16 | 自由文本行高 | 自由文本首选行高；再回退对象/根级旧字段 |
 | `WordWrapWidth` | Text/Node / INT16 | 自动换行宽度 | 原样保留并纳入往返门禁 |
-| `LineStarts` | Text/Node / varies | 各行起始字符位置 | 保留作者行结构，不以自动布局重新分行 |
+| `LineStarts` | Text/Node / varies | 文本软换行边界或节点化学布局的派生边界 | 必须结合 `WordWrapWidth` 和对象角色解释，不能一律向源文字插入换行 |
 
 字段优先级按对象类型分开处理：Node 标签使用标签字段；Text 自由文本使用 caption 字段，旧 `Justification`/`LineHeight` 仅作为兼容后备。根级行高默认也按相同的“专用字段优先、旧字段后备”规则继承。
 
@@ -88,13 +88,16 @@
 - [WordWrapWidth](https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/WordWrapWidth.htm)
 - [LineStarts](https://iupac.github.io/IUPAC-FAIRSpec/cdx_sdk/properties/LineStarts.htm)
 
-## `LineStarts` 导入规则补充（2026-07-21）
+## `LineStarts` 导入规则补充（2026-08-01 复核）
 
-- `LineStarts` 是作者保存的各行起始位置，同时适用于自由文本 `Text` 和节点标签 `Node`；导入时必须把这些索引落实为实际行结构，不能只写入元数据。CDXML 的位置单位是 UTF-8 字节，不是 Unicode 字符数；`′`、`°`、`α` 等多字节字符必须按其编码长度推进偏移。
-- 索引按作者保存的 styled-text 原始字符流计算；其中 CR/LF 也占用字符位置。解析时可以把 CRLF 规范化为一个渲染换行，但后续 `LineStarts` 偏移仍必须按原始字符位置推进。
-- 列表最后一个值允许等于文本长度，它是行范围的结束哨兵，不产生空行，也不能在最后一个字符前插入换行。
-- 显式换行与 `LineStarts` 可以同时存在：若某个行首偏移紧邻已有换行，不重复插入；连续显式换行则必须保留，因为它表示作者保存的空白行。
-- 同一规则同时重建纯文本和样式 runs，保证换行前后的字体、字重、颜色、上下标不丢失；不得按文件名、案例编号或具体化学名称分支。
+- 官方 `INT16ListWithCounts` 的“计数前缀”只存在于二进制 CDX：CDX 先写一个 `UINT16` 数量，再写各位置；CDXML 属性只写位置列表本身。不能把 CDXML 的第一个数误当成数量。
+- `LineStarts` 的位置按作者保存的 styled-text 原始 UTF-8 字节流计算；`′`、`°`、`α` 等多字节字符必须按编码长度推进。CR/LF 也占用位置；渲染时可以把 CRLF 规范化为一个换行，但计算源偏移时仍按原始字节流推进。
+- 对带 `WordWrapWidth` 的普通文本，内部位置可表达没有写入 XML 字符串的软换行；此时导入器才把有效内部位置物化为行结构。跨多个 `<s>` run 时连续累计偏移，并在切分后继承该 run 的字体、字号、颜色、face 和上下标样式。列表最后一个值允许等于文本长度，作为结束哨兵，不产生空行。
+- 没有 `WordWrapWidth` 时，`LineStarts` 本身不命令 ChemDraw 把无换行字符串拆行。静默探针中普通文本 `ABC + LineStarts="2 3"` 保存后字段被删除且 SVG 仍为单行；源文字中的真实 CR/LF 仍须原样保留。
+- 节点化学标签的 `LineStarts` 是 ChemDraw 根据连接方向、`LabelAlignment`、隐式氢和电荷显示重新生成的布局边界，不是源公式的换行位置。同一个双键相连的 `NH+`，输入缺失该字段或写成 `2 4 6`，ChemDraw 22.2 均输出相同 SVG，并保存为 `LabelAlignment="Above" LineStarts="3 5"`。导入器必须保留源公式 `NH+`，再由化学标签布局生成 `H+` 在上、`N` 在锚点行的显示；不能先改写为 `NH\n+`。
+- 节点标签开头的同位素质量数属于紧随其后的首个元素组，不是独立化学组。比如作者样式为上标的 `13` 与 `C` 必须共同组成锚点行 `13C`，后续 `H2` 才能按连接方向换到另一行；键的附着字符是该组第一个字母 `C`，不是质量数首位。字符串分组与保留字体/上下标的 styled-run 分组必须调用同一个规则源，避免导入语义正确但绘制再次拆组。
+- `Isotope` 与作者标签是同一语义的两个层次，不是两个要叠加的可见对象。若节点的源标签已经以相同质量数和相同元素开头（如上标 `13` + `CH3`、`2` + `H`），或氢节点以 `D`/`T` 简写同一质量数，渲染器保留作者的字体与上下标呈现，不再由 `Isotope` 生成第二份质量数；只有标签未编码该质量数时才合成注记。该判断同时用于原子属性绘制和查询标签避让宽度。
+- 公开语料复核中，49 个带 `LabelAlignment` 的节点 `LineStarts` 标签全部没有真实换行，而 87 个非节点/普通文本样本中有 79 个带真实换行；其余没有真实换行的普通文本均带 `WordWrapWidth`。这个分群与静默探针一致，因而采用字段上下文规则，而不是按字符串、节点 ID 或文件名分支。
 
 ## 旧式字体家族/字形拆分规则（2026-07-21）
 
@@ -125,15 +128,19 @@
 9. 分裂不连通分子组件时，带 `MultiAttachment`、`HDot` 或 `HDash` 语义的孤立碳节点仍属于可见内容，不能按“无键普通碳”过滤。
 10. `bracketedgroup/bracketattachment@GraphicID` 是左右括号归组的权威关系。先按这组显式 ID 配对，只有没有被任何组引用的孤立括号才允许按几何位置回退配对；不能用中心或高度容差否决显式附件。
 11. 同一组左右括号各自保留源 `BoundingBox` 的纵向起点和高度。组包围框只用于选择、移动和整体范围，不能把两侧强制拉到组包围框的统一高度。
-12. 二进制 CDX 的 `SymbolType`（property `0x0A07`）是 `INT16` 枚举，不是可直接透传的普通整数。导入导出必须按官方值映射 `LonePair=0`、`Electron=1`、`RadicalCation=2`、`RadicalAnion=3`、`CirclePlus=4`、`CircleMinus=5`、`Dagger=6`、`DoubleDagger=7`、`Plus=8`、`Minus=9`、`Racemic=10`、`Absolute=11`、`Relative=12`。
-13. `objecttag@PositioningType` 缺省值是官方定义的 `auto`，不能一概把内部 `t@p` 或 `t@BoundingBox` 当成最终显示位置。桌面 ChemDraw 生成的增强立体标签以所附节点为锚点，用缓存文本框相对节点的方向选择象限，再按字号归一化显示半径；只有 `offset`、`absolute` 等显式定位模式继续使用记录坐标。公共文件同时证明 ChemDraw JS 2.0 具有相反的生产者约定：它也省略 `PositioningType`，但 ChemDraw 打开时保留缓存位置。因此这里只在字段语义确实矛盾时按根级 `CreationProgram="ChemDraw JS …"` 兼容该生产者，而不按案例或文件名分支。
+12. 二进制 CDX 的 `SymbolType`（property `0x0A07`）是 `INT16` 枚举，不是可直接透传的普通整数。导入导出必须按官方值映射 `LonePair=0`、`Electron=1`、`RadicalCation=2`、`RadicalAnion=3`、`CirclePlus=4`、`CircleMinus=5`、`Dagger=6`、`DoubleDagger=7`、`Plus=8`、`Minus=9`、`Racemic=10`、`Absolute=11`、`Relative=12`。其中 `GraphicType="Symbol"` 且 `SymbolType="Absolute"|"Relative"|"Racemic"` 是独立的原生增强立体徽章，不是普通文本或节点 `EnhancedStereoType`：三种枚举在 ChemDraw 23.1 中都绘制圆角 `Abs` 框，字体取 `CaptionFont`，显式 `CaptionSize` 决定字号、缺省字号为 12 pt，框线取 `LineWidth`，圆角半径为 `4 × LineWidth`，水平内边距每侧 1.875 pt。导出时同时写回 `graphic` 和其原生 `Chiral` 子文本，避免被 ChemDraw 降级为自由文本。
+13. `objecttag@PositioningType` 缺省值是官方定义的 `auto`，不能一概把内部 `t@p` 或 `t@BoundingBox` 当成最终显示位置。桌面 ChemDraw 生成的增强立体标签以所附节点为锚点：缓存框保留自动布局的方向向量，但缓存距离不是权威显示距离；打开或重排时，按该单位方向、当前文字框半宽/半高及文档 `MarginWidth` 分别重算横纵距离，并继续使用原文字基线。`offset`、`absolute` 等显式定位模式才完整使用记录坐标。无连接原子的静默探针还证明 ChemDraw 不会把任意缓存框误当作有效自动布局结果。公共文件同时证明 ChemDraw JS 2.0 具有不同的生产者约定：它也省略 `PositioningType`，但 ChemDraw 打开时保留缓存位置。因此这里只在字段语义确实矛盾时按根级 `CreationProgram="ChemDraw JS …"` 兼容该生产者，而不按案例或文件名分支。
 14. 键上的自动 `query` 标签以键中点为锚点，并用缓存文本框判断位于键的哪一侧。文字框必须完整落在该侧，水平/垂直留白由字号度量得到；这使不同方向的 `Rxn` 标签保持相同视觉间距，同时不改写显式 `PositioningType="offset"` 的标签。
 15. 虚锲形键中每条黑段沿键轴的长度严格等于 `LineWidth`，`HashSpacing` 是相邻黑段中心距的下限。ChemDraw 取 `max(1, 1 + floor((最终键长 - LineWidth) / HashSpacing))` 条，再让首尾黑段贴住两端并均分中心距。该结论由 Default、ACS、不同 `LineWidth` 与不同 `HashSpacing` 的 0.5 pt 全域扫描和阈值附近 0.01 pt 精扫共同验证；不应复用普通虚线键的段数分配器，也不需要对 `Nickname`、外部连接点或短键增加分支。
 16. CDX 二进制中的 `LineHeight`、`LabelLineHeight` 和 `CaptionLineHeight` 固定数值以 1/20 screen point 编码；解码到 CDXML/内核点值时除以 20，回写 CDX 时乘以 20。`0=variable`、`1=auto` 两个特殊值不参与缩放。真实 ChemDraw 将二进制 `160`/`165` 分别保存为 CDXML `8`/`8.25`，不能把原始整数直接当作点值。
 17. 官方定义区分三种行距语义：`0/variable` 使用每一行实际最高字符分别决定相邻基线，`1/auto` 使用整个文本对象中的最高字符统一决定所有基线，其他正数是固定 screen-point 行距。Node 优先读取 `LabelLineHeight`，Text 优先读取 `CaptionLineHeight`，再回退旧 `LineHeight`；没有任何字段时，标签缺省为 variable，自由文本缺省为 auto。
 18. ChemDraw SVG 保存连续的逻辑基线，比例为每 pt 对应 `2.6667` 个 SVG 用户单位。EMF 没有另一套行距规则，而是把同一组逻辑基线逐行独立量化成整数设备像素，因此相同逻辑行距在 EMF 记录中可交替相差 1 个设备像素；门禁应比较各基线量化后的坐标，不能要求每个相邻 EMF 差值完全相等。
 19. Auto 行距必须查看对象内全部 styled runs，不能只取首个 run。10 pt 实测基线步进为 Arial regular `11.5` pt、Times New Roman regular `11.65` pt、Calibri regular `12.25` pt；Arial bold 为 `11.75` pt、italic 为 `11.45` pt、bold italic 为 `11.75` pt。8/18/12 pt 混合字号对象取 18 pt run，得到 `20.7` pt。上下标 face 还会提高对象的统一 auto 行距。
-20. Variable 不是一个可被单一 `lineHeight` 完整表达的标量。连续行的步进由上一行字形下界、下一行字形上界和约 `0.1 em` 的净空组成；因此 `A→g`、`g→A`、`Q→A` 等方向可以不同。CCJS 用 `lineHeightMode` 明确区分 `fixed/auto/variable`，用 `lineHeight` 保存可用的默认步进，并用 `lineAdvances[i]` 明确保存第 i 行到第 i+1 行的实际步进。单行标签也保留 mode 和正数 `lineHeight`，只是没有第二条基线时不会表现出来；不得从恰好相同的数值反猜模式。
+20. Variable 不是一个可被单一 `lineHeight` 完整表达的标量。连续行的基线步进为“上一行实际字形下深 + 下一行实际字形上升高度 × `7/6`”；其中额外的 `1/6 × 下一行上升高度` 是行间净空，而不是固定 `0.1 × 最大字号`。因此 `A→g`、`g→A`、`Q→A` 等方向可以不同，字体、字号、face、script 与字形 overshoot 也自然进入同一函数。Arial 10 pt 的 `A→g/g→Q` 为 `6.1834/10.5584 pt`，Times New Roman 为 `5.3667/10.0250 pt`，Calibri 为 `5.5333/9.2667 pt`；上下堆叠的 `H→N` 在 7/10/14/18 pt 下为 `5.8334/8.3417/11.6667/14.9917 pt`，且不随 `MarginWidth=0.8/1.6/2/3.2` 改变。CCJS 用 `lineHeightMode` 明确区分 `fixed/auto/variable`，用 `lineHeight` 保存可用的默认步进，并用 `lineAdvances[i]` 明确保存第 i 行到第 i+1 行的实际步进。单行标签也保留 mode 和正数 `lineHeight`，只是没有第二条基线时不会表现出来；不得从恰好相同的数值反猜模式。
 21. 对本机 ChemDraw 安装目录中的 19 份 `.cds` 样式表进行静默规范化后，多数样式未写行距字段，应按上述官方缺省继承；`J. Het. Chem` 明确写出 `LabelLineHeight=6`、`CaptionLineHeight=7.10`。样式表省略字段不是固定 `1.15×字号` 的同义写法。
+22. `LabelDisplay="Left"` / `"Right"` 的固定边缘按可连接字符解析：首尾下标参与锚定，上标不参与并向内寻找非上标字符。该规则由左右、居中、前导/尾随、单脚标/混合脚标和作者 `BoundingBox` 探针共同验证；自动化学布局仍按原规则排除自动生成的上下标。
+23. 多连接自动化学标签使用 ChemDraw 的“最大开放扇区”规则：按实际连接角排序，取最大相邻角间隙，再以连接占据补弧的中线进入水平优先的 `135°/45°/135°/45°` 文字流扇区。`0.001°` 内的并列间隙有明确顺序：水平正轴开放间隙优先，其次取最靠近正上方的间隙，同距取顺时针侧；严格相反的两连接按无向轴 `22.5°/90°/157.5°` 分支，三等分连接按 `120°` 相位分支。ChemDraw 22.2 静默探针覆盖二、三、四连接完整 `30°` 网格共 1,079 例、边界精扫、多字号和多键长，分析器均为零误差。短键必须按源坐标量化后的实际角度判定，不能按请求角度或文件编号分支。单连接末端标签使用完整左右半平面，近似垂直时才进入碰撞分支。
+24. 近三角三连接中心的隐式氢元素标签具有一条更高优先级的立体键分支：三段实际角间隙均在 `120°±3°` 内、节点标签与 `Element + NumHydrogens` 公式一致、且恰有一根实楔/虚楔/空心楔时，ChemDraw 以该楔键轴而不是共同 `120°` 相位选择文字流。轴角落入 `[-67.5°,67.5°]` 时反转，`(67.5°,112.5°)` 时向上堆叠，`[112.5°,247.5°]` 时正向，`(247.5°,292.5°)` 时向下堆叠；楔键的 `Begin/End`、B/E 记录方向及宽端方向不改变结果。ChemDraw 22.2 静默 SVG/CDXML 探针覆盖 C/N、实楔/虚楔/空心楔、楔键位于三条连接中的不同位置、完整 `30°` 旋转网格及非等角反例。两连接、四连接、超过 `±3°` 的非等角三连接，以及非隐式氢公式标签继续使用第 23 条普通连接扇区规则。`LabelAlignment` 和 `LineStarts` 仍只是 ChemDraw 保存该自动结果时生成的派生字段，不能反向覆盖这条几何规则。
+25. CDXML `<s>` 的字体是按作者顺序推进的 styled-string 状态，不从根级 `LabelFont`/`CaptionFont` 或父 `<t font>` 起步。首个没有 `font` 的 `<s>` 使用 Arial；后续缺省 `font` 只继承前一个 `<s>` 的字体；显式但不在 `fonttable` 中的字体 ID 同样解析为 Arial，并成为后续缺省 run 的当前状态。ChemDraw 22.2 静默探针同时覆盖普通原子标签、Nickname、折叠 Fragment 标签、自由文本、首段缺省、显式未知 ID、先缺省后显式以及 `<t font>` 干扰项；保存回 CDXML 后均遵守这条顺序规则。内核仍在 CCJS 中保存明确 `fontFamily`，不得保留这个隐式状态或缺失 ID。
 
 对应回归测试覆盖显式/隐藏对象标签、自动/显式对象标签定位、缺省增强立体标签、楔形虚线节距、`HDot`、`HDash`、未连接 `MultiAttachment`、显式括号附件、CDX 符号枚举，以及 fixed/auto/variable 行距、混合字号和逐行基线步进；公共图像门禁继续负责验证这些语义的最终像素位置和尺寸。行距字段在总账中暂时保持 `in-review`，直到 ChemSema SVG/EMF 与 ChemDraw 探针报告进入自动门禁后再升级为 `verified`。

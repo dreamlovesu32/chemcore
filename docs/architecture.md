@@ -7,7 +7,7 @@
 - browser hosts
 - desktop hosts
 - import/export pipelines
-- future editing tools
+- editor, CLI, and agent tools
 
 The project optimizes for the final core architecture from the beginning.
 
@@ -164,6 +164,10 @@ Examples:
 
 Hosts reuse the core document model.
 
+### Layer F: Quality And Qualification Plane
+
+GUI testing is an independent quality plane across every host, not an ad hoc viewer script. Versioned scenarios execute through browser, real Tauri/WebView2, Windows UIA/real-input, and final-installer black-box drivers, with interaction, chemistry, rendering, accessibility, persistence, and runtime-quality oracles. Real user input must cover every public feature, actual creation/drawing and every public property of every object type, `0/1/2/many` multi-object work, and complex/large documents; internal APIs and prebuilt documents cannot substitute. Real input runs only in isolated VMs without taking the user's foreground, while impact graphs and content-addressed evidence preserve completeness without mechanically rerunning unchanged closures. The Test ABI exists only in test builds; production candidates receive separate black-box qualification. See the [GUI Test Platform and Demo Reliability Architecture](./gui-test-platform-and-demo-reliability.md).
+
 ## Why CDXML Parsing Lives In The Core
 
 CDXML is currently the main import path because it provides a practical bridge
@@ -179,30 +183,10 @@ Their role is:
 - preserve enough import metadata to retain source drawing options
 - export the current document back to ChemDraw-readable CDXML
 
-## First Milestone
+## Current Document Milestone
 
-The first meaningful milestone is:
+The current persistence contract is CCJS v0.2: scene entities are flat, `hierarchy` is the single-ownership tree index, `relations` carry typed cross-object semantics, and the runtime spatial grid is derived from the snapshot. `.ccjs` is complete UTF-8 JSON; `.ccjz` is the deterministic, hashed, chunk-readable Container v1. Local interaction uses Document Patch and crash recovery uses a separate Journal.
 
-1. `chemsema` file format v0.1
-2. `chemsema` runtime model v0.1
-3. native CDXML import/export through the Rust engine
-4. a renderer backend that proves the model is sufficient
+See [format-v0.2.md](./format-v0.2.md) for the field contract and the [Chinese architecture rationale](./ccjs-architecture-and-format-rationale.zh-CN.md) plus [stability contract](./ccjs-v0.2-stability-architecture.zh-CN.md) for design decisions, implementation status, and remaining stable-release gates. v0.1 remains migration input only and no longer describes the current architecture.
 
-That milestone answers the most important question:
-
-"Can the document model faithfully represent the kind of chemistry pages we need
-to support?"
-
-## Future Scope After v0.1
-
-The following capabilities belong in later format versions:
-
-- full ChemDraw feature parity
-- rich query chemistry
-- high-end polymer semantics
-- complete reaction semantics
-- multipage layout
-- collaborative editing
-- binary cache formats
-
-The first version should optimize for clarity, stability, and inspectability.
+Long-term work still includes broader ChemDraw coverage, rich query chemistry, advanced polymer semantics, multi-page layout, and collaboration. Editor visible-region CCJZ loading, undo-preserving hydration, unchanged-entry reuse, and browser Zip64 are implemented. Large arrays remain in HDF5/Zarr-class specialist formats and are connected to document semantics through CCJZ attachments.

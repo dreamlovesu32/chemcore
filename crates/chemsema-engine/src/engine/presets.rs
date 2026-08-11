@@ -578,7 +578,10 @@ fn object_setting_field_value(values: Vec<f64>) -> Option<ObjectSettingFieldValu
 }
 
 fn bond_uses_bold_width(bond: &Bond) -> bool {
-    bond.line_weights.main == crate::BondLineWeight::Bold
+    bond.line_styles.main == crate::BondLinePattern::Hash
+        || bond.line_styles.left == crate::BondLinePattern::Hash
+        || bond.line_styles.right == crate::BondLinePattern::Hash
+        || bond.line_weights.main == crate::BondLineWeight::Bold
         || bond.line_weights.left == crate::BondLineWeight::Bold
         || bond.line_weights.right == crate::BondLineWeight::Bold
         || bond
@@ -588,10 +591,9 @@ fn bond_uses_bold_width(bond: &Bond) -> bool {
 }
 
 fn bond_uses_hash_spacing(bond: &Bond) -> bool {
-    bond.meta
-        .get("contextMenuBondStyle")
-        .and_then(JsonValue::as_str)
-        == Some("single-hashed")
+    bond.line_styles.main == crate::BondLinePattern::Hash
+        || bond.line_styles.left == crate::BondLinePattern::Hash
+        || bond.line_styles.right == crate::BondLinePattern::Hash
         || bond
             .stereo
             .as_ref()
@@ -631,6 +633,9 @@ fn apply_settings_to_bond(
     if let Some(value) = settings.bond_spacing {
         if bond.order >= 2 {
             changed |= set_bond_option_number(&mut bond.bond_spacing, value);
+            if bond.bond_spacing_absolute.take().is_some() {
+                changed = true;
+            }
         }
     }
     if let Some(value) = settings.margin_width {

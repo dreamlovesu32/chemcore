@@ -124,6 +124,12 @@
           },
           "type": "array"
         },
+        "freeValences": {
+          "items": {
+            "$ref": "#/$defs/FreeValenceSiteV2"
+          },
+          "type": "array"
+        },
         "interactions": {
           "items": {
             "$ref": "#/$defs/MultiCenterInteractionV2"
@@ -247,6 +253,31 @@
     "ExtendedStereoDescriptorV2": {
       "type": "string"
     },
+    "FreeValenceOrderV2": {
+      "enum": [
+        "single",
+        "double",
+        "triple"
+      ],
+      "type": "string"
+    },
+    "FreeValenceSiteV2": {
+      "additionalProperties": false,
+      "description": "An unfilled valence that makes a connected graph a molecular fragment.\n\nRepeated equal entries are significant: two single free valences on one\natom describe a different fragment from one double free valence.",
+      "properties": {
+        "atom": {
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/$defs/FreeValenceOrderV2"
+        }
+      },
+      "required": [
+        "atom",
+        "order"
+      ],
+      "type": "object"
+    },
     "GraphAssumptionV2": {
       "additionalProperties": false,
       "properties": {
@@ -268,6 +299,7 @@
     "GraphProfileV2": {
       "enum": [
         "molecular-entity",
+        "molecular-fragment",
         "discrete-composition"
       ],
       "type": "string"

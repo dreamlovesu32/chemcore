@@ -14,6 +14,15 @@ const updateBaseline = process.argv.includes("--update-baseline");
 const reportOnly = process.argv.includes("--report-only");
 const cli = path.join(root, "target", "debug", "chemsema-cli.exe");
 const CHEMDRAW_SVG_PIXELS_PER_DOCUMENT_UNIT = 20 * 0.133333;
+const ABSOLUTE_ACCEPTANCE = Object.freeze({
+  minimumAlignedIou: 0.89,
+  minimumDocumentScaleRatio: 0.95,
+  maximumDocumentScaleRatio: 1.05,
+  maximumMismatchRatio: 0.32,
+  maximumP99DistanceDocumentUnits: 0.75,
+  maximumP999DistanceDocumentUnits: 1.0,
+  maximumDistanceDocumentUnits: 1.1,
+});
 
 const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
 if (manifest.schema !== "chemsema.chemdraw-bioshape-probe.v1" || manifest.cases.length !== 21) {
@@ -88,6 +97,7 @@ const report = {
     detailSensitive: true,
     maximumOverlapAlignment: true,
   },
+  absoluteAcceptance: ABSOLUTE_ACCEPTANCE,
   cases: results,
 };
 await fs.writeFile(
@@ -108,7 +118,7 @@ if (updateBaseline) {
     );
   }
   const expected = new Map(baseline.cases.map((entry) => [entry.type, entry]));
-  const failures = results.filter((entry) => {
+  const baselineFailures = results.filter((entry) => {
     const reference = expected.get(entry.type);
     if (!reference) throw new Error(`Missing visual baseline for ${entry.type}`);
     return entry.mismatchRatio > reference.mismatchRatio + 0.015
@@ -118,7 +128,29 @@ if (updateBaseline) {
       || entry.detailDistanceDocumentUnits.p999 >
         reference.detailDistanceDocumentUnits.p999 + 0.3;
   });
-  if (failures.length) {
-    throw new Error(`BioShape visual regressions: ${failures.map((entry) => entry.type).join(", ")}`);
+  const absoluteFailures = results.filter((entry) => (
+    entry.alignedIou < ABSOLUTE_ACCEPTANCE.minimumAlignedIou
+    || entry.documentWidthRatio < ABSOLUTE_ACCEPTANCE.minimumDocumentScaleRatio
+    || entry.documentWidthRatio > ABSOLUTE_ACCEPTANCE.maximumDocumentScaleRatio
+    || entry.documentHeightRatio < ABSOLUTE_ACCEPTANCE.minimumDocumentScaleRatio
+    || entry.documentHeightRatio > ABSOLUTE_ACCEPTANCE.maximumDocumentScaleRatio
+    || entry.mismatchRatio > ABSOLUTE_ACCEPTANCE.maximumMismatchRatio
+    || entry.detailDistanceDocumentUnits.p99 >
+      ABSOLUTE_ACCEPTANCE.maximumP99DistanceDocumentUnits
+    || entry.detailDistanceDocumentUnits.p999 >
+      ABSOLUTE_ACCEPTANCE.maximumP999DistanceDocumentUnits
+    || entry.detailDistanceDocumentUnits.maximum >
+      ABSOLUTE_ACCEPTANCE.maximumDistanceDocumentUnits
+  ));
+  if (baselineFailures.length || absoluteFailures.length) {
+    const details = [];
+    if (absoluteFailures.length) {
+      details.push(`absolute acceptance: ${absoluteFailures.map((entry) => entry.type).join(", ")}`);
+    }
+    if (baselineFailures.length) {
+      details.push(`baseline regression: ${baselineFailures.map((entry) => entry.type).join(", ")}`);
+    }
+    throw new Error(`BioShape visual gate failed (${details.join("; ")})`);
   }
+  console.log("[BIOSHAPE VISUAL] all 21 types satisfy absolute ChemDraw acceptance and baseline regression limits");
 }

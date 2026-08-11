@@ -242,7 +242,7 @@ pub(super) fn render_selected_text_boxes(
         if overlay.hides_object(&object.id) {
             continue;
         }
-        let Some(bounds) = text_object_world_bounds(object) else {
+        let Some(bounds) = text_object_world_bounds(&engine.state.document, object) else {
             continue;
         };
         push_selection_box(
@@ -280,7 +280,7 @@ pub(super) fn scene_object_selection_bounds(
     object: &crate::SceneObject,
 ) -> Option<AxisBounds> {
     if object.object_type == "text" {
-        return text_object_world_bounds(object).map(AxisBounds::from_array);
+        return text_object_world_bounds(document, object).map(AxisBounds::from_array);
     }
     if object.object_type == "shape" {
         return shape_object_visual_bounds(document, object)

@@ -1,9 +1,15 @@
 import {
+  applyChemSemaDocumentPatch,
+  canonicalChemSemaDocumentForSave,
+  inflateChemSemaDocument,
   parseEngineJson,
   primitivesForObject,
   renderBoundsFromEngine,
   renderListFromEngine,
+  setChemSemaRuntimeRevision,
 } from "./engine_bridge.js";
+import { createDocumentRecoveryManager, discardDocumentRecovery, recoveryDocumentKey } from "./document_recovery.js";
+import { DurableRecoveryJournalStore, IndexedDbRecoveryJournalStore } from "./recovery_journal.js";
 import { createAppDomRefs } from "./app_dom.js";
 import { registerChemSemaDebug } from "./app_debug.js";
 import { createColorHost } from "./color_host.js";
@@ -13,10 +19,12 @@ import { createNumericDialogHost } from "./numeric_dialog_host.js";
 import { createAtomPropertyDialogHost } from "./atom_property_dialog_host.js";
 import { createChemicalPropertyDialogHost } from "./chemical_property_dialog_host.js";
 import { createAnnotationDialogHost } from "./annotation_dialog_host.js";
+import { createLogicalObjectsDialogHost } from "./logical_objects_dialog_host.js";
 import { createSmilesDialogHost } from "./smiles_dialog_host.js";
 import { createTableDialogHost } from "./table_dialog_host.js";
 import { createPlasmidMapDialogHost } from "./plasmid_map_dialog_host.js";
 import { createBioShapeDialogHost } from "./bio_shape_dialog_host.js";
+import { createImageCropDialogHost } from "./image_crop_dialog_host.js";
 import { createDocumentLayoutHost } from "./document_layout_host.js";
 import { createTemplateLibraryHost } from "./template_library_host.js";
 import { createRuntimeGate } from "./runtime_gate.js";
@@ -27,7 +35,7 @@ import { createNmrPredictionHost } from "./nmr_prediction_host.js";
 import { createBundledNmrProvider } from "./nmr_prediction_provider.js";
 import { createImageImportHost } from "./image_import_host.js";
 import { createDesktopFileHost, normalizeDesktopPath } from "./desktop_file_host.js";
-import { createEngineHost } from "./engine_host.js?v=20260726-molecular-coloring-2";
+import { createEngineHost } from "./engine_host.js?v=20260808-history-sync-1";
 import { bindEditorControls, openColorDialog } from "./editor_bindings.js?v=20260726-biology-assisted-rail";
 import { createDocumentFlow } from "./document_flow.js";
 import { createBrowserDocumentTabs } from "./browser_document_tabs.js";
@@ -48,7 +56,7 @@ import {
 import { createSceneRenderer } from "./scene_renderer.js";
 import { createEditorOverlayRenderer } from "./editor_overlay.js?v=20260723-image-focus";
 import { createEditorSelectionState } from "./editor_selection_state.js";
-import { createEditorDocumentRenderer } from "./editor_document_renderer.js";
+import { createEditorDocumentRenderer } from "./editor_document_renderer.js?v=20260808-empty-render-transition-3";
 import { createEditorReadHost } from "./editor_read_host.js";
 import { createEditorRuntimeHost } from "./editor_runtime_host.js";
 import { createEditorStateRuntimeHost } from "./editor_state_runtime_host.js";
@@ -56,7 +64,7 @@ import { createEditorToolbarHost } from "./editor_toolbar_host.js";
 import { createEditorViewportHost } from "./editor_viewport_host.js";
 import { createEditorPointerController } from "./editor_pointer_controller.js?v=20260629-deep-stability";
 import { createCanvasContextMenuHost } from "./editor_context_menu.js?v=20260726-molecular-coloring";
-import { createEditorCommandController } from "./editor_command_controller.js";
+import { createEditorCommandController } from "./editor_command_controller.js?v=20260809-selection-cache-1";
 import { createEditorCommandEngine } from "./editor_command_engine.js?v=20260626-interaction-feedback";
 import {
   editorScriptScale as computeEditorScriptScale,
@@ -145,6 +153,13 @@ const state = {
 };
 const engineHost = createEngineHost();
 const desktopFileHost = createDesktopFileHost();
+const documentRecoveryManager = createDocumentRecoveryManager(
+  new DurableRecoveryJournalStore(desktopFileHost, new IndexedDbRecoveryJournalStore()),
+);
+
+function currentRecoveryDocumentKey(documentData = state.currentDocument, filePath = state.currentFilePath, fileName = state.currentFileName) {
+  return recoveryDocumentKey(documentData, filePath, fileName);
+}
 const colorHost = createColorHost({
   getPalette: (initialColor, customColors = []) => (
     state.editorEngine?.colorDialogPaletteJson?.(
@@ -156,6 +171,21 @@ const colorHost = createColorHost({
 const commandEngine = createEditorCommandEngine({
   engine: () => state.editorEngine,
   syncDocumentFromEngine,
+  beforeDocumentPatchApplied: async (patch) => {
+    const documentKey = currentRecoveryDocumentKey();
+    if (!documentKey || !state.currentDocument) return;
+    await documentRecoveryManager.append(
+      documentKey,
+      canonicalChemSemaDocumentForSave(state.currentDocument),
+      patch,
+    );
+  },
+  applyDocumentPatch: (patch) => applyChemSemaDocumentPatch(state.currentDocument, patch),
+  onDocumentPatchApplied: () => {
+    currentDocumentMoleculeTopology();
+    syncSelectionChemistrySummary();
+    refreshCommandAvailability();
+  },
   onDocumentCommitted: handleDocumentCommandCommitted,
 });
 const objectSettingsHost = createObjectSettingsHost({
@@ -207,8 +237,23 @@ const plasmidMapDialogHost = createPlasmidMapDialogHost({
 const bioShapeDialogHost = createBioShapeDialogHost({
   root: document.body,
 });
+const imageCropDialogHost = createImageCropDialogHost({
+  root: document.body,
+});
 const transientNotificationHost = createTransientNotificationHost({
   root: document.body,
+});
+const logicalObjectsDialogHost = createLogicalObjectsDialogHost({
+  root: document.body,
+  engine: () => state.editorEngine,
+  commandEngine,
+  onApply: async (result) => {
+    renderDocumentChange(result);
+  },
+  notify: (message) => transientNotificationHost.show(message, {
+    error: true,
+    duration: 4200,
+  }),
 });
 const uiActions = createUiActionRunner({
   isAbortError: (error) => isAbortError(error),
@@ -626,6 +671,7 @@ function documentTitleWithDirtyMarker(...args) { return documentTabStateHost.doc
 function currentDocumentSaveFingerprint(...args) { return documentTabStateHost.currentDocumentSaveFingerprint(...args); }
 function currentDocumentRevision(...args) { return documentTabStateHost.currentDocumentRevision(...args); }
 function markCurrentDocumentSaved(...args) { return documentTabStateHost.markCurrentDocumentSaved(...args); }
+function markCurrentDocumentRecovered(...args) { return documentTabStateHost.markCurrentDocumentRecovered(...args); }
 function activeTextEditorIsDirty(...args) { return documentTabStateHost.activeTextEditorIsDirty(...args); }
 function closeActiveTextEditorForToolAction(...args) { return documentTabStateHost.closeActiveTextEditorForToolAction(...args); }
 function currentDocumentIsDirty(...args) { return documentTabStateHost.currentDocumentIsDirty(...args); }
@@ -676,6 +722,7 @@ const appWindowLifecycleHost = createAppWindowLifecycleHost({
   saveCurrentDocument: (...args) => saveCurrentDocument(...args),
   isAbortError: (...args) => isAbortError(...args),
   autoSaveAllOleEditDocumentTabs,
+  discardRecoveryJournalForTab: (tab) => discardDocumentRecovery(documentRecoveryManager, tab),
   uiActions,
 });
 
@@ -1264,6 +1311,7 @@ const editorCommandController = createEditorCommandController({
   renderDocument,
   renderDocumentChange,
   renderEditorOverlay,
+  invalidateEditorEngineReadCache,
   refreshCommandAvailability,
   activateEditorTool,
   commandEngine,
@@ -1284,10 +1332,12 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   atomPropertyDialogHost,
   chemicalPropertyDialogHost,
   annotationDialogHost,
+  logicalObjectsDialogHost,
   smilesDialogHost,
   tableDialogHost,
   plasmidMapDialogHost,
   bioShapeDialogHost,
+  imageCropDialogHost,
   transientNotificationHost,
   inchiHost,
   nmrPredictionHost,
@@ -1426,8 +1476,24 @@ async function syncDocumentFromEngine(options = {}) {
   if (!syncRenderList && refreshSnapshot && typeof state.editorEngine.refreshSnapshot === "function") {
     await state.editorEngine.refreshSnapshot("documentState");
   }
+  const patch = parseEngineJson(state.editorEngine.documentPatchJson?.(), null);
+  if (patch && state.currentDocument) {
+    const candidate = structuredClone(state.currentDocument);
+    setChemSemaRuntimeRevision(candidate, state.currentDocument.__runtimeRevision);
+    if (applyChemSemaDocumentPatch(candidate, patch)) {
+      const documentKey = currentRecoveryDocumentKey();
+      if (documentKey) {
+        await documentRecoveryManager.append(
+          documentKey,
+          canonicalChemSemaDocumentForSave(state.currentDocument),
+          patch,
+        );
+      }
+    }
+  }
   const documentData = parseEngineJson(state.editorEngine.documentJson());
   if (documentData) {
+    setChemSemaRuntimeRevision(documentData, state.editorEngine.revision?.());
     state.currentDocument = documentData;
     if (syncRenderList) {
       resetDocumentRenderState();
@@ -2087,7 +2153,32 @@ const documentFlow = createDocumentFlow({
   fitView,
   getZoomPercent,
   setZoomPercent,
+  visibleWorldRect,
   markCurrentDocumentSaved,
+  markCurrentDocumentRecovered,
+  recoverDocument: async (documentData, fileName, filePath) => {
+    const documentKey = currentRecoveryDocumentKey(documentData, filePath, fileName);
+    const recovery = await documentRecoveryManager.recover(documentKey, documentData);
+    if (recovery.baseMismatch) {
+      console.warn("[chemsema] recovery journal belongs to a different base snapshot", { documentKey });
+      return null;
+    }
+    if (!recovery.patches.length) return null;
+    const inflated = inflateChemSemaDocument(structuredClone(documentData));
+    setChemSemaRuntimeRevision(inflated, Number(recovery.patches[0].beforeRevision) || 0);
+    for (const patch of recovery.patches) {
+      if (!applyChemSemaDocumentPatch(inflated, patch)) {
+        throw new Error(`Recovery patch revision gap at ${patch.beforeRevision} -> ${patch.revision}.`);
+      }
+    }
+    return {
+      document: canonicalChemSemaDocumentForSave(inflated),
+      recovered: true,
+      patchCount: recovery.patches.length,
+      ignoredTruncatedTail: recovery.ignoredTruncatedTail,
+    };
+  },
+  compactRecoveryJournal: () => documentRecoveryManager.compact(currentRecoveryDocumentKey()),
   currentDocumentIsDirty,
   markCurrentDocumentOfficeSynced,
   traceEvent: (event, detail = null) => desktopFileHost?.traceEvent?.(event, detail),
@@ -2105,6 +2196,7 @@ const {
   openDocumentText,
   openDocumentFile,
   openDocumentPath,
+  hydrateVisibleCcjzRegion,
   saveCurrentDocument,
   saveCurrentDocumentAs,
   saveCurrentDocumentCdxml,
@@ -2113,6 +2205,20 @@ const {
   saveCurrentDocumentSvg,
   updateDocumentMeta,
 } = documentFlow;
+
+let viewportHydrationTimer = null;
+let viewportHydration = Promise.resolve();
+function queueVisibleCcjzHydration() {
+  clearTimeout(viewportHydrationTimer);
+  viewportHydrationTimer = setTimeout(() => {
+    const bounds = visibleWorldRect();
+    viewportHydration = viewportHydration
+      .then(() => hydrateVisibleCcjzRegion([bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]))
+      .catch((error) => console.error("[chemsema] visible CCJZ hydration failed", error));
+  }, 60);
+}
+viewerContainer.addEventListener("scroll", queueVisibleCcjzHydration, { passive: true });
+zoomInput.addEventListener("input", queueVisibleCcjzHydration);
 
 const browserDocumentTabs = createBrowserDocumentTabs({
   state,

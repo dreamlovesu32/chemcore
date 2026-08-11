@@ -5,8 +5,23 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { generateChemDrawOracle } from "./chemdraw-oracle.mjs";
 import { launchBrowser } from "./playwright-browser.mjs";
+import { matchesPublicCdxmlCasePattern } from "./public-cdxml-case-filter.mjs";
+import {
+  collectGalleryProvenance,
+  defaultPublicCdxmlCliRelativePath,
+  sha256File,
+} from "./public-cdxml-provenance.mjs";
 
 const execFileAsync = promisify(execFile);
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+export const IMAGE_ALIGNMENT_ALGORITHM = "chemdraw-source-authority-alignment-v13";
+
+export function publicCdxmlCliEnvironment(baseEnvironment = process.env) {
+  return {
+    ...baseEnvironment,
+    CHEMSEMA_CLI_DISABLE_CACHE: "1",
+  };
+}
 
 function parseArgs(argv) {
   const args = {
@@ -15,10 +30,11 @@ function parseArgs(argv) {
     report: "tmp/public-cdxml-roundtrip-label-audit/report.json",
     all: false,
     incremental: false,
+    allowDirty: false,
+    oracleGallery: null,
+    jobs: 4,
     patterns: [],
-    cli: process.platform === "win32"
-      ? "target/debug/chemsema-cli.exe"
-      : "target/debug/chemsema-cli",
+    cli: defaultPublicCdxmlCliRelativePath(),
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -27,12 +43,34 @@ function parseArgs(argv) {
     else if (arg === "--report") args.report = argv[++index];
     else if (arg === "--all") args.all = true;
     else if (arg === "--incremental") args.incremental = true;
+    else if (arg === "--allow-dirty") args.allowDirty = true;
+    else if (arg === "--oracle-gallery") args.oracleGallery = argv[++index];
+    else if (arg === "--jobs") args.jobs = Number(argv[++index]);
     else if (arg === "--only") args.patterns.push(argv[++index]);
     else if (arg === "--cli") args.cli = argv[++index];
     else if (arg === "--help" || arg === "-h") args.help = true;
     else throw new Error(`Unknown argument: ${arg}`);
   }
   return args;
+}
+
+export async function mapWithConcurrency(items, jobs, mapper) {
+  if (!Number.isInteger(jobs) || jobs < 1) {
+    throw new Error("--jobs must be a positive integer");
+  }
+  const results = Array(items.length);
+  let nextIndex = 0;
+  await Promise.all(Array.from(
+    { length: Math.min(jobs, items.length) },
+    async (_, workerIndex) => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index], index, workerIndex);
+      }
+    },
+  ));
+  return results;
 }
 
 async function walk(directory) {
@@ -65,8 +103,25 @@ function dataUrl(buffer, mimeType) {
   return `data:${mimeType};base64,${buffer.toString("base64")}`;
 }
 
-export async function computeImageAlignment(page, referenceDataUrl, chemsemaDataUrl) {
-  return page.evaluate(async ({ referenceDataUrl, chemsemaDataUrl }) => {
+export function sourceAlignmentPolicy(format, source) {
+  if (String(format).toLowerCase() === "cdx") return "declared-transform-origin";
+  const root = String(source).match(/<CDXML\b([^>]*)>/i)?.[1] ?? "";
+  const boundingBox = root.match(/\bBoundingBox\s*=\s*"([^"]+)"/i)?.[1]
+    ?.trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  return boundingBox?.length === 4 && boundingBox.every(Number.isFinite)
+    ? "declared-transform-origin"
+    : "ink-overlap-source-without-document-bounds";
+}
+
+export async function computeImageAlignment(
+  page,
+  referenceDataUrl,
+  chemsemaDataUrl,
+  sourcePolicy = "declared-transform-origin",
+) {
+  return page.evaluate(async ({ referenceDataUrl, chemsemaDataUrl, sourcePolicy }) => {
     async function loadImage(src) {
       const image = new Image();
       image.decoding = "sync";
@@ -75,26 +130,153 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       return image;
     }
 
-    async function chemDrawSvgScale(src) {
-      if (!src.startsWith("data:image/svg+xml")) return null;
-      const svg = await (await fetch(src)).text();
-      const scales = [];
-      for (const match of svg.matchAll(/matrix\(\s*([\d.eE+-]+)\s+0\s+0\s+([\d.eE+-]+)/g)) {
-        const x = Number(match[1]);
-        const y = Number(match[2]);
-        if (Number.isFinite(x) && Number.isFinite(y) && x > 0 && Math.abs(x - y) <= 1e-6) {
-          scales.push(x * 20);
-        }
-      }
-      if (scales.length === 0) return null;
-      scales.sort((left, right) => left - right);
-      return scales[Math.floor(scales.length / 2)];
+    function numericLength(value) {
+      const match = /^\s*([-+0-9.eE]+)(?:px)?\s*$/.exec(value ?? "");
+      if (!match) return null;
+      const number = Number(match[1]);
+      return Number.isFinite(number) && number > 0 ? number : null;
     }
 
-    function imageInkGeometry(image, maxDimension) {
-      const scale = maxDimension / Math.max(image.naturalWidth, image.naturalHeight, 1);
-      const width = Math.max(1, Math.ceil(image.naturalWidth * scale));
-      const height = Math.max(1, Math.ceil(image.naturalHeight * scale));
+    function viewBoxOf(svg, width, height) {
+      const values = (svg.getAttribute("viewBox") ?? "")
+        .trim()
+        .split(/[\s,]+/)
+        .map(Number);
+      if (values.length === 4 && values.every(Number.isFinite) && values[2] > 0 && values[3] > 0) {
+        return { x: values[0], y: values[1], width: values[2], height: values[3] };
+      }
+      return { x: 0, y: 0, width, height };
+    }
+
+    async function imageFrame(src, image) {
+      const fallback = {
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        viewBox: {
+          x: 0,
+          y: 0,
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        },
+        svg: null,
+      };
+      if (!src.startsWith("data:image/svg+xml")) return fallback;
+      const source = await (await fetch(src)).text();
+      const document = new DOMParser().parseFromString(source, "image/svg+xml");
+      const svg = document.documentElement;
+      if (svg.localName !== "svg" || document.querySelector("parsererror")) return fallback;
+      const preliminaryViewBox = viewBoxOf(svg, image.naturalWidth, image.naturalHeight);
+      const width = numericLength(svg.getAttribute("width")) ?? preliminaryViewBox.width;
+      const height = numericLength(svg.getAttribute("height")) ?? preliminaryViewBox.height;
+      if (!(width > 0 && height > 0)) return fallback;
+      return {
+        width,
+        height,
+        viewBox: viewBoxOf(svg, width, height),
+        svg,
+      };
+    }
+
+    function matrixValues(value) {
+      const number = "([-+0-9.eE]+)";
+      const separator = "[\\s,]+";
+      const match = new RegExp(
+        `^matrix\\(\\s*${number}${separator}${number}${separator}${number}${separator}`
+          + `${number}${separator}${number}${separator}${number}\\s*\\)$`,
+      ).exec(value ?? "");
+      if (!match) return null;
+      const values = match.slice(1).map(Number);
+      return values.every(Number.isFinite) ? values : null;
+    }
+
+    function chemDrawDominantUniformTransform(frame) {
+      if (!frame.svg) return null;
+      const counts = new Map();
+      let transformCount = 0;
+      for (const element of frame.svg.querySelectorAll("[transform]")) {
+        const values = matrixValues(element.getAttribute("transform"));
+        if (!values) continue;
+        const [a, b, c, d, e, f] = values;
+        if (
+          a <= 0 || d <= 0
+          || Math.abs(b) > 1e-9 || Math.abs(c) > 1e-9
+          || Math.abs(a - d) > 1e-6
+        ) continue;
+        transformCount += 1;
+        const normalized = [a, b, c, d, e, f]
+          .map((value) => Number(value.toFixed(9)));
+        const key = normalized.join(",");
+        const entry = counts.get(key) ?? { values: normalized, count: 0 };
+        entry.count += 1;
+        counts.set(key, entry);
+      }
+      const entries = [...counts.values()].sort((left, right) => right.count - left.count);
+      return entries.length === 0
+        ? null
+        : {
+          scale: entries[0].values[0],
+          translateX: entries[0].values[4],
+          translateY: entries[0].values[5],
+          count: entries[0].count,
+          runnerUpCount: entries[1]?.count ?? 0,
+          transformCount,
+          distinctTransformCount: entries.length,
+        };
+    }
+
+    function uniformViewportScale(frame) {
+      const x = frame.width / frame.viewBox.width;
+      const y = frame.height / frame.viewBox.height;
+      const tolerance = Math.max(1e-9, Math.max(Math.abs(x), Math.abs(y)) * 1e-6);
+      return Math.abs(x - y) <= tolerance && x > 0 ? (x + y) / 2 : null;
+    }
+
+    function viewportWorldOffset(frame) {
+      return {
+        x: -frame.viewBox.x * frame.width / frame.viewBox.width,
+        y: -frame.viewBox.y * frame.height / frame.viewBox.height,
+      };
+    }
+
+    function contentFrameAlignment(
+      referenceFrame,
+      chemsemaFrame,
+      referenceGeometry,
+      chemsemaGeometry,
+    ) {
+      const chemDraw = chemDrawDominantUniformTransform(referenceFrame);
+      const referenceViewportScale = uniformViewportScale(referenceFrame);
+      const chemsemaViewportScale = uniformViewportScale(chemsemaFrame);
+      if (
+        !chemDraw || !referenceViewportScale || !chemsemaViewportScale
+        || (
+          chemDraw.distinctTransformCount > 1
+          && chemDraw.count <= chemDraw.runnerUpCount
+        )
+      ) return null;
+      const worldScale = chemDraw.scale * 20 * referenceViewportScale;
+      const scale = worldScale / chemsemaViewportScale;
+      return {
+        scale,
+        dx: referenceViewportScale * (chemDraw.translateX - referenceFrame.viewBox.x)
+          + worldScale * chemsemaFrame.viewBox.x,
+        dy: referenceViewportScale * (chemDraw.translateY - referenceFrame.viewBox.y)
+          + worldScale * chemsemaFrame.viewBox.y,
+        chemDrawTransformCount: chemDraw.count,
+        chemDrawDistinctTransformCount: chemDraw.distinctTransformCount,
+        chemDrawTransformRunnerUpCount: chemDraw.runnerUpCount,
+        chemDrawMatrixScale: chemDraw.scale,
+        chemDrawMatrixTranslateX: chemDraw.translateX,
+        chemDrawMatrixTranslateY: chemDraw.translateY,
+        referenceContentBounds: referenceGeometry.bbox,
+        chemsemaContentBounds: chemsemaGeometry.bbox,
+      };
+    }
+
+    function imageInkGeometry(image, frame, maxDimension) {
+      const scale = maxDimension / Math.max(frame.width, frame.height, 1);
+      const width = Math.max(1, Math.ceil(frame.width * scale));
+      const height = Math.max(1, Math.ceil(frame.height * scale));
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
@@ -125,8 +307,8 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       }
       if (count === 0) {
         return {
-          bbox: { left: 0, top: 0, width: image.naturalWidth, height: image.naturalHeight },
-          centroid: { x: image.naturalWidth / 2, y: image.naturalHeight / 2 },
+          bbox: { left: 0, top: 0, width: frame.width, height: frame.height },
+          centroid: { x: frame.width / 2, y: frame.height / 2 },
         };
       }
       return {
@@ -140,9 +322,9 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       };
     }
 
-    function maskForReference(image, analysisScale, padding) {
-      const width = Math.max(1, Math.ceil(image.naturalWidth * analysisScale) + padding * 2);
-      const height = Math.max(1, Math.ceil(image.naturalHeight * analysisScale) + padding * 2);
+    function maskForReference(image, frame, analysisScale, padding) {
+      const width = Math.max(1, Math.ceil(frame.width * analysisScale) + padding * 2);
+      const height = Math.max(1, Math.ceil(frame.height * analysisScale) + padding * 2);
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
@@ -153,8 +335,8 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
         image,
         padding,
         padding,
-        image.naturalWidth * analysisScale,
-        image.naturalHeight * analysisScale,
+        frame.width * analysisScale,
+        frame.height * analysisScale,
       );
       const pixels = context.getImageData(0, 0, width, height).data;
       const mask = new Uint8Array(width * height);
@@ -169,7 +351,7 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       return { width, height, mask, count };
     }
 
-    function candidateInkPoints(image, reference, analysisScale, scale, dx, dy, padding) {
+    function candidateInkPoints(image, frame, reference, analysisScale, scale, dx, dy, padding) {
       const canvas = document.createElement("canvas");
       canvas.width = reference.width;
       canvas.height = reference.height;
@@ -180,8 +362,8 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
         image,
         padding + dx * analysisScale,
         padding + dy * analysisScale,
-        image.naturalWidth * scale * analysisScale,
-        image.naturalHeight * scale * analysisScale,
+        frame.width * scale * analysisScale,
+        frame.height * scale * analysisScale,
       );
       const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
       const points = [];
@@ -228,9 +410,13 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       loadImage(referenceDataUrl),
       loadImage(chemsemaDataUrl),
     ]);
+    const [referenceFrame, chemsemaFrame] = await Promise.all([
+      imageFrame(referenceDataUrl, referenceImage),
+      imageFrame(chemsemaDataUrl, chemsemaImage),
+    ]);
     const [referenceGeometry, chemsemaGeometry] = [
-      imageInkGeometry(referenceImage, 220),
-      imageInkGeometry(chemsemaImage, 220),
+      imageInkGeometry(referenceImage, referenceFrame, 220),
+      imageInkGeometry(chemsemaImage, chemsemaFrame, 220),
     ];
     const widthScale = referenceGeometry.bbox.width / Math.max(chemsemaGeometry.bbox.width, 1e-6);
     const heightScale = referenceGeometry.bbox.height / Math.max(chemsemaGeometry.bbox.height, 1e-6);
@@ -244,20 +430,34 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       shiftRadius,
       centerAlignment = null,
     ) {
-      const analysisScale = maxDimension / Math.max(referenceImage.naturalWidth, referenceImage.naturalHeight, 1);
+      const analysisScale = maxDimension / Math.max(referenceFrame.width, referenceFrame.height, 1);
       const padding = shiftRadius + 10;
-      const reference = maskForReference(referenceImage, analysisScale, padding);
+      const reference = maskForReference(referenceImage, referenceFrame, analysisScale, padding);
+      const candidateWorldOffset = viewportWorldOffset(chemsemaFrame);
       let best = null;
       for (let scaleIndex = -scaleRadius; scaleIndex <= scaleRadius; scaleIndex += 1) {
         const scale = centerScale * (1 + scaleIndex * scaleStep);
-        const baseDx = centerAlignment
+        const initialDx = centerAlignment
           ? centerAlignment.dx + chemsemaGeometry.centroid.x * (centerAlignment.scale - scale)
           : referenceGeometry.centroid.x - chemsemaGeometry.centroid.x * scale;
-        const baseDy = centerAlignment
+        const initialDy = centerAlignment
           ? centerAlignment.dy + chemsemaGeometry.centroid.y * (centerAlignment.scale - scale)
           : referenceGeometry.centroid.y - chemsemaGeometry.centroid.y * scale;
+        // Search on a fixed document-world lattice. The SVG viewport origin is
+        // only a crop around the same ChemDraw document coordinates; changing
+        // that crop must adjust display-space dx/dy without changing the
+        // underlying registration. Snapping display-space translation instead
+        // makes an otherwise identical candidate land on a different raster
+        // phase whenever its exported viewBox changes.
+        const worldDx = initialDx + scale * candidateWorldOffset.x;
+        const worldDy = initialDy + scale * candidateWorldOffset.y;
+        const snappedWorldDx = Math.round(worldDx * analysisScale) / analysisScale;
+        const snappedWorldDy = Math.round(worldDy * analysisScale) / analysisScale;
+        const baseDx = snappedWorldDx - scale * candidateWorldOffset.x;
+        const baseDy = snappedWorldDy - scale * candidateWorldOffset.y;
         const points = candidateInkPoints(
           chemsemaImage,
+          chemsemaFrame,
           reference,
           analysisScale,
           scale,
@@ -277,37 +477,122 @@ export async function computeImageAlignment(page, referenceDataUrl, chemsemaData
       return best;
     }
 
+    const contentFrameGeometry = [
+      imageInkGeometry(referenceImage, referenceFrame, 1600),
+      imageInkGeometry(chemsemaImage, chemsemaFrame, 1600),
+    ];
+    let declared = contentFrameAlignment(
+      referenceFrame,
+      chemsemaFrame,
+      contentFrameGeometry[0],
+      contentFrameGeometry[1],
+    );
+    if (declared && sourcePolicy === "declared-transform-origin") {
+      const analysisScale = 720 / Math.max(referenceFrame.width, referenceFrame.height, 1);
+      const reference = maskForReference(referenceImage, referenceFrame, analysisScale, 10);
+      const points = candidateInkPoints(
+        chemsemaImage,
+        chemsemaFrame,
+        reference,
+        analysisScale,
+        declared.scale,
+        declared.dx,
+        declared.dy,
+        10,
+      );
+      const score = bestTranslation(reference, points, 0);
+      return {
+        algorithm: "chemdraw-source-authority-alignment-v13",
+        basis: "declared-transform-origin",
+        scale: declared.scale,
+        dx: declared.dx,
+        dy: declared.dy,
+        iou: score.iou,
+        referenceWidth: referenceFrame.width,
+        referenceHeight: referenceFrame.height,
+        chemsemaWidth: chemsemaFrame.width,
+        chemsemaHeight: chemsemaFrame.height,
+        vectorFrame: {
+          chemDrawTransformCount: declared.chemDrawTransformCount,
+          chemDrawDistinctTransformCount: declared.chemDrawDistinctTransformCount,
+          chemDrawTransformRunnerUpCount: declared.chemDrawTransformRunnerUpCount,
+          chemDrawMatrixScale: declared.chemDrawMatrixScale,
+          chemDrawMatrixTranslateX: declared.chemDrawMatrixTranslateX,
+          chemDrawMatrixTranslateY: declared.chemDrawMatrixTranslateY,
+          referenceContentBounds: declared.referenceContentBounds,
+          chemsemaContentBounds: declared.chemsemaContentBounds,
+          registrationIou: score.iou,
+          referenceViewBox: referenceFrame.viewBox,
+          chemsemaViewBox: chemsemaFrame.viewBox,
+        },
+      };
+    }
+    if (declared) {
+      const referenceCenter = {
+        x: contentFrameGeometry[0].bbox.left + contentFrameGeometry[0].bbox.width / 2,
+        y: contentFrameGeometry[0].bbox.top + contentFrameGeometry[0].bbox.height / 2,
+      };
+      const chemsemaCenter = {
+        x: contentFrameGeometry[1].bbox.left + contentFrameGeometry[1].bbox.width / 2,
+        y: contentFrameGeometry[1].bbox.top + contentFrameGeometry[1].bbox.height / 2,
+      };
+      const seed = {
+        ...declared,
+        dx: referenceCenter.x - chemsemaCenter.x * declared.scale,
+        dy: referenceCenter.y - chemsemaCenter.y * declared.scale,
+      };
+      const coarseTranslation = await search(180, declared.scale, 0, 0, 40, seed);
+      const refinedTranslation = await search(720, declared.scale, 0, 0, 16, coarseTranslation);
+      const preciseTranslation = await search(1440, declared.scale, 0, 0, 6, refinedTranslation);
+      return {
+        algorithm: "chemdraw-source-authority-alignment-v13",
+        basis: "declared-scale-ink-translation",
+        scale: declared.scale,
+        dx: preciseTranslation.dx,
+        dy: preciseTranslation.dy,
+        iou: preciseTranslation.iou,
+        referenceWidth: referenceFrame.width,
+        referenceHeight: referenceFrame.height,
+        chemsemaWidth: chemsemaFrame.width,
+        chemsemaHeight: chemsemaFrame.height,
+        vectorFrame: {
+          chemDrawTransformCount: declared.chemDrawTransformCount,
+          chemDrawDistinctTransformCount: declared.chemDrawDistinctTransformCount,
+          chemDrawTransformRunnerUpCount: declared.chemDrawTransformRunnerUpCount,
+          chemDrawMatrixScale: declared.chemDrawMatrixScale,
+          referenceContentBounds: declared.referenceContentBounds,
+          chemsemaContentBounds: declared.chemsemaContentBounds,
+          registrationIou: preciseTranslation.iou,
+          referenceViewBox: referenceFrame.viewBox,
+          chemsemaViewBox: chemsemaFrame.viewBox,
+        },
+      };
+    }
+
     const coarse = await search(180, initialScale, 0.005, 4, 20);
     let refined = await search(360, coarse.scale, 0.00125, 2, 6, coarse);
-    // ChemDraw SVG stores CD coordinates in twentieths before applying its
-    // explicit uniform matrix. Treat that declared vector scale as a second
-    // seed, but retain it only when it produces more actual ink overlap.
-    const declaredScale = await chemDrawSvgScale(referenceDataUrl);
-    if (declaredScale && declaredScale >= 0.2 && declaredScale <= 20) {
-      const declared = await search(360, declaredScale, 0, 0, 20);
-      if (declared.iou > refined.iou) refined = declared;
-    }
     // The 360 px pass can settle on a text-heavy local optimum whose scale is
     // slightly wrong for long bonds and arrows. Reopen a wider scale interval
     // at medium resolution, then finish with a narrow high-resolution pass.
-    const stabilized = Math.max(referenceImage.naturalWidth, referenceImage.naturalHeight) >= 400
+    const stabilized = Math.max(referenceFrame.width, referenceFrame.height) >= 400
       ? await search(720, refined.scale, 0.0003125, 12, 6, refined)
       : refined;
-    const precise = Math.max(referenceImage.naturalWidth, referenceImage.naturalHeight) >= 400
+    const precise = Math.max(referenceFrame.width, referenceFrame.height) >= 400
       ? await search(1440, stabilized.scale, 0.00015625, 3, 5, stabilized)
       : stabilized;
     return {
-      algorithm: "ink-iou-coarse-refined-precision-v5",
+      algorithm: "chemdraw-source-authority-alignment-v13",
+      basis: "ink-overlap",
       scale: precise.scale,
       dx: precise.dx,
       dy: precise.dy,
       iou: precise.iou,
-      referenceWidth: referenceImage.naturalWidth,
-      referenceHeight: referenceImage.naturalHeight,
-      chemsemaWidth: chemsemaImage.naturalWidth,
-      chemsemaHeight: chemsemaImage.naturalHeight,
+      referenceWidth: referenceFrame.width,
+      referenceHeight: referenceFrame.height,
+      chemsemaWidth: chemsemaFrame.width,
+      chemsemaHeight: chemsemaFrame.height,
     };
-  }, { referenceDataUrl, chemsemaDataUrl });
+  }, { referenceDataUrl, chemsemaDataUrl, sourcePolicy });
 }
 
 function reviewScreenshotHtml(item, referenceDataUrl, chemsemaDataUrl, alignment) {
@@ -343,7 +628,7 @@ function reviewScreenshotHtml(item, referenceDataUrl, chemsemaDataUrl, alignment
   const alignment = ${JSON.stringify(alignment)};
   const referenceImage = document.getElementById("referenceImage");
   const chemsemaImage = document.getElementById("chemsemaImage");
-  function place(panel, image, scale, dx, dy) {
+  function place(panel, image, width, height, scale, dx, dy) {
     const padding = 16;
     const fit = Math.min(
       (panel.clientWidth - padding * 2) / alignment.referenceWidth,
@@ -351,14 +636,30 @@ function reviewScreenshotHtml(item, referenceDataUrl, chemsemaDataUrl, alignment
     );
     const originX = (panel.clientWidth - alignment.referenceWidth * fit) / 2;
     const originY = (panel.clientHeight - alignment.referenceHeight * fit) / 2;
-    image.style.width = image.naturalWidth * scale * fit + "px";
-    image.style.height = image.naturalHeight * scale * fit + "px";
+    image.style.width = width * scale * fit + "px";
+    image.style.height = height * scale * fit + "px";
     image.style.left = originX + dx * fit + "px";
     image.style.top = originY + dy * fit + "px";
   }
   Promise.allSettled([referenceImage.decode(), chemsemaImage.decode()]).then(() => {
-    place(document.getElementById("referencePanel"), referenceImage, 1, 0, 0);
-    place(document.getElementById("chemsemaPanel"), chemsemaImage, alignment.scale, alignment.dx, alignment.dy);
+    place(
+      document.getElementById("referencePanel"),
+      referenceImage,
+      alignment.referenceWidth,
+      alignment.referenceHeight,
+      1,
+      0,
+      0,
+    );
+    place(
+      document.getElementById("chemsemaPanel"),
+      chemsemaImage,
+      alignment.chemsemaWidth,
+      alignment.chemsemaHeight,
+      alignment.scale,
+      alignment.dx,
+      alignment.dy,
+    );
     document.body.dataset.ready = "yes";
   });
 })();
@@ -541,19 +842,29 @@ export function viewerHtml(items) {
     const alignment = item.alignment || {};
     const referenceWidth = Number(alignment.referenceWidth || referenceImage.naturalWidth || 1);
     const referenceHeight = Number(alignment.referenceHeight || referenceImage.naturalHeight || 1);
+    const chemsemaWidth = Number(alignment.chemsemaWidth || chemsemaImage.naturalWidth || 1);
+    const chemsemaHeight = Number(alignment.chemsemaHeight || chemsemaImage.naturalHeight || 1);
     const scale = Number(alignment.scale || Math.min(
-      referenceWidth / Math.max(chemsemaImage.naturalWidth, 1),
-      referenceHeight / Math.max(chemsemaImage.naturalHeight, 1),
+      referenceWidth / Math.max(chemsemaWidth, 1),
+      referenceHeight / Math.max(chemsemaHeight, 1),
     ));
     return {
       referenceWidth,
       referenceHeight,
+      chemsemaWidth,
+      chemsemaHeight,
       scale,
-      dx: Number(alignment.dx || (referenceWidth - chemsemaImage.naturalWidth * scale) / 2),
-      dy: Number(alignment.dy || (referenceHeight - chemsemaImage.naturalHeight * scale) / 2),
+      dx: Number(
+        alignment.dx
+        ?? (referenceWidth - chemsemaWidth * scale) / 2
+      ),
+      dy: Number(
+        alignment.dy
+        ?? (referenceHeight - chemsemaHeight * scale) / 2
+      ),
     };
   }
-  function placeImage(canvas, image, alignment, scale, dx, dy) {
+  function placeImage(canvas, image, alignment, width, height, scale, dx, dy) {
     const padding = 12;
     const fit = Math.max(1e-6, Math.min(
       Math.max(1, canvas.clientWidth - padding * 2) / alignment.referenceWidth,
@@ -561,8 +872,8 @@ export function viewerHtml(items) {
     ));
     const originX = (canvas.clientWidth - alignment.referenceWidth * fit) / 2;
     const originY = (canvas.clientHeight - alignment.referenceHeight * fit) / 2;
-    image.style.width = image.naturalWidth * scale * fit + "px";
-    image.style.height = image.naturalHeight * scale * fit + "px";
+    image.style.width = width * scale * fit + "px";
+    image.style.height = height * scale * fit + "px";
     image.style.left = originX + dx * fit + "px";
     image.style.top = originY + dy * fit + "px";
     canvas.reviewLayout = { fit, originX, originY, ...alignment };
@@ -575,11 +886,22 @@ export function viewerHtml(items) {
     ]);
     if (generation !== layoutGeneration || item !== items[index]) return;
     const alignment = canonicalAlignment(item);
-    placeImage(referenceCanvas, referenceImage, alignment, 1, 0, 0);
+    placeImage(
+      referenceCanvas,
+      referenceImage,
+      alignment,
+      alignment.referenceWidth,
+      alignment.referenceHeight,
+      1,
+      0,
+      0,
+    );
     placeImage(
       chemsemaCanvas,
       chemsemaImage,
       alignment,
+      alignment.chemsemaWidth,
+      alignment.chemsemaHeight,
       alignment.scale,
       alignment.dx,
       alignment.dy,
@@ -823,19 +1145,63 @@ function svgHasDrawableContent(svg) {
   return /<(?:path|polygon|polyline|line|circle|ellipse|rect|text)\b/i.test(svg);
 }
 
-async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
+export function oracleGalleryCorpusErrors(recorded, current) {
+  const errors = [];
+  if (recorded?.corpus?.manifestSha256 !== current?.corpus?.manifestSha256) {
+    errors.push("corpus-manifest");
+  }
+  const recordedSources = new Map(
+    (recorded?.corpus?.sources ?? []).map((source) => [source.id, source.actualRevision]),
+  );
+  const currentSources = new Map(
+    (current?.corpus?.sources ?? []).map((source) => [source.id, source.actualRevision]),
+  );
+  const sourceIds = new Set([...recordedSources.keys(), ...currentSources.keys()]);
+  for (const sourceId of [...sourceIds].sort()) {
+    if (recordedSources.get(sourceId) !== currentSources.get(sourceId)) {
+      errors.push(`corpus-source:${sourceId}`);
+    }
+  }
+  return errors;
+}
+
+async function retainedOracleGallery(oracleGallery, currentProvenance) {
+  if (!oracleGallery) return null;
+  const galleryDir = path.resolve(oracleGallery);
+  const manifestPath = path.join(galleryDir, "manifest.json");
+  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+  const compatibilityErrors = oracleGalleryCorpusErrors(
+    manifest.provenance,
+    currentProvenance,
+  );
+  if (compatibilityErrors.length) {
+    throw new Error(
+      `Retained ChemDraw oracle gallery is incompatible: ${compatibilityErrors.join(", ")}`,
+    );
+  }
+  return {
+    galleryDir,
+    manifestPath,
+    manifestSha256: sha256File(manifestPath),
+    itemsByPath: new Map(
+      manifest.items.map((item) => [item.relativeCdxml.replaceAll("\\", "/"), item]),
+    ),
+  };
+}
+
+async function fullCorpusPairs(
+  root,
+  reportPath,
+  outDir,
+  patterns = [],
+  oracleGallery = null,
+  currentProvenance = null,
+) {
   const report = JSON.parse(await fs.readFile(path.resolve(reportPath), "utf8"));
   const selectedCases = patterns.length === 0
     ? report.cases
-    : report.cases.filter((entry) => {
-      const haystack = `${entry.caseId} ${entry.source} ${entry.path}`.toLowerCase();
-      return patterns.some((pattern) => {
-        const normalized = pattern.toLowerCase();
-        return /^\d+$/.test(normalized)
-          ? entry.caseId === normalized
-          : haystack.includes(normalized);
-      });
-    });
+    : report.cases.filter((entry) =>
+      patterns.some((pattern) => matchesPublicCdxmlCasePattern(entry, pattern)));
   const pairs = selectedCases.map((entry) => {
     const input = path.join(root, entry.source, entry.path);
     const title = path.basename(input, path.extname(input));
@@ -853,7 +1219,9 @@ async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
 
   const oracleDir = path.join(outDir, "chemdraw-oracle");
   await fs.mkdir(oracleDir, { recursive: true });
+  const retainedOracle = await retainedOracleGallery(oracleGallery, currentProvenance);
   const candidates = [];
+  let retainedCount = 0;
   for (const pair of pairs) {
     if (["expected-reject", "skipped"].includes(pair.status)) continue;
     const output = path.join(oracleDir, `${pair.oracleName}.chemdraw.svg`);
@@ -864,12 +1232,33 @@ async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
     // review runs never relaunch ChemDraw merely to rediscover the same failure.
     const relativeCdxml = path.relative(root, pair.cdxml).replaceAll("\\", "/");
     const itemId = `${pair.caseId}_${safeName(relativeCdxml)}`;
+    if (retainedOracle) {
+      const retainedItem = retainedOracle.itemsByPath.get(relativeCdxml);
+      if (!retainedItem?.reference) {
+        throw new Error(
+          `Retained ChemDraw oracle gallery is missing ${relativeCdxml}`,
+        );
+      }
+      const retainedReference = path.resolve(
+        retainedOracle.galleryDir,
+        retainedItem.reference,
+      );
+      await fs.access(retainedReference);
+      await fs.copyFile(retainedReference, output);
+      retainedCount += 1;
+      continue;
+    }
     const retainedReference = path.join(outDir, "items", itemId, "reference.svg");
     if (await fs.stat(retainedReference).then(() => true, () => false)) {
       await fs.copyFile(retainedReference, output);
       continue;
     }
     candidates.push(pair);
+  }
+  if (retainedOracle) {
+    console.log(
+      `[CHEMDRAW] retained ${retainedCount} oracle SVGs from ${retainedOracle.galleryDir}`,
+    );
   }
   const chunkSize = 32;
   for (let offset = 0; offset < candidates.length; offset += chunkSize) {
@@ -907,19 +1296,44 @@ async function fullCorpusPairs(root, reportPath, outDir, patterns = []) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log("Usage: node scripts/render-public-cdxml-visual-review.mjs [--root corpus] [--out directory] [--cli chemsema-cli] [--all --report report.json] [--only case-or-path] [--incremental]");
+    console.log("Usage: node scripts/render-public-cdxml-visual-review.mjs [--root corpus] [--out directory] [--cli chemsema-cli] [--all --report report.json] [--oracle-gallery retained-gallery] [--only case-or-path] [--incremental] [--jobs n] [--allow-dirty]");
     return;
   }
 
   const root = path.resolve(args.root);
   const outDir = path.resolve(args.outDir);
   const cli = path.resolve(args.cli);
+  if (args.oracleGallery && !args.all) {
+    throw new Error("--oracle-gallery requires --all");
+  }
+  await fs.access(cli);
+  const provenance = collectGalleryProvenance({
+    repoRoot,
+    cliPath: cli,
+    corpusRoot: root,
+    corpusManifestPath: path.join(repoRoot, "benchmarks", "public-cdxml", "manifest.json"),
+    roundtripReportPath: path.resolve(args.report),
+    allowDevelopmentIdentityMismatch: args.allowDirty,
+  });
+  if (provenance.repository.dirty && !args.allowDirty) {
+    throw new Error(
+      "Refusing to generate a canonical public gallery from a dirty repository. "
+      + "Commit the changes or pass --allow-dirty for an explicitly non-release development run.",
+    );
+  }
   const retainedManifest = args.incremental
     ? JSON.parse(await fs.readFile(path.join(outDir, "manifest.json"), "utf8"))
     : null;
   const allFiles = await walk(root);
   const pairs = args.all
-    ? await fullCorpusPairs(root, args.report, outDir, args.patterns)
+    ? await fullCorpusPairs(
+      root,
+      args.report,
+      outDir,
+      args.patterns,
+      args.oracleGallery,
+      provenance,
+    )
     : allFiles
       .filter((file) => file.toLowerCase().endsWith(".cdxml"))
       .map((cdxml) => ({
@@ -932,7 +1346,13 @@ async function main() {
       .sort((left, right) => left.cdxml.localeCompare(right.cdxml, "en"));
 
   if (pairs.length === 0) throw new Error(`No matching CDXML/PNG pairs found under ${root}`);
-  await fs.access(cli);
+  if (args.oracleGallery) {
+    const retainedManifestPath = path.resolve(args.oracleGallery, "manifest.json");
+    provenance.oracleGallery = {
+      path: path.resolve(args.oracleGallery),
+      manifestSha256: sha256File(retainedManifestPath),
+    };
+  }
   await fs.mkdir(path.join(outDir, "items"), { recursive: true });
 
   const browser = await launchBrowser({ headless: true });
@@ -940,12 +1360,16 @@ async function main() {
     viewport: { width: 2520, height: 1080 },
     deviceScaleFactor: 1.5,
   });
-  const page = await context.newPage();
-  const manifestItems = [];
+  const workerCount = Math.min(args.jobs, pairs.length);
+  const pages = await Promise.all(
+    Array.from({ length: workerCount }, () => context.newPage()),
+  );
+  let completed = 0;
+  let manifestItems;
 
   try {
-    for (let index = 0; index < pairs.length; index += 1) {
-      const pair = pairs[index];
+    manifestItems = await mapWithConcurrency(pairs, args.jobs, async (pair, index, workerIndex) => {
+      const page = pages[workerIndex];
       const relativeCdxml = path.relative(root, pair.cdxml).replaceAll("\\", "/");
       const prefix = String(index + 1).padStart(3, "0");
       const id = pair.caseId
@@ -969,6 +1393,11 @@ async function main() {
         await execFileAsync(cli, ["convert", pair.cdxml, chemsemaPath], {
           cwd: process.cwd(),
           maxBuffer: 16 * 1024 * 1024,
+          // Gallery workers run concurrently. The CLI cache is a local
+          // interactive optimization, not a parallel build artifact; sharing
+          // it across workers can return another conversion's derived state
+          // and make the visual gate nondeterministic.
+          env: publicCdxmlCliEnvironment(),
         });
         const renderedSvg = await fs.readFile(chemsemaPath, "utf8");
         if (!svgHasDrawableContent(renderedSvg)) {
@@ -988,10 +1417,15 @@ async function main() {
         args.all ? "image/svg+xml" : "image/png",
       );
       const chemsemaDataUrl = dataUrl(chemsemaBuffer, "image/svg+xml");
+      const sourcePolicy = sourceAlignmentPolicy(
+        pair.format ?? path.extname(pair.cdxml).slice(1),
+        await fs.readFile(pair.cdxml, "utf8"),
+      );
       const alignment = await computeImageAlignment(
         page,
         referenceDataUrl,
         chemsemaDataUrl,
+        sourcePolicy,
       );
       const screenshotItem = {
         number: String(index + 1),
@@ -1013,7 +1447,7 @@ async function main() {
       await page.waitForFunction(() => document.body.dataset.ready === "yes");
       await page.screenshot({ path: comparisonPath, fullPage: true });
 
-      manifestItems.push({
+      const manifestItem = {
         id,
         label: `${String(index + 1).padStart(3, "0")} · ${screenshotItem.title}`,
         relativeCdxml,
@@ -1023,13 +1457,20 @@ async function main() {
         chemsemaLabel: pair.chemsemaLabel,
         format: pair.format ?? "cdxml",
         status: pair.status ?? "reference-pair",
+        candidateProvenance: {
+          repositoryIdentity: provenance.repository.identity,
+          cliSha256: provenance.cli.sha256,
+        },
+        sourceAlignmentPolicy: sourcePolicy,
         alignment,
         reference: `items/${id}/reference${referenceExtension}`,
         chemsema: `items/${id}/chemsema.svg`,
         comparison: `items/${id}/comparison.png`,
-      });
-      console.log(`[${index + 1}/${pairs.length}] ${relativeCdxml}`);
-    }
+      };
+      completed += 1;
+      console.log(`[${completed}/${pairs.length}] worker=${workerIndex + 1} ${relativeCdxml}`);
+      return manifestItem;
+    });
   } finally {
     await browser.close();
   }
@@ -1046,6 +1487,7 @@ async function main() {
         count: finalManifestItems.length,
         incremental: Boolean(retainedManifest),
         updatedCount: manifestItems.length,
+        provenance,
         items: finalManifestItems,
       }, null, 2)}\n`,
     ),

@@ -1,6 +1,185 @@
 use super::*;
 
 #[test]
+fn parse_cdxml_hash_bond_keeps_an_explicit_hash_pattern_and_round_trips_it() {
+    let cdxml = r#"<CDXML BondLength="30" LineWidth="1" BoldWidth="4" HashSpacing="2.7">
+  <page><fragment>
+    <n id="n1" p="0 0"/><n id="n2" p="30 0"/>
+    <b id="b1" B="n1" E="n2" Display="Hash"/>
+  </fragment></page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("explicit hash bond")).expect("parses");
+    let bond = &document
+        .editable_fragment()
+        .expect("fragment")
+        .fragment
+        .bonds[0];
+    assert_eq!(
+        bond.line_styles.main,
+        chemsema_engine::BondLinePattern::Hash
+    );
+    assert_eq!(
+        bond.line_weights.main,
+        chemsema_engine::BondLineWeight::Normal,
+        "Hash is a line pattern, not a disguised bold dashed line"
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("Display=\"Hash\""), "{exported}");
+    assert!(!exported.contains("Display=\"Dash\""), "{exported}");
+}
+
+#[test]
+fn render_cdxml_hash_bond_uses_line_width_bold_width_and_hash_spacing() {
+    let cdxml = r#"<CDXML BondLength="30" LineWidth="1" BoldWidth="4" HashSpacing="2.7">
+  <page><fragment>
+    <n id="n1" p="0 0"/><n id="n2" p="30 0"/>
+    <b id="b1" B="n1" E="n2" Display="Hash"/>
+  </fragment></page>
+</CDXML>"#;
+    let document = parse_cdxml_document(cdxml, Some("hash geometry")).expect("parses");
+    let stripes = render_document(&document)
+        .into_iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if bond_id == "b1" => Some(points),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(stripes.len(), 11, "{stripes:?}");
+    for stripe in stripes {
+        let min_x = stripe
+            .iter()
+            .map(|point| point.x)
+            .fold(f64::INFINITY, f64::min);
+        let max_x = stripe
+            .iter()
+            .map(|point| point.x)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let min_y = stripe
+            .iter()
+            .map(|point| point.y)
+            .fold(f64::INFINITY, f64::min);
+        let max_y = stripe
+            .iter()
+            .map(|point| point.y)
+            .fold(f64::NEG_INFINITY, f64::max);
+        assert_close(max_x - min_x, 1.0);
+        assert_close(max_y - min_y, 4.0);
+    }
+}
+
+#[test]
+fn parse_cdxml_hash_display_is_ignored_by_chemdraw_for_multiple_bonds() {
+    let cdxml = r#"<CDXML BondLength="30" LineWidth="1" BoldWidth="4" HashSpacing="2.7">
+  <page><fragment>
+    <n id="n1" p="0 0"/><n id="n2" p="30 0"/>
+    <b id="b1" B="n1" E="n2" Order="2" Display="Hash" Display2="Hash" DoublePosition="Center"/>
+  </fragment></page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(cdxml, Some("ignored multiple hash displays")).expect("parses");
+    let bond = &document
+        .editable_fragment()
+        .expect("fragment")
+        .fragment
+        .bonds[0];
+    assert_eq!(bond.order, 2);
+    assert_eq!(
+        bond.line_styles.main,
+        chemsema_engine::BondLinePattern::Hash
+    );
+    assert_eq!(
+        bond.line_styles.left,
+        chemsema_engine::BondLinePattern::Hash
+    );
+    assert_eq!(
+        bond.line_styles.right,
+        chemsema_engine::BondLinePattern::Hash
+    );
+    let polygons = render_document(&document)
+        .into_iter()
+        .filter(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Polygon {
+                    bond_id: Some(bond_id),
+                    ..
+                } if bond_id == "b1"
+            )
+        })
+        .count();
+    assert_eq!(
+        polygons, 2,
+        "ChemDraw renders an ordinary solid double bond"
+    );
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("Display=\"Hash\""), "{exported}");
+    assert!(exported.contains("Display2=\"Hash\""), "{exported}");
+}
+
+#[test]
+fn parse_ccjs_migrates_only_the_two_legacy_single_hash_encodings() {
+    let legacy = fragment_document(
+        json!([
+            { "id": "n1", "element": "C", "atomicNumber": 6, "position": [0.0, 0.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n2", "element": "C", "atomicNumber": 6, "position": [30.0, 0.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n3", "element": "C", "atomicNumber": 6, "position": [60.0, 0.0], "charge": 0, "numHydrogens": 0 },
+            { "id": "n4", "element": "C", "atomicNumber": 6, "position": [90.0, 0.0], "charge": 0, "numHydrogens": 0 }
+        ]),
+        json!([
+            {
+                "id": "legacy_toolbar", "begin": "n1", "end": "n2", "order": 1,
+                "lineStyles": { "main": "dashed" },
+                "lineWeights": { "main": "bold" }
+            },
+            {
+                "id": "legacy_menu", "begin": "n2", "end": "n3", "order": 1,
+                "lineStyles": { "main": "dashed" },
+                "meta": { "contextMenuBondStyle": "single-hashed" }
+            },
+            {
+                "id": "bold_dashed_double", "begin": "n3", "end": "n4", "order": 2,
+                "double": { "placement": "center" },
+                "lineStyles": { "main": "dashed" },
+                "lineWeights": { "main": "bold" }
+            }
+        ]),
+    );
+    let reopened = parse_document_json(&serde_json::to_string(&legacy).expect("serializes"))
+        .expect("legacy document reopens");
+    let fragment = reopened.editable_fragment().expect("fragment").fragment;
+    for id in ["legacy_toolbar", "legacy_menu"] {
+        let bond = fragment.bonds.iter().find(|bond| bond.id == id).expect(id);
+        assert_eq!(
+            bond.line_styles.main,
+            chemsema_engine::BondLinePattern::Hash
+        );
+        assert_eq!(
+            bond.line_weights.main,
+            chemsema_engine::BondLineWeight::Normal
+        );
+        assert!(bond.meta.get("contextMenuBondStyle").is_none());
+    }
+    let untouched = fragment
+        .bonds
+        .iter()
+        .find(|bond| bond.id == "bold_dashed_double")
+        .expect("bold dashed double");
+    assert_eq!(
+        untouched.line_styles.main,
+        chemsema_engine::BondLinePattern::Dashed
+    );
+    assert_eq!(
+        untouched.line_weights.main,
+        chemsema_engine::BondLineWeight::Bold
+    );
+}
+
+#[test]
 fn parse_cdxml_automatically_positions_query_tags_relative_to_their_bonds() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML BondLength="30" LineWidth="1" BoldWidth="4" HashSpacing="2.7">
@@ -44,7 +223,29 @@ fn parse_cdxml_automatically_positions_query_tags_relative_to_their_bonds() {
                 .and_then(|value| value.as_f64()),
             Some(6.0)
         );
+        assert!(label
+            .payload
+            .extra
+            .get("automaticPositioningVector")
+            .and_then(|value| value.as_array())
+            .is_some_and(|vector| vector.len() == 2));
     }
+    let exported = document_to_cdxml(&document);
+    let reimported = parse_cdxml_document(&exported, Some("automatic bond query round trip"))
+        .expect("exported bond query tags should reimport");
+    let reimported_positions = reimported
+        .objects
+        .iter()
+        .filter(|object| object.meta.get("role").and_then(|value| value.as_str()) == Some("query"))
+        .map(|object| object.transform.translate)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        reimported_positions,
+        labels
+            .iter()
+            .map(|object| object.transform.translate)
+            .collect::<Vec<_>>()
+    );
 }
 
 #[test]
@@ -86,6 +287,146 @@ fn parse_cdxml_keeps_combined_bond_order_query_native_and_renders_its_mnemonic()
             }
             _ => false,
         }));
+}
+
+#[test]
+fn generated_bond_query_uses_chemdraw_text_baseline_not_its_box_top() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" MarginWidth="2">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="10"><fragment id="11">
+    <n id="2" p="157.21 133.17"/>
+    <n id="4" p="183.19 148.17"/>
+    <b id="5" B="2" E="4" Order="1 2"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("ChemDraw 6 bond query baseline"))
+        .expect("bond query should parse");
+    let (x, y, baseline_offset) = render_document(&document)
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                x,
+                y,
+                baseline_offset,
+                text,
+                runs,
+                ..
+            } => {
+                let rendered = if text.is_empty() {
+                    runs.iter().map(|run| run.text.as_str()).collect::<String>()
+                } else {
+                    text.clone()
+                };
+                (rendered == "S/D").then_some((*x, *y, *baseline_offset))
+            }
+            _ => None,
+        })
+        .expect("generated S/D annotation");
+
+    // ChemDraw saves this generated tag at p=168.23 138.87 with
+    // BoundingBox=168.23 132.51 180.73 138.97. Our primitive is centered
+    // horizontally, but its y coordinate is the same alphabetic baseline.
+    assert!((x - 174.48).abs() < 0.08, "x={x}");
+    assert!((y - 138.87).abs() < 0.03, "y={y}");
+    assert!(
+        baseline_offset.is_some_and(|value| (value - 6.36).abs() < 1.0e-9),
+        "baseline_offset={baseline_offset:?}"
+    );
+}
+
+#[test]
+fn generated_bond_query_uses_the_label_clipped_visible_bond_midpoint() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" MarginWidth="2" LineWidth="1">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="5"><fragment id="6">
+    <n id="1" p="147 176" NodeType="GenericNickname">
+      <t id="4" p="143.64 179.9" BoundingBox="145 173 152 180">
+        <s font="3" size="10" face="96">M</s>
+      </t>
+    </n>
+    <n id="2" p="177 176"/>
+    <b id="3" B="1" E="2" Order="1 2"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("labeled query-bond endpoint"))
+        .expect("labeled query bond should parse");
+    let (x, y) = render_document(&document)
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                x, y, text, runs, ..
+            } => {
+                let rendered = if text.is_empty() {
+                    runs.iter().map(|run| run.text.as_str()).collect::<String>()
+                } else {
+                    text.clone()
+                };
+                (rendered == "S/D").then_some((*x, *y))
+            }
+            _ => None,
+        })
+        .expect("generated S/D annotation");
+
+    // ChemDraw centers the query on the visible line from x=152.385 to
+    // x=177, rather than on the raw node segment from x=147 to x=177.
+    // Its saved ObjectTag has BoundingBox=158.42 167.02 170.92 173.48
+    // and p=158.42 173.38.
+    assert!((x - 164.67).abs() < 0.08, "x={x}");
+    assert!((y - 173.38).abs() < 0.03, "y={y}");
+}
+
+#[test]
+fn explicit_bond_query_display_uses_its_authored_object_tag_geometry_once() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="10" ShowBondRxn="yes">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1"><fragment id="2">
+    <n id="3" p="0 0"/><n id="4" p="30 20"/>
+    <b id="5" B="3" E="4" RxnParticipation="MakeOrBreak">
+      <objecttag Name="query">
+        <t p="7 3" BoundingBox="7 -3 19 3"><s font="3" size="7.5">Rxn</s></t>
+      </objecttag>
+    </b>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("authored bond query display"))
+        .expect("bond query display should parse");
+    let query_objects = document
+        .objects
+        .iter()
+        .filter(|object| {
+            object.meta.get("role").and_then(|value| value.as_str()) == Some("query")
+                && object
+                    .meta
+                    .get("attachedBondId")
+                    .and_then(|value| value.as_str())
+                    == Some("5")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(query_objects.len(), 1);
+    assert_eq!(query_objects[0].transform.translate, [7.0, -3.0]);
+
+    let rendered = render_document(&document);
+    let query_texts = rendered
+        .iter()
+        .filter_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                x, y, text, runs, ..
+            } => {
+                let rendered = if text.is_empty() {
+                    runs.iter().map(|run| run.text.as_str()).collect::<String>()
+                } else {
+                    text.clone()
+                };
+                (rendered == "Rxn").then_some((*x, *y))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(query_texts.len(), 1, "{query_texts:?}");
+    assert_eq!(query_texts[0], (7.0, 3.0));
 }
 
 #[test]
@@ -173,7 +514,20 @@ fn parse_cdxml_prefers_absolute_multiple_bond_spacing() {
         .values()
         .find_map(|resource| resource.data.as_fragment())
         .expect("molecule fragment should import");
-    assert_eq!(fragment.bonds[0].bond_spacing, Some(10.0));
+    assert_eq!(fragment.bonds[0].bond_spacing, Some(40.0));
+    assert_eq!(fragment.bonds[0].bond_spacing_absolute, Some(2.0));
+    assert!((imported_double_bond_center_spacing(&document, "obj_mol_001") - 2.0).abs() < 0.001);
+    let native_json = serde_json::to_string(&document).expect("native JSON should serialize");
+    assert!(
+        native_json.contains("\"bondSpacingAbsolute\":2.0"),
+        "{native_json}"
+    );
+    let reopened: ChemSemaDocument =
+        serde_json::from_str(&native_json).expect("native JSON should deserialize");
+    assert!((imported_double_bond_center_spacing(&reopened, "obj_mol_001") - 2.0).abs() < 0.001);
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("BondSpacing=\"40\""), "{exported}");
+    assert!(exported.contains("BondSpacingAbs=\"2\""), "{exported}");
 }
 
 #[test]
@@ -307,14 +661,44 @@ fn parse_cdxml_synthesizes_missing_enhanced_stereo_object_tag_opposite_wedge() {
             .and_then(|value| value.as_bool()),
         Some(true)
     );
+    let label_width = label
+        .payload
+        .extra
+        .get("box")
+        .and_then(|value| value.as_array())
+        .and_then(|values| values.get(2))
+        .and_then(|value| value.as_f64())
+        .expect("automatic label should expose its measured box width");
     assert!(
-        label.transform.translate[0] > 20.0,
-        "label should sit opposite the down-left wedge"
+        label.transform.translate[0] + label_width * 0.5 > 20.0,
+        "label center should sit opposite the down-left wedge"
     );
     assert!(
         label.transform.translate[1] < 20.0,
         "label should sit above the stereocenter"
     );
+}
+
+#[test]
+fn parse_cdxml_does_not_leak_enhanced_stereo_from_collapsed_fragment_definition() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="30" LabelFont="3" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1"><fragment id="2">
+    <n id="10" NodeType="Fragment">
+      <fragment id="11">
+        <n id="3" p="20 20" EnhancedStereoType="Absolute"/>
+      </fragment>
+      <t><s>A</s></t>
+    </n>
+    <n id="4" p="50 20"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("collapsed fragment enhanced stereo"))
+        .expect("collapsed fragment should parse");
+    assert!(document.objects.iter().all(|object| {
+        object.meta.get("role").and_then(|value| value.as_str()) != Some("enhanced_stereo")
+    }));
 }
 
 #[test]
@@ -1058,62 +1442,7 @@ fn parse_cdxml_imports_line_endpoints_from_bounding_box() {
 }
 
 #[test]
-fn parse_cdxml_imports_bezier_curve_flags_and_arrowheads() {
-    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
-<CDXML BondLength="14.40" LineWidth="0.60" HashSpacing="2.50">
-  <colortable><color r="1" g="1" b="1"/><color r="1" g="0" b="0"/></colortable>
-  <page id="1">
-    <curve id="2" Z="7" color="3" CurveType="26" ArrowheadType="Solid"
-      CurvePoints="5 30 10 30 20 10 40 10 50 30 60 50 80 50 90 30 95 30"/>
-  </page>
-</CDXML>"##;
-    let document = parse_cdxml_document(cdxml, Some("bezier curve")).expect("parse cdxml");
-    let curve = document
-        .objects
-        .iter()
-        .find(|object| object.object_type == "curve")
-        .expect("curve should import");
-    assert_eq!(curve.payload.extra["curveType"], json!(26));
-    assert_eq!(curve.payload.extra["head"], json!("full"));
-    assert_eq!(curve.payload.extra["tail"], json!("full"));
-    assert_eq!(curve.payload.extra["closed"], json!(false));
-    let style = document
-        .styles
-        .get(curve.style_ref.as_deref().expect("curve style"))
-        .expect("curve style should exist");
-    assert_eq!(style["dashArray"], json!([2.5]));
-    let primitives = render_document(&document);
-    assert!(primitives.iter().any(|primitive| matches!(
-        primitive,
-        RenderPrimitive::Path {
-            role: RenderRole::DocumentGraphic,
-            d,
-            dash_array,
-            ..
-        } if d.contains(" C ") && !dash_array.is_empty()
-    )));
-    assert_eq!(
-        primitives
-            .iter()
-            .filter(|primitive| matches!(primitive, RenderPrimitive::FilledPath { .. }))
-            .count(),
-        2
-    );
-    let exported = document_to_cdxml(&document);
-    assert!(exported.contains("<curve "), "{exported}");
-    assert!(exported.contains("CurveType=\"26\""), "{exported}");
-    assert!(exported.contains("ArrowheadHead=\"Full\""), "{exported}");
-    assert!(exported.contains("ArrowheadTail=\"Full\""), "{exported}");
-    let reparsed = parse_cdxml_document(&exported, Some("curve roundtrip"))
-        .expect("exported curve should parse");
-    assert!(reparsed
-        .objects
-        .iter()
-        .any(|object| object.object_type == "curve"));
-}
-
-#[test]
-fn parse_cdxml_keeps_standalone_horizontal_curly_bracket() {
+fn parse_cdxml_centers_standalone_horizontal_curly_bracket_on_ordered_bbox() {
     let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML LineWidth="0.6">
   <page id="1">
@@ -1129,14 +1458,243 @@ fn parse_cdxml_keeps_standalone_horizontal_curly_bracket() {
         .expect("standalone bracket should import");
     assert_eq!(bracket.payload.extra["orientation"], json!("horizontal"));
     assert_eq!(bracket.transform.rotate, -90.0);
-    assert!(render_document(&document).iter().any(|primitive| matches!(
-        primitive,
-        RenderPrimitive::Path {
-            role: RenderRole::DocumentGraphic,
-            rotate,
-            ..
-        } if (*rotate + 90.0).abs() <= f64::EPSILON
-    )));
+    let primitives = render_document(&document);
+    let points = primitives
+        .iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Path {
+                role: RenderRole::DocumentGraphic,
+                rotate,
+                points,
+                ..
+            } if (*rotate + 90.0).abs() <= f64::EPSILON => Some(points),
+            _ => None,
+        })
+        .expect("horizontal curly path should render");
+    let minimum_y = points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let maximum_y = points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!((minimum_y + maximum_y - 120.0).abs() <= 1e-9);
+    assert!(minimum_y < 60.0 && maximum_y > 60.0);
+    let exported = document_to_cdxml(&document);
+    assert!(
+        exported.contains("BoundingBox=\"140 60 20 60\""),
+        "{exported}"
+    );
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened standalone bracket")).expect("reopens");
+    let reopened_bracket = reopened
+        .objects
+        .iter()
+        .find(|object| object.object_type == "bracket")
+        .expect("standalone bracket survives export");
+    assert_eq!(
+        reopened_bracket.payload.extra["orientation"],
+        json!("horizontal")
+    );
+    assert_eq!(reopened_bracket.transform, bracket.transform);
+    assert_eq!(reopened_bracket.payload.bbox, bracket.payload.bbox);
+}
+
+#[test]
+fn parse_cdxml_centers_vertical_and_diagonal_curly_brackets_on_ordered_bbox() {
+    for (name, bbox, expected_orientation) in [
+        ("vertical", [100.0, 160.0, 100.0, 40.0], "vertical"),
+        ("diagonal", [180.0, 160.0, 60.0, 40.0], "diagonal"),
+    ] {
+        let cdxml = format!(
+            r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.6">
+  <page id="1">
+    <graphic id="2" BoundingBox="{} {} {} {}" GraphicType="Bracket"
+      BracketType="Curly" LipSize="60"/>
+  </page>
+</CDXML>"##,
+            bbox[0], bbox[1], bbox[2], bbox[3]
+        );
+        let document = parse_cdxml_document(&cdxml, Some(name)).expect("parse curly bracket");
+        let bracket = document
+            .objects
+            .iter()
+            .find(|object| object.object_type == "bracket")
+            .expect("standalone curly bracket should import at every angle");
+        assert_eq!(
+            bracket.payload.extra["orientation"],
+            json!(expected_orientation)
+        );
+        let points = render_document(&document)
+            .into_iter()
+            .find_map(|primitive| match primitive {
+                RenderPrimitive::Path {
+                    role: RenderRole::DocumentGraphic,
+                    points,
+                    ..
+                } => Some(points),
+                _ => None,
+            })
+            .expect("curly path should render");
+        let dx = bbox[2] - bbox[0];
+        let dy = bbox[3] - bbox[1];
+        let length = f64::hypot(dx, dy);
+        let normal = [-dy / length, dx / length];
+        let center = [(bbox[0] + bbox[2]) * 0.5, (bbox[1] + bbox[3]) * 0.5];
+        let projections: Vec<_> = points
+            .iter()
+            .map(|point| (point.x - center[0]) * normal[0] + (point.y - center[1]) * normal[1])
+            .collect();
+        let minimum = projections.iter().copied().fold(f64::INFINITY, f64::min);
+        let maximum = projections
+            .iter()
+            .copied()
+            .fold(f64::NEG_INFINITY, f64::max);
+        assert!(
+            (minimum + maximum).abs() <= 1e-9,
+            "{name}: {minimum}..{maximum}"
+        );
+        assert!(
+            minimum < 0.0 && maximum > 0.0,
+            "{name}: {minimum}..{maximum}"
+        );
+        let exported = document_to_cdxml(&document);
+        assert!(
+            exported.contains(&format!(
+                "BoundingBox=\"{} {} {} {}\"",
+                bbox[0] as i32, bbox[1] as i32, bbox[2] as i32, bbox[3] as i32
+            )),
+            "{name}: {exported}"
+        );
+    }
+}
+
+#[test]
+fn parse_cdxml_preserves_arbitrary_angle_bracket_endpoints() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.6">
+  <page id="1">
+    <graphic id="20" BoundingBox="646.48 107.65 660.58 83.24"
+      GraphicType="Bracket" BracketType="Square" LipSize="60"/>
+    <graphic id="21" BoundingBox="692.99 101.96 678.89 126.37"
+      GraphicType="Bracket" BracketType="Square" LipSize="60"/>
+    <fragment id="39"><n id="40" p="670 105" Element="8"/></fragment>
+    <bracketedgroup id="30" BracketedObjectIDs="40" BracketUsage="MultipleGroup">
+      <bracketattachment id="31" GraphicID="20"/>
+      <bracketattachment id="32" GraphicID="21"/>
+    </bracketedgroup>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("angled brackets")).expect("parse cdxml");
+    let group = document
+        .objects
+        .iter()
+        .find(|object| object_is_bracket_group(object))
+        .expect("paired bracket group");
+    let left = group
+        .children
+        .iter()
+        .find(|object| object.payload.extra["side"] == json!("left"))
+        .expect("left bracket");
+    let right = group
+        .children
+        .iter()
+        .find(|object| object.payload.extra["side"] == json!("right"))
+        .expect("right bracket");
+    assert!(
+        (left.transform.rotate - 30.012_11).abs() < 1.0e-5,
+        "{left:?}"
+    );
+    assert!(
+        (right.transform.rotate - 30.012_11).abs() < 1.0e-5,
+        "{right:?}"
+    );
+    assert!(
+        left.payload.bbox.expect("left bbox")[2] < 3.0,
+        "endpoint x displacement is rotation, not bracket depth: {left:?}"
+    );
+    assert!(
+        render_document(&document)
+            .iter()
+            .filter(|primitive| matches!(
+                primitive,
+                RenderPrimitive::Path {
+                    role: RenderRole::DocumentGraphic,
+                    rotate,
+                    ..
+                        } if (*rotate - 30.012_11).abs() <= 1.0e-5
+            ))
+            .count()
+            >= 2
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(
+        exported.contains("BoundingBox=\"646.48 107.65 660.58 83.24\""),
+        "{exported}"
+    );
+    assert!(
+        exported.contains("BoundingBox=\"692.99 101.96 678.89 126.37\""),
+        "{exported}"
+    );
+    assert!(exported.contains("LineWidth=\"0.6\""), "{exported}");
+
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened angled brackets")).expect("reopens");
+    let reopened_group = reopened
+        .objects
+        .iter()
+        .find(|object| object_is_bracket_group(object))
+        .expect("reopened paired bracket group");
+    for (before, after) in group.children.iter().zip(&reopened_group.children) {
+        assert_eq!(after.payload.bbox, before.payload.bbox);
+        assert_eq!(after.transform, before.transform);
+    }
+}
+
+#[test]
+fn parse_cdxml_round_bracket_geometry_does_not_cross_rounding_thresholds() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.5">
+  <page id="1">
+    <graphic id="20" BoundingBox="21.272 115.064 21.272 16.05"
+      GraphicType="Bracket" BracketType="Round" LipSize="60"/>
+    <graphic id="21" BoundingBox="99.424 16.05 99.424 115.064"
+      GraphicType="Bracket" BracketType="Round" LipSize="60"/>
+    <bracketedgroup id="30" BracketedObjectIDs="">
+      <bracketattachment id="31" GraphicID="20"/>
+      <bracketattachment id="32" GraphicID="21"/>
+    </bracketedgroup>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("precise round brackets")).expect("parse");
+    let group = document
+        .objects
+        .iter()
+        .find(|object| object_is_bracket_group(object))
+        .expect("paired bracket group");
+    let exported = document_to_cdxml(&document);
+    assert!(
+        exported.contains("BoundingBox=\"21.272 115.064 21.272 16.05\""),
+        "{exported}"
+    );
+    assert!(
+        exported.contains("BoundingBox=\"99.424 16.05 99.424 115.064\""),
+        "{exported}"
+    );
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened precise round brackets")).expect("reopens");
+    let reopened_group = reopened
+        .objects
+        .iter()
+        .find(|object| object_is_bracket_group(object))
+        .expect("reopened paired bracket group");
+    for (before, after) in group.children.iter().zip(&reopened_group.children) {
+        assert_eq!(after.payload.bbox, before.payload.bbox);
+        assert_eq!(after.transform, before.transform);
+    }
 }
 
 #[test]
@@ -1619,7 +2177,7 @@ fn cdxml_represented_radical_symbol_does_not_double_count_node_radical() {
       <n id="4" p="24.4 10"/>
       <b id="5" B="3" E="4"/>
       <graphic id="6" BoundingBox="10 13 2.5 13" GraphicType="Symbol" SymbolType="Electron">
-        <represent attribute="Radical"/>
+        <represent attribute="Radical" object="3"/>
       </graphic>
     </fragment>
   </page>
@@ -1705,6 +2263,156 @@ fn cdxml_represented_charge_symbol_roundtrips_without_accumulating_charge() {
             .map(|node| node.charge),
         Some(-1)
     );
+}
+
+#[test]
+fn cdxml_represent_target_overrides_nearest_atom_across_fragments() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" color="0" bgcolor="1">
+  <page id="1">
+    <fragment id="2" BoundingBox="0 0 30 20">
+      <n id="3" p="10 10" Element="6"/>
+      <n id="4" p="24.4 10" Element="6"/>
+      <b id="5" B="3" E="4"/>
+    </fragment>
+    <fragment id="20" BoundingBox="50 0 80 20">
+      <n id="21" p="60 10" Element="6" Charge="1"/>
+      <n id="22" p="74.4 10" Element="6"/>
+      <b id="23" B="21" E="22"/>
+    </fragment>
+    <graphic id="30" BoundingBox="31 10 23.5 10" GraphicType="Symbol" SymbolType="Plus">
+      <represent attribute="Charge" object="21"/>
+    </graphic>
+  </page>
+</CDXML>"##;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("represented charge across fragments should import");
+    let document = &engine.state().document;
+    let relation = document
+        .links
+        .iter()
+        .find(|relation| relation.kind == "atom-symbol")
+        .expect("represented symbol should create an atom-symbol link");
+    assert!(relation
+        .endpoints
+        .iter()
+        .any(|endpoint| { endpoint.role == "atom" && endpoint.entity_id == "21" }));
+    assert_eq!(
+        relation
+            .data
+            .pointer("/source")
+            .and_then(serde_json::Value::as_str),
+        Some("cdxml-represent")
+    );
+    let symbol = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "symbol")
+        .expect("symbol should survive");
+    assert_eq!(
+        symbol
+            .payload
+            .extra
+            .get("attachedAtomId")
+            .and_then(serde_json::Value::as_str),
+        Some("21")
+    );
+    assert_eq!(
+        symbol
+            .payload
+            .extra
+            .get("attachmentSource")
+            .and_then(serde_json::Value::as_str),
+        Some("source")
+    );
+    let nodes = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        nodes
+            .iter()
+            .find(|node| node.id == "4")
+            .map(|node| node.charge),
+        Some(0)
+    );
+    let represented = nodes
+        .iter()
+        .find(|node| node.id == "21")
+        .expect("represented atom should survive");
+    assert_eq!(represented.charge, 1);
+    assert!(represented.meta.get("effectiveNumHydrogens").is_none());
+    assert_eq!(
+        represented
+            .meta
+            .get("attachedElectronSymbols")
+            .and_then(serde_json::Value::as_array)
+            .and_then(|symbols| symbols.first())
+            .and_then(|symbol| symbol.get("chargeDelta"))
+            .and_then(serde_json::Value::as_i64),
+        Some(0)
+    );
+
+    let exported = document_to_cdxml(document);
+    assert!(
+        exported.contains("<represent attribute=\"Charge\" object=\"21\""),
+        "{exported}"
+    );
+    let reimported =
+        parse_cdxml_document(&exported, Some("represented cross-fragment charge export"))
+            .expect("represented charge export should import");
+    let charges = reimported
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter().map(|node| node.charge))
+        .filter(|charge| *charge != 0)
+        .collect::<Vec<_>>();
+    assert_eq!(charges, vec![1]);
+}
+
+#[test]
+fn imported_unrepresented_symbol_does_not_infer_chemistry_from_proximity() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.40" LineWidth="0.60" color="0" bgcolor="1">
+  <page id="1">
+    <fragment id="2">
+      <n id="3" p="10 10"/>
+      <n id="4" p="24.4 10"/>
+      <b id="5" B="3" E="4"/>
+    </fragment>
+    <graphic id="6" BoundingBox="31.9 10 24.4 10"
+      GraphicType="Symbol" SymbolType="Plus"/>
+  </page>
+</CDXML>"##;
+    let mut engine = Engine::new();
+    engine
+        .load_cdxml_document(cdxml)
+        .expect("unrepresented symbol should import");
+    let document = &engine.state().document;
+    assert!(
+        document
+            .links
+            .iter()
+            .all(|relation| relation.kind != "atom-symbol"),
+        "source proximity alone must not create an atom-symbol relation"
+    );
+    let symbol = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "symbol")
+        .expect("symbol should survive");
+    assert!(symbol.payload.extra.get("attachedAtomId").is_none());
+    assert!(document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .all(|node| node.charge == 0));
 }
 
 #[test]
@@ -1991,7 +2699,182 @@ fn parse_cdxml_auto_ring_double_prioritizes_ring_side_over_neighbor_double() {
     assert_eq!(
         bond.double.as_ref().map(|double| double.placement),
         Some(chemsema_engine::DoubleBondPlacement::Left),
-        "ring membership should choose the inward side before adjacent-double centering"
+        "ring membership should choose the inward side before non-ring attachment coverage"
+    );
+}
+
+#[test]
+fn parse_cdxml_auto_side_double_ignores_coordinate_rounding_in_a_full_endpoint_tie() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="30" BondSpacing="12" LineWidth="1" BoldWidth="4">
+  <page id="1"><fragment id="2">
+    <n id="1" p="254.63 397.50" Element="9" NumHydrogens="0"/>
+    <n id="2" p="254.63 367.50"/>
+    <n id="3" p="228.65 352.50" Element="53" NumHydrogens="0"/>
+    <n id="4" p="280.61 352.50"/>
+    <n id="5" p="306.60 367.50" Element="17" NumHydrogens="0"/>
+    <n id="6" p="280.61 322.50" Element="35" NumHydrogens="0"/>
+    <b id="8" B="1" E="2"/>
+    <b id="9" B="2" E="3"/>
+    <b id="10" B="2" E="4" Order="2" BS="Z" BondCircularOrdering="9 8 11 12"/>
+    <b id="11" B="4" E="5"/>
+    <b id="12" B="4" E="6"/>
+  </fragment></page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("rounded full endpoint tie"))
+        .expect("rounded full endpoint tie should parse");
+    let bond = imported_fragment_bond(&document, "obj_mol_001", "10");
+    let double = bond.double.as_ref().expect("double bond should import");
+
+    assert_eq!(
+        double.placement,
+        chemsema_engine::DoubleBondPlacement::Right,
+        "ChemDraw counts effective endpoint coverage; a 0.01 pt coordinate rounding delta must not choose the other side"
+    );
+    assert!(!double.frozen);
+    assert_eq!(
+        bond.properties.absolute_stereo,
+        chemsema_engine::BondAbsoluteStereo::Z
+    );
+}
+
+#[test]
+fn parse_cdxml_auto_side_double_uses_effective_endpoint_coverage_and_fixed_collinear_cutoff() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="30" BondSpacing="12" LineWidth="1" BoldWidth="4">
+  <page id="1">
+    <fragment id="left_coverage">
+      <n id="lc_b" p="100 100"/><n id="lc_e" p="160 100"/>
+      <n id="lc_bl" p="74.0192 115"/><n id="lc_el" p="185.9808 115"/>
+      <b id="left_coverage_double" B="lc_b" E="lc_e" Order="2"/>
+      <b id="lc_1" B="lc_b" E="lc_bl"/><b id="lc_2" B="lc_e" E="lc_el"/>
+    </fragment>
+    <fragment id="trans_tie">
+      <n id="tt_b" p="100 160"/><n id="tt_e" p="160 160"/>
+      <n id="tt_bu" p="74.0192 145"/><n id="tt_el" p="185.9808 175"/>
+      <b id="trans_tie_double" B="tt_b" E="tt_e" Order="2"/>
+      <b id="tt_1" B="tt_b" E="tt_bu"/><b id="tt_2" B="tt_e" E="tt_el"/>
+    </fragment>
+    <fragment id="acute_default_side">
+      <n id="ad_b" p="100 220"/><n id="ad_e" p="160 220"/>
+      <n id="ad_bu" p="70.6556 213.7627"/><n id="ad_eu" p="189.3444 213.7627"/>
+      <n id="ad_bl" p="74.0192 235"/><n id="ad_el" p="185.9808 235"/>
+      <b id="acute_default_double" B="ad_b" E="ad_e" Order="2"/>
+      <b id="ad_1" B="ad_b" E="ad_bu"/><b id="ad_2" B="ad_e" E="ad_eu"/>
+      <b id="ad_3" B="ad_b" E="ad_bl"/><b id="ad_4" B="ad_e" E="ad_el"/>
+    </fragment>
+    <fragment id="valid_default_side">
+      <n id="vd_b" p="100 280"/><n id="vd_e" p="160 280"/>
+      <n id="vd_bu" p="70.888 272.751"/><n id="vd_eu" p="189.112 272.751"/>
+      <n id="vd_bl" p="74.0192 295"/><n id="vd_el" p="185.9808 295"/>
+      <b id="valid_default_double" B="vd_b" E="vd_e" Order="2"/>
+      <b id="vd_1" B="vd_b" E="vd_bu"/><b id="vd_2" B="vd_e" E="vd_eu"/>
+      <b id="vd_3" B="vd_b" E="vd_bl"/><b id="vd_4" B="vd_e" E="vd_el"/>
+    </fragment>
+    <fragment id="only_collinear">
+      <n id="oc_b" p="100 340"/><n id="oc_e" p="160 340"/>
+      <n id="oc_bu" p="70.6556 333.7627"/>
+      <b id="only_collinear_double" B="oc_b" E="oc_e" Order="2"/>
+      <b id="oc_1" B="oc_b" E="oc_bu"/>
+    </fragment>
+    <fragment id="bent_conjugated">
+      <n id="bc_b" p="100 400"/><n id="bc_e" p="160 400"/>
+      <n id="bc_bl" p="74.0192 415"/><n id="bc_el" p="185.9808 415"/>
+      <b id="bent_conjugated_double" B="bc_b" E="bc_e" Order="2"/>
+      <b id="bc_1" B="bc_b" E="bc_bl" Order="2"/>
+      <b id="bc_2" B="bc_e" E="bc_el" Order="2"/>
+    </fragment>
+    <fragment id="linear_cumulene">
+      <n id="cm_b" p="100 460"/><n id="cm_e" p="160 460"/>
+      <n id="cm_bl" p="40 460"/><n id="cm_er" p="220 460"/>
+      <b id="linear_cumulene_double" B="cm_b" E="cm_e" Order="2"/>
+      <b id="cm_1" B="cm_b" E="cm_bl" Order="2"/>
+      <b id="cm_2" B="cm_e" E="cm_er" Order="2"/>
+    </fragment>
+    <fragment id="substituted_linear_cumulene">
+      <n id="sl_b" p="100 520"/><n id="sl_e" p="160 520"/>
+      <n id="sl_neighbor" p="190 520"/><n id="sl_branch" p="74.0192 535"/>
+      <b id="substituted_linear_double" B="sl_b" E="sl_e" Order="2"/>
+      <b id="sl_1" B="sl_e" E="sl_neighbor" Order="2"/>
+      <b id="sl_2" B="sl_b" E="sl_branch"/>
+    </fragment>
+    <fragment id="substituted_ten_degree_cumulene">
+      <n id="st_b" p="100 580"/><n id="st_e" p="160 580"/>
+      <n id="st_neighbor" p="189.5442 585.2094"/><n id="st_branch" p="74.0192 595"/>
+      <b id="substituted_ten_degree_double" B="st_b" E="st_e" Order="2"/>
+      <b id="st_1" B="st_e" E="st_neighbor" Order="2"/>
+      <b id="st_2" B="st_b" E="st_branch"/>
+    </fragment>
+    <fragment id="substituted_fourteen_degree_conjugated">
+      <n id="sf_b" p="100 640"/><n id="sf_e" p="160 640"/>
+      <n id="sf_neighbor" p="189.1089 647.2577"/><n id="sf_branch" p="74.0192 655"/>
+      <b id="substituted_fourteen_degree_double" B="sf_b" E="sf_e" Order="2"/>
+      <b id="sf_1" B="sf_e" E="sf_neighbor" Order="2"/>
+      <b id="sf_2" B="sf_b" E="sf_branch"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(cdxml, Some("automatic side coverage matrix"))
+        .expect("automatic side coverage matrix should parse");
+    let placement = |bond_id: &str| {
+        document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.bonds.iter())
+            .find(|bond| bond.id == bond_id)
+            .and_then(|bond| bond.double.as_ref())
+            .map(|double| double.placement)
+            .expect("probe double bond should import")
+    };
+
+    assert_eq!(
+        placement("left_coverage_double"),
+        chemsema_engine::DoubleBondPlacement::Left
+    );
+    assert_eq!(
+        placement("trans_tie_double"),
+        chemsema_engine::DoubleBondPlacement::Right
+    );
+    assert_eq!(
+        placement("acute_default_double"),
+        chemsema_engine::DoubleBondPlacement::Left,
+        "12 degree attachments are effectively collinear and do not cover the default side"
+    );
+    assert_eq!(
+        placement("valid_default_double"),
+        chemsema_engine::DoubleBondPlacement::Right,
+        "14 degree attachments cover the default side"
+    );
+    assert_eq!(
+        placement("only_collinear_double"),
+        chemsema_engine::DoubleBondPlacement::Center,
+        "a segment with no effective side attachment is centered"
+    );
+    assert_eq!(
+        placement("bent_conjugated_double"),
+        chemsema_engine::DoubleBondPlacement::Left,
+        "bent adjacent double bonds participate in the same endpoint-coverage rule"
+    );
+    assert_eq!(
+        placement("linear_cumulene_double"),
+        chemsema_engine::DoubleBondPlacement::Center,
+        "a linear cumulene centers because both adjacent bonds are effectively collinear"
+    );
+    assert_eq!(
+        placement("substituted_linear_double"),
+        chemsema_engine::DoubleBondPlacement::Center,
+        "a collinear neighboring double centers the cumulene even with an angled terminal single bond"
+    );
+    assert_eq!(
+        placement("substituted_ten_degree_double"),
+        chemsema_engine::DoubleBondPlacement::Center,
+        "ChemDraw keeps the dedicated cumulene branch through ten degrees"
+    );
+    assert_eq!(
+        placement("substituted_fourteen_degree_double"),
+        chemsema_engine::DoubleBondPlacement::Left,
+        "a clearly bent neighboring double resumes ordinary endpoint-side coverage"
     );
 }
 

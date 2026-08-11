@@ -113,6 +113,8 @@ pub struct ChemicalGraphV2 {
     pub semantics: GraphSemanticsV2,
     pub atoms: Vec<AtomV2>,
     pub bonds: Vec<BondV2>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub free_valences: Vec<FreeValenceSiteV2>,
     pub stereo: Vec<StereoElementV2>,
     pub components: Vec<ComponentV2>,
     pub assumptions: Vec<GraphAssumptionV2>,
@@ -145,6 +147,7 @@ impl Default for GraphSemanticsV2 {
 #[serde(rename_all = "kebab-case")]
 pub enum GraphProfileV2 {
     MolecularEntity,
+    MolecularFragment,
     DiscreteComposition,
 }
 
@@ -208,6 +211,27 @@ pub enum BondKindV2 {
     Quadruple,
     Aromatic,
     Dative,
+}
+
+/// An unfilled valence that makes a connected graph a molecular fragment.
+///
+/// Repeated equal entries are significant: two single free valences on one
+/// atom describe a different fragment from one double free valence.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FreeValenceSiteV2 {
+    pub atom: String,
+    pub order: FreeValenceOrderV2,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum FreeValenceOrderV2 {
+    Single,
+    Double,
+    Triple,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -751,6 +775,7 @@ impl ChemicalGraphV2 {
         match target {
             MoleculeFormatV1::ChemicalGraphV2 => {}
             MoleculeFormatV1::Cdxml | MoleculeFormatV1::Cdx => {
+                assess_free_valence_limits(self, &mut reject, "CDX/CDXML");
                 for (index, interaction) in self.interactions.iter().enumerate() {
                     let (code, message) = match interaction.kind {
                         InteractionKindV2::Coordination => (
@@ -887,6 +912,7 @@ impl ChemicalGraphV2 {
 
         self.validate_stereo(&atom_ids, &bond_ids, &adjacency)?;
         self.validate_interactions(&atom_ids, &mut adjacency)?;
+        self.validate_free_valences(&atom_ids)?;
         self.validate_components(&atom_ids, &adjacency)?;
         self.validate_assumptions()?;
         Ok(())
@@ -1137,14 +1163,43 @@ impl ChemicalGraphV2 {
         if covered != *atom_ids {
             return Err("components do not cover every atom exactly once".to_string());
         }
-        if self.semantics.profile == GraphProfileV2::MolecularEntity
-            && (self.components.len() != 1 || self.components[0].count != 1)
-        {
-            return Err(
-                "molecular-entity profile requires exactly one component with count 1".to_string(),
-            );
+        match self.semantics.profile {
+            GraphProfileV2::MolecularEntity | GraphProfileV2::MolecularFragment
+                if self.components.len() != 1 || self.components[0].count != 1 =>
+            {
+                return Err(format!(
+                    "{} profile requires exactly one component with count 1",
+                    match self.semantics.profile {
+                        GraphProfileV2::MolecularEntity => "molecular-entity",
+                        GraphProfileV2::MolecularFragment => "molecular-fragment",
+                        GraphProfileV2::DiscreteComposition => unreachable!(),
+                    }
+                ));
+            }
+            _ => {}
         }
         Ok(())
+    }
+
+    fn validate_free_valences(&self, atom_ids: &BTreeSet<&str>) -> Result<(), String> {
+        for (index, site) in self.free_valences.iter().enumerate() {
+            if !atom_ids.contains(site.atom.as_str()) {
+                return Err(format!(
+                    "free valence {index} references missing atom '{}'",
+                    site.atom
+                ));
+            }
+        }
+        match self.semantics.profile {
+            GraphProfileV2::MolecularFragment if self.free_valences.is_empty() => {
+                Err("molecular-fragment profile requires at least one free valence".to_string())
+            }
+            GraphProfileV2::MolecularFragment => Ok(()),
+            _ if !self.free_valences.is_empty() => {
+                Err("free valences require the molecular-fragment profile".to_string())
+            }
+            _ => Ok(()),
+        }
     }
 
     fn validate_assumptions(&self) -> Result<(), String> {
@@ -1179,6 +1234,7 @@ impl ChemicalGraphV2 {
         let mut graph = self.clone();
         graph.atoms.sort_by(|left, right| left.id.cmp(&right.id));
         graph.bonds.sort_by(|left, right| left.id.cmp(&right.id));
+        graph.free_valences.sort();
         graph
             .stereo
             .sort_by(|left, right| left.id().cmp(right.id()));
@@ -1214,6 +1270,7 @@ impl ChemicalGraphV2 {
         if self.semantics != other.semantics
             || self.atoms.len() != other.atoms.len()
             || self.bonds.len() != other.bonds.len()
+            || self.free_valences.len() != other.free_valences.len()
             || self.stereo.len() != other.stereo.len()
             || self.interactions.len() != other.interactions.len()
             || self.components.len() != other.components.len()
@@ -1231,6 +1288,8 @@ impl ChemicalGraphV2 {
                 .enumerate()
                 .filter_map(|(index, candidate)| {
                     (same_atom(atom, candidate)
+                        && free_valence_orders(self, &atom.id)
+                            == free_valence_orders(other, &candidate.id)
                         && component == right_components[candidate.id.as_str()])
                     .then_some(index)
                 })
@@ -1261,6 +1320,7 @@ fn assess_linear_notation_limits(
     reject: &mut impl FnMut(&str, String, String),
     format: &str,
 ) {
+    assess_free_valence_limits(graph, reject, format);
     for index in 0..graph.interactions.len() {
         reject(
             "unsupported-multicenter-interaction",
@@ -1289,6 +1349,32 @@ fn assess_linear_notation_limits(
             );
         }
     }
+}
+
+fn assess_free_valence_limits(
+    graph: &ChemicalGraphV2,
+    reject: &mut impl FnMut(&str, String, String),
+    format: &str,
+) {
+    if !graph.free_valences.is_empty() {
+        reject(
+            "requires-free-valence-encoding",
+            "/freeValences".to_string(),
+            format!(
+                "The current {format} adapter has no verified lossless encoding for structured free valences"
+            ),
+        );
+    }
+}
+
+fn free_valence_orders(graph: &ChemicalGraphV2, atom: &str) -> Vec<FreeValenceOrderV2> {
+    let mut orders = graph
+        .free_valences
+        .iter()
+        .filter_map(|site| (site.atom == atom).then_some(site.order))
+        .collect::<Vec<_>>();
+    orders.sort();
+    orders
 }
 
 fn same_atom(left: &AtomV2, right: &AtomV2) -> bool {
@@ -1418,8 +1504,22 @@ fn complete_mapping_matches(
             .expect("validated atom reference")
     };
     component_signatures(left, &mapped) == component_signatures(right, &identity)
+        && free_valence_signatures(left, &mapped) == free_valence_signatures(right, &identity)
         && stereo_signatures(left, &mapped) == stereo_signatures(right, &identity)
         && interaction_signatures(left, &mapped) == interaction_signatures(right, &identity)
+}
+
+fn free_valence_signatures<F>(graph: &ChemicalGraphV2, atom: &F) -> Vec<(usize, FreeValenceOrderV2)>
+where
+    F: Fn(&str) -> usize,
+{
+    let mut result = graph
+        .free_valences
+        .iter()
+        .map(|site| (atom(&site.atom), site.order))
+        .collect::<Vec<_>>();
+    result.sort();
+    result
 }
 
 fn component_signatures<F>(graph: &ChemicalGraphV2, atom: &F) -> Vec<(u32, Vec<usize>)>
@@ -1840,10 +1940,73 @@ mod tests {
                 implicit_hydrogens: 4,
             }],
             bonds: Vec::new(),
+            free_valences: Vec::new(),
             stereo: Vec::new(),
             components: vec![ComponentV2 {
                 id: "component-1".to_string(),
                 atoms: vec!["c1".to_string()],
+                count: 1,
+            }],
+            assumptions: Vec::new(),
+            interactions: Vec::new(),
+        }
+    }
+
+    fn propan_2_yl() -> ChemicalGraphV2 {
+        ChemicalGraphV2 {
+            schema: CHEMICAL_GRAPH_V2_SCHEMA.to_string(),
+            semantics: GraphSemanticsV2 {
+                profile: GraphProfileV2::MolecularFragment,
+                ..GraphSemanticsV2::default()
+            },
+            atoms: vec![
+                AtomV2 {
+                    id: "c1".to_string(),
+                    atomic_number: 6,
+                    isotope: None,
+                    formal_charge: 0,
+                    radical: RadicalStateV2::None,
+                    implicit_hydrogens: 3,
+                },
+                AtomV2 {
+                    id: "c2".to_string(),
+                    atomic_number: 6,
+                    isotope: None,
+                    formal_charge: 0,
+                    radical: RadicalStateV2::None,
+                    implicit_hydrogens: 1,
+                },
+                AtomV2 {
+                    id: "c3".to_string(),
+                    atomic_number: 6,
+                    isotope: None,
+                    formal_charge: 0,
+                    radical: RadicalStateV2::None,
+                    implicit_hydrogens: 3,
+                },
+            ],
+            bonds: vec![
+                BondV2 {
+                    id: "b1".to_string(),
+                    atoms: ["c1".to_string(), "c2".to_string()],
+                    kind: BondKindV2::Single,
+                    dative_direction: None,
+                },
+                BondV2 {
+                    id: "b2".to_string(),
+                    atoms: ["c2".to_string(), "c3".to_string()],
+                    kind: BondKindV2::Single,
+                    dative_direction: None,
+                },
+            ],
+            free_valences: vec![FreeValenceSiteV2 {
+                atom: "c2".to_string(),
+                order: FreeValenceOrderV2::Single,
+            }],
+            stereo: Vec::new(),
+            components: vec![ComponentV2 {
+                id: "component-1".to_string(),
+                atoms: vec!["c1".to_string(), "c2".to_string(), "c3".to_string()],
                 count: 1,
             }],
             assumptions: Vec::new(),
@@ -1883,6 +2046,113 @@ mod tests {
         graph.validate().unwrap();
         graph.semantics.profile = GraphProfileV2::MolecularEntity;
         assert!(graph.validate().is_err());
+    }
+
+    #[test]
+    fn molecular_fragment_requires_structured_free_valence() {
+        let graph = propan_2_yl();
+        graph.validate().unwrap();
+
+        let mut missing = graph.clone();
+        missing.free_valences.clear();
+        assert!(missing.validate().is_err());
+
+        let mut wrong_profile = graph.clone();
+        wrong_profile.semantics.profile = GraphProfileV2::MolecularEntity;
+        assert!(wrong_profile.validate().is_err());
+
+        let mut missing_atom = graph;
+        missing_atom.free_valences[0].atom = "absent".to_string();
+        assert!(missing_atom.validate().is_err());
+    }
+
+    #[test]
+    fn free_valence_is_identity_bearing_but_ids_are_not() {
+        let left = propan_2_yl();
+        let mut renamed = propan_2_yl();
+        renamed.atoms.reverse();
+        renamed.bonds.reverse();
+        renamed.atoms.iter_mut().for_each(|atom| {
+            atom.id = match atom.id.as_str() {
+                "c1" => "right".to_string(),
+                "c2" => "center".to_string(),
+                "c3" => "left".to_string(),
+                _ => unreachable!(),
+            };
+        });
+        for bond in &mut renamed.bonds {
+            for atom in &mut bond.atoms {
+                *atom = match atom.as_str() {
+                    "c1" => "right".to_string(),
+                    "c2" => "center".to_string(),
+                    "c3" => "left".to_string(),
+                    _ => unreachable!(),
+                };
+            }
+        }
+        renamed.components[0].atoms = vec!["left".into(), "center".into(), "right".into()];
+        renamed.free_valences[0].atom = "center".to_string();
+        assert!(left.is_isomorphic_to(&renamed).unwrap());
+
+        renamed.free_valences[0].atom = "left".to_string();
+        assert!(!left.is_isomorphic_to(&renamed).unwrap());
+    }
+
+    #[test]
+    fn normalized_free_valences_are_sorted_without_collapsing_multiplicity() {
+        let mut graph = propan_2_yl();
+        graph.free_valences = vec![
+            FreeValenceSiteV2 {
+                atom: "c2".to_string(),
+                order: FreeValenceOrderV2::Double,
+            },
+            FreeValenceSiteV2 {
+                atom: "c2".to_string(),
+                order: FreeValenceOrderV2::Single,
+            },
+            FreeValenceSiteV2 {
+                atom: "c2".to_string(),
+                order: FreeValenceOrderV2::Single,
+            },
+        ];
+        let normalized = graph.normalized().unwrap();
+        assert_eq!(normalized.free_valences.len(), 3);
+        assert_eq!(
+            normalized.free_valences[0].order,
+            FreeValenceOrderV2::Single
+        );
+        assert_eq!(
+            normalized.free_valences[1].order,
+            FreeValenceOrderV2::Single
+        );
+        assert_eq!(
+            normalized.free_valences[2].order,
+            FreeValenceOrderV2::Double
+        );
+    }
+
+    #[test]
+    fn fragment_mapping_reports_unverified_external_encoding() {
+        let graph = propan_2_yl();
+        assert!(
+            graph
+                .assess_mapping_to(MoleculeFormatV1::ChemicalGraphV2)
+                .unwrap()
+                .lossless
+        );
+        for target in [
+            MoleculeFormatV1::Cdxml,
+            MoleculeFormatV1::Cdx,
+            MoleculeFormatV1::Smiles,
+            MoleculeFormatV1::SdfV2000,
+        ] {
+            let report = graph.assess_mapping_to(target).unwrap();
+            assert!(!report.lossless);
+            assert!(report
+                .diagnostics
+                .iter()
+                .any(|item| item.code == "requires-free-valence-encoding"));
+        }
     }
 
     #[test]
@@ -2037,9 +2307,10 @@ mod tests {
 
     #[test]
     fn conformance_fixture_pack_has_expected_outcomes() {
-        let valid = [include_str!(
-            "../../../fixtures/chemical-graph-v2/valid/methane.json"
-        )];
+        let valid = [
+            include_str!("../../../fixtures/chemical-graph-v2/valid/methane.json"),
+            include_str!("../../../fixtures/chemical-graph-v2/valid/propan-2-yl.json"),
+        ];
         for fixture in valid {
             serde_json::from_str::<ChemicalGraphV2>(fixture)
                 .unwrap()

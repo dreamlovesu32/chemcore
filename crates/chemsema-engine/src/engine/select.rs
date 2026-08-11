@@ -1,6 +1,6 @@
 use super::text_edit::{
     endpoint_label_world_bounds, refresh_attached_node_label_geometry_for_all_nodes,
-    text_object_world_bounds,
+    text_object_arrange_bounds, text_object_world_bounds,
 };
 use super::{
     ArrowEditDragState, ArrowEditMode, CommandDelta, CommandTargetSet, EditorCommand, Engine,
@@ -382,7 +382,8 @@ impl Engine {
                 continue;
             }
             if self.state.selection.text_objects.contains(&object.id) {
-                if let Some(text_bounds) = text_object_world_bounds(object) {
+                if let Some(text_bounds) = text_object_arrange_bounds(&self.state.document, object)
+                {
                     bounds.push(AxisBounds::from_array(text_bounds));
                 }
                 continue;
@@ -1076,8 +1077,24 @@ impl Engine {
         self.push_undo_snapshot();
         let selected_text: BTreeSet<String> =
             self.state.selection.text_objects.iter().cloned().collect();
-        let selected_graphics: BTreeSet<String> =
+        let mut selected_graphics: BTreeSet<String> =
             self.state.selection.arrow_objects.iter().cloned().collect();
+        let selected_bracket_groups = self
+            .state
+            .document
+            .scene_objects()
+            .into_iter()
+            .filter(|object| {
+                selected_graphics.contains(&object.id)
+                    && object.object_type == "group"
+                    && object.meta.get("kind").and_then(JsonValue::as_str) == Some("bracket-group")
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for group in selected_bracket_groups {
+            selected_graphics.remove(&group.id);
+            collect_bracket_descendant_ids(&group, &mut selected_graphics);
+        }
         let mut changed = false;
         let selected_object_ids = self
             .state
@@ -1240,6 +1257,38 @@ impl Engine {
             return false;
         };
         let mut changed = false;
+        if object.payload.extra.get("kind").and_then(JsonValue::as_str) == Some("tlcPlate") {
+            if let Some(lanes) = object
+                .payload
+                .extra
+                .get_mut("lanes")
+                .and_then(JsonValue::as_array_mut)
+            {
+                for lane in lanes {
+                    if let Some(spots) = lane.get_mut("spots").and_then(JsonValue::as_array_mut) {
+                        for spot in spots {
+                            if let Some(spot) = spot.as_object_mut() {
+                                changed |= set_style_string(spot, "color", color);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(gel) = object.payload.gel_electrophoresis.as_mut() {
+            if gel.color != color {
+                gel.color = color.to_string();
+                changed = true;
+            }
+            for lane in &mut gel.lanes {
+                for band in &mut lane.bands {
+                    if band.color != color {
+                        band.color = color.to_string();
+                        changed = true;
+                    }
+                }
+            }
+        }
         match object.object_type.as_str() {
             "bracket" => {
                 changed |= set_payload_string(&mut object.payload.extra, "stroke", color);
@@ -1263,25 +1312,31 @@ impl Engine {
         let Some(object) = self.state.document.find_scene_object_mut(object_id) else {
             return false;
         };
-        let Some(runs) = object
-            .payload
-            .extra
-            .get_mut("runs")
-            .and_then(JsonValue::as_array_mut)
-        else {
-            return false;
-        };
         let mut changed = false;
-        for run in runs {
-            if let Some(run_object) = run.as_object_mut() {
-                changed |= set_style_string(run_object, "fill", color);
+        for key in ["runs", "sourceRuns", "displayRuns"] {
+            let Some(runs) = object
+                .payload
+                .extra
+                .get_mut(key)
+                .and_then(JsonValue::as_array_mut)
+            else {
+                continue;
+            };
+            for run in runs {
+                if let Some(run_object) = run.as_object_mut() {
+                    changed |= set_style_string(run_object, "fill", color);
+                }
             }
         }
         changed
     }
 
     pub fn select_at_point(&mut self, point: Point, additive: bool) {
-        let hit = self.select_hit_at_point(point);
+        let hit = self.select_hit_at_point(point).map(|hit| {
+            self.locked_ancestor_group_id_for_hit(&hit)
+                .map(|object_id| SelectHit::ArrowObject { object_id })
+                .unwrap_or(hit)
+        });
         self.state.selection = if let Some(hit) = hit {
             let mut selection = if additive {
                 self.state.selection.clone()
@@ -1547,6 +1602,35 @@ impl Engine {
         }
     }
 
+    fn selected_ancestor_group_id_for_hit(&self, hit: &SelectHit) -> Option<String> {
+        let mut ancestor_id = self.ancestor_group_id_for_hit(hit);
+        while let Some(group_id) = ancestor_id {
+            if self.state.selection.arrow_objects.contains(&group_id) {
+                return Some(group_id);
+            }
+            ancestor_id = self
+                .state
+                .document
+                .ancestor_group_id_for_scene_object(&group_id);
+        }
+        None
+    }
+
+    fn locked_ancestor_group_id_for_hit(&self, hit: &SelectHit) -> Option<String> {
+        let mut ancestor_id = self.ancestor_group_id_for_hit(hit);
+        while let Some(group_id) = ancestor_id {
+            let group = self.state.document.find_scene_object(&group_id)?;
+            if group.locked {
+                return Some(group_id);
+            }
+            ancestor_id = self
+                .state
+                .document
+                .ancestor_group_id_for_scene_object(&group_id);
+        }
+        None
+    }
+
     pub fn select_in_rect(&mut self, start: Point, end: Point, additive: bool) {
         let bounds = AxisBounds::new(start.x, start.y, end.x, end.y);
         let selection = self.collect_region_selection(
@@ -1603,6 +1687,12 @@ impl Engine {
             }
         }
         for entry in self.state.document.editable_fragments() {
+            if entry.object.id == "obj_editor_molecule"
+                && entry.fragment.nodes.is_empty()
+                && entry.fragment.bonds.is_empty()
+            {
+                continue;
+            }
             selection.molecule_objects.push(entry.object.id.clone());
             selection
                 .nodes
@@ -1660,6 +1750,24 @@ impl Engine {
         let Some(hit) = self.select_hit_at_point(point) else {
             return json!({ "kind": "canvas" }).to_string();
         };
+        if let Some(group_id) = self.selected_ancestor_group_id_for_hit(&hit) {
+            return json!({
+                "kind": "object",
+                "objectId": group_id,
+                "objectType": "group",
+                "selected": true,
+            })
+            .to_string();
+        }
+        if let Some(group_id) = self.locked_ancestor_group_id_for_hit(&hit) {
+            return json!({
+                "kind": "object",
+                "objectId": group_id,
+                "objectType": "group",
+                "selected": self.state.selection.arrow_objects.contains(&group_id),
+            })
+            .to_string();
+        }
         let selected = selection_contains_hit(&self.state.selection, &hit);
         match hit {
             SelectHit::TextObject { object_id } => json!({
@@ -1948,7 +2056,7 @@ impl Engine {
             if object.object_type != "text" || !object.visible {
                 continue;
             }
-            let Some(bounds) = text_object_world_bounds(object) else {
+            let Some(bounds) = text_object_world_bounds(&self.state.document, object) else {
                 continue;
             };
             if bounds_selected(AxisBounds::from_array(bounds)) {
@@ -2067,7 +2175,7 @@ impl Engine {
             {
                 continue;
             }
-            if let Some(text_bounds) = text_object_world_bounds(object) {
+            if let Some(text_bounds) = text_object_arrange_bounds(&self.state.document, object) {
                 bounds.push(AxisBounds::from_array(text_bounds));
             }
         }
@@ -2113,6 +2221,13 @@ impl Engine {
     fn selection_arrange_items(&self) -> Vec<SelectionArrangeItem> {
         let mut items = Vec::new();
         for object in self.state.document.scene_objects() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&object.id)
+            {
+                continue;
+            }
             if !self
                 .state
                 .selection
@@ -2122,7 +2237,7 @@ impl Engine {
             {
                 continue;
             }
-            let Some(bounds) = text_object_world_bounds(object) else {
+            let Some(bounds) = text_object_arrange_bounds(&self.state.document, object) else {
                 continue;
             };
             items.push(SelectionArrangeItem {
@@ -2136,6 +2251,13 @@ impl Engine {
         }
 
         for entry in self.state.document.editable_fragments() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&entry.object.id)
+            {
+                continue;
+            }
             for component in selected_component_summaries_for_entry(self, &entry) {
                 let fragment_items =
                     component_selection_items(&self.state.document, &entry, &component);
@@ -2661,18 +2783,32 @@ impl Engine {
         let overlay = group_selection_overlay(self);
         let mut out = None;
         for object in self.state.document.scene_objects() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&object.id)
+            {
+                continue;
+            }
             if overlay.hides_object(&object.id) {
                 continue;
             }
             if !self.state.selection.text_objects.contains(&object.id) {
                 continue;
             }
-            let Some(bounds) = text_object_world_bounds(object) else {
+            let Some(bounds) = text_object_arrange_bounds(&self.state.document, object) else {
                 continue;
             };
             include_optional_bounds(&mut out, AxisBounds::from_array(bounds));
         }
         for object in self.state.document.scene_objects() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&object.id)
+            {
+                continue;
+            }
             if overlay.hides_object(&object.id) {
                 continue;
             }
@@ -2688,6 +2824,13 @@ impl Engine {
             }
         }
         for entry in self.state.document.editable_fragments() {
+            if self
+                .state
+                .document
+                .scene_object_is_effectively_locked(&entry.object.id)
+            {
+                continue;
+            }
             if overlay.hides_object(&entry.object.id) {
                 continue;
             }
@@ -2739,6 +2882,15 @@ enum ColorTarget {
     Text,
     Graphic,
     Molecule,
+}
+
+fn collect_bracket_descendant_ids(object: &SceneObject, ids: &mut BTreeSet<String>) {
+    for child in &object.children {
+        if child.object_type == "bracket" {
+            ids.insert(child.id.clone());
+        }
+        collect_bracket_descendant_ids(child, ids);
+    }
 }
 
 fn normalize_selection_color(color: &str) -> String {

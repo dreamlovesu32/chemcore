@@ -5,10 +5,7 @@ use crate::{
 };
 
 const EXPORT_MARGIN: f64 = 8.0;
-const DEFAULT_TEXT_LINE_HEIGHT: f64 = 12.0;
-const TEXT_INK_HORIZONTAL_PAD_EM: f64 = 0.16;
-const TEXT_GDI_DESCENT_EM: f64 = 0.59;
-const TEXT_GDI_LINE_BOX_EM: f64 = 1.45;
+const SVG_TEXT_INTERNAL_SCALE: f64 = 20.0;
 
 pub fn document_to_svg(document: &ChemSemaDocument) -> String {
     let primitives = render_document(document);
@@ -231,57 +228,12 @@ fn extend_bounds_for_primitive(
                 *stroke_width * 0.5,
             );
         }
-        RenderPrimitive::Text {
-            x,
-            y,
-            font_size,
-            line_height,
-            box_width,
-            text,
-            runs,
-            text_anchor,
-            dominant_baseline,
-            rotate,
-            rotate_center,
-            ..
-        } => {
-            let measured_width = crate::shared_estimated_text_width(text, runs, *font_size);
-            let width = box_width.unwrap_or(0.0).max(measured_width);
-            let max_font_size = crate::shared_estimated_text_max_font_size(*font_size, runs);
-            let line_count = crate::shared_estimated_text_line_count(text, runs) as f64;
-            let line_height = line_height
-                .unwrap_or(max_font_size * TEXT_GDI_LINE_BOX_EM)
-                .max(DEFAULT_TEXT_LINE_HEIGHT)
-                .max(max_font_size)
-                .max(0.01);
-            let right_pad = max_font_size * TEXT_INK_HORIZONTAL_PAD_EM;
-            let left_pad = right_pad;
-            let min_x = match text_anchor.as_deref() {
-                Some("middle") => x - width * 0.5,
-                Some("end") => x - width,
-                _ => *x,
-            };
-            let (min_y, max_y) =
-                if matches!(dominant_baseline.as_deref(), Some("central" | "middle")) {
-                    let block_height = line_height * line_count.max(1.0);
-                    (y - block_height * 0.5, y + block_height * 0.5)
-                } else {
-                    (
-                        y - max_font_size,
-                        y + (line_count - 1.0).max(0.0) * line_height
-                            + max_font_size * TEXT_GDI_DESCENT_EM,
-                    )
-                };
-            let top_left = Point::new(min_x - left_pad, min_y);
-            let bottom_right = Point::new(min_x + width + right_pad, max_y);
-            if rotate.abs() > crate::EPSILON {
-                let center = rotate_center.unwrap_or(Point::new(*x, *y));
-                for point in rotated_box_points(top_left, bottom_right, center, *rotate) {
-                    extend_bounds_for_point(&mut bounds, point, 0.0);
-                }
-            } else {
-                extend_bounds_for_point(&mut bounds, top_left, 0.0);
-                extend_bounds_for_point(&mut bounds, bottom_right, 0.0);
+        RenderPrimitive::Text { .. } => {
+            if let Some([min_x, min_y, max_x, max_y]) =
+                crate::render::text_primitive_visual_bounds(primitive)
+            {
+                extend_bounds_for_point(&mut bounds, Point::new(min_x, min_y), 0.0);
+                extend_bounds_for_point(&mut bounds, Point::new(max_x, max_y), 0.0);
             }
         }
     }
@@ -540,6 +492,9 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             width,
             height,
             href,
+            source_crop,
+            source_width,
+            source_height,
             opacity,
             preserve_aspect_ratio,
             rotate,
@@ -548,19 +503,41 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
         } => {
             let center = rotate_center.unwrap_or(Point::new(*x + *width * 0.5, *y + *height * 0.5));
             let transform = rotate_transform_attr(*rotate, Some(&center));
-            writeln!(
-                out,
-                r#"  <image x="{}" y="{}" width="{}" height="{}" href="{}" opacity="{}" preserveAspectRatio="{}"{} />"#,
-                fmt_num(*x),
-                fmt_num(*y),
-                fmt_num(*width),
-                fmt_num(*height),
-                escape_attr(href),
-                fmt_num(*opacity),
-                if *preserve_aspect_ratio { "xMidYMid meet" } else { "none" },
-                transform
-            )
-            .expect("write image");
+            if let Some(crop) = source_crop {
+                writeln!(
+                    out,
+                    r#"  <svg x="{}" y="{}" width="{}" height="{}" viewBox="{} {} {} {}" preserveAspectRatio="{}" overflow="hidden"{}><image x="0" y="0" width="{}" height="{}" href="{}" opacity="{}" preserveAspectRatio="none" /></svg>"#,
+                    fmt_num(*x),
+                    fmt_num(*y),
+                    fmt_num(*width),
+                    fmt_num(*height),
+                    fmt_num(crop.x),
+                    fmt_num(crop.y),
+                    fmt_num(crop.width),
+                    fmt_num(crop.height),
+                    if *preserve_aspect_ratio { "xMidYMid meet" } else { "none" },
+                    transform,
+                    source_width,
+                    source_height,
+                    escape_attr(href),
+                    fmt_num(*opacity),
+                )
+                .expect("write cropped image");
+            } else {
+                writeln!(
+                    out,
+                    r#"  <image x="{}" y="{}" width="{}" height="{}" href="{}" opacity="{}" preserveAspectRatio="{}"{} />"#,
+                    fmt_num(*x),
+                    fmt_num(*y),
+                    fmt_num(*width),
+                    fmt_num(*height),
+                    escape_attr(href),
+                    fmt_num(*opacity),
+                    if *preserve_aspect_ratio { "xMidYMid meet" } else { "none" },
+                    transform
+                )
+                .expect("write image");
+            }
         }
         RenderPrimitive::Text {
             x,
@@ -572,22 +549,101 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
             text_anchor,
             dominant_baseline,
             runs,
+            preserve_lines,
             rotate,
             rotate_center,
             ..
         } => {
             let center = rotate_center.unwrap_or(Point::new(*x, *y));
-            let transform = rotate_transform_attr(*rotate, Some(&center));
+            let positioned_runs = (!runs.is_empty())
+                .then(|| chemdraw_text_shape_runs(runs))
+                .filter(|runs| runs.len() > 1);
+            let (run_starts, line_advance) = positioned_runs
+                .as_ref()
+                .map(|positioned_runs| {
+                    crate::glyph_kernel::chemdraw_text_run_position_metrics(
+                        positioned_runs,
+                        *font_size,
+                        font_family.as_deref(),
+                    )
+                })
+                .unwrap_or_default();
+            let anchor_shift = match text_anchor.as_deref() {
+                Some("middle") => -line_advance * 0.5,
+                Some("end") => -line_advance,
+                _ => 0.0,
+            };
+            if let Some(positioned_runs) = positioned_runs.as_ref() {
+                for (run, start) in positioned_runs.iter().zip(&run_starts) {
+                    let base_font_size = run.font_size.unwrap_or(*font_size);
+                    let script_shift = crate::shared_script_baseline_shift_em_for_face(
+                        run.script.as_deref(),
+                        run.font_weight,
+                        run.font_family.as_deref().or(font_family.as_deref()),
+                        base_font_size,
+                    ) * base_font_size;
+                    let transform = scaled_text_transform_attr(
+                        *x + anchor_shift + start,
+                        *y + script_shift,
+                        *rotate,
+                        &center,
+                    );
+                    let plain_text_node = run.outline != Some(true)
+                        && run.shadow != Some(true)
+                        && run.underline != Some(true);
+                    let positioned_font_size =
+                        base_font_size * crate::shared_script_scale_factor(run.script.as_deref());
+                    let positioned_font_weight =
+                        run.font_weight
+                            .map(|weight| if weight >= 600 { "bold" } else { "normal" });
+                    let positioned_font_family = run
+                        .font_family
+                        .as_deref()
+                        .or(font_family.as_deref())
+                        .map(crate::resolved_chemdraw_font_family);
+                    write!(
+                        out,
+                        r#"  <text x="0" y="0" font-size="{}px" dominant-baseline="{}" text-anchor="start" fill="{}"{}{}{}{}>"#,
+                        fmt_num(positioned_font_size * SVG_TEXT_INTERNAL_SCALE),
+                        escape_attr(dominant_baseline.as_deref().unwrap_or("alphabetic")),
+                        escape_attr(run.fill.as_deref().or(fill.as_deref()).unwrap_or("#000000")),
+                        optional_str_attr("font-family", positioned_font_family),
+                        optional_str_attr("font-weight", positioned_font_weight),
+                        optional_str_attr("font-style", run.font_style.as_deref()),
+                        transform
+                    )
+                    .expect("write positioned text start");
+                    if plain_text_node {
+                        out.push_str(&escape_text(&run.text));
+                    } else {
+                        let mut positioned_run = run.clone();
+                        positioned_run.font_size = Some(positioned_font_size);
+                        positioned_run.script = Some("normal".to_string());
+                        write_text_span(
+                            out,
+                            &positioned_run,
+                            positioned_font_size,
+                            SVG_TEXT_INTERNAL_SCALE,
+                            None,
+                        );
+                    }
+                    out.push_str("</text>\n");
+                }
+                return;
+            }
+
+            let transform = scaled_text_transform_attr(*x, *y, *rotate, &center);
+            let resolved_font_family = font_family
+                .as_deref()
+                .map(crate::resolved_chemdraw_font_family);
             write!(
                 out,
-                r#"  <text x="{}" y="{}" font-size="{}" dominant-baseline="{}" text-anchor="{}" fill="{}"{}{}>"#,
-                fmt_num(*x),
-                fmt_num(*y),
-                fmt_num(*font_size),
+                r#"  <text x="0" y="0" font-size="{}" dominant-baseline="{}" text-anchor="{}" fill="{}"{}{}>"#,
+                fmt_num(*font_size * SVG_TEXT_INTERNAL_SCALE),
                 escape_attr(dominant_baseline.as_deref().unwrap_or("alphabetic")),
                 escape_attr(text_anchor.as_deref().unwrap_or("start")),
                 escape_attr(fill.as_deref().unwrap_or("#000000")),
-                optional_str_attr("font-family", font_family.as_deref()),
+                optional_str_attr("font-family", resolved_font_family),
                 transform
             )
             .expect("write text start");
@@ -595,7 +651,13 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
                 out.push_str(&escape_text(text));
             } else {
                 for run in runs {
-                    write_text_run(out, run, *font_size);
+                    write_text_run(
+                        out,
+                        run,
+                        *font_size,
+                        SVG_TEXT_INTERNAL_SCALE,
+                        *preserve_lines,
+                    );
                 }
             }
             out.push_str("</text>\n");
@@ -603,7 +665,87 @@ fn write_primitive_svg(out: &mut String, defs: &mut SvgDefs, primitive: &RenderP
     }
 }
 
-fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
+fn scaled_text_transform_attr(x: f64, y: f64, rotate: f64, rotate_center: &Point) -> String {
+    let scale = 1.0 / SVG_TEXT_INTERNAL_SCALE;
+    let placement = format!(
+        "matrix({} 0 0 {} {} {})",
+        fmt_num(scale),
+        fmt_num(scale),
+        fmt_num(x),
+        fmt_num(y)
+    );
+    if rotate.abs() <= crate::EPSILON {
+        format!(r#" transform="{placement}""#)
+    } else {
+        format!(
+            r#" transform="rotate({} {} {}) {}""#,
+            fmt_num(rotate),
+            fmt_num(rotate_center.x),
+            fmt_num(rotate_center.y),
+            placement
+        )
+    }
+}
+
+fn text_shape_segments(text: &str, split_at_whitespace: bool) -> Vec<&str> {
+    if !split_at_whitespace || text.is_empty() {
+        return vec![text];
+    }
+    let mut characters = text.char_indices();
+    let Some((_, first)) = characters.next() else {
+        return vec![text];
+    };
+    let mut segments = Vec::new();
+    let mut start = 0;
+    let mut previous_whitespace = first.is_whitespace();
+    for (index, character) in characters {
+        let whitespace = character.is_whitespace();
+        if previous_whitespace && !whitespace {
+            segments.push(&text[start..index]);
+            start = index;
+        }
+        previous_whitespace = whitespace;
+    }
+    segments.push(&text[start..]);
+    segments
+}
+
+fn chemdraw_text_shape_runs(runs: &[LabelRun]) -> Vec<LabelRun> {
+    runs.iter()
+        .flat_map(|run| {
+            text_shape_segments(&run.text, true)
+                .into_iter()
+                .map(|segment| {
+                    let mut shaped = run.clone();
+                    shaped.text = segment.to_string();
+                    shaped
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+fn write_text_run(
+    out: &mut String,
+    run: &LabelRun,
+    default_font_size: f64,
+    internal_scale: f64,
+    split_at_whitespace: bool,
+) {
+    for segment in text_shape_segments(&run.text, split_at_whitespace) {
+        let mut shaped = run.clone();
+        shaped.text = segment.to_string();
+        write_text_span(out, &shaped, default_font_size, internal_scale, None);
+    }
+}
+
+fn write_text_span(
+    out: &mut String,
+    run: &LabelRun,
+    default_font_size: f64,
+    internal_scale: f64,
+    x: Option<f64>,
+) {
     let is_sub = run.script.as_deref() == Some("subscript");
     let is_super = run.script.as_deref() == Some("superscript");
     let font_size = run.font_size.unwrap_or(default_font_size)
@@ -611,7 +753,8 @@ fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
             crate::shared_script_scale_factor(run.script.as_deref())
         } else {
             1.0
-        };
+        }
+        * internal_scale;
     let baseline_shift = if is_sub || is_super {
         let base_font_size = run.font_size.unwrap_or(default_font_size);
         let shift = crate::shared_svg_script_baseline_shift_em_for_face(
@@ -620,7 +763,7 @@ fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
             run.font_family.as_deref(),
             base_font_size,
         );
-        Some(base_font_size * shift)
+        Some(base_font_size * shift * internal_scale)
     } else {
         None
     };
@@ -630,12 +773,18 @@ fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
         run.underline.unwrap_or(false),
         run.shadow.unwrap_or(false),
         effect_color,
+        internal_scale,
     );
+    let resolved_font_family = run
+        .font_family
+        .as_deref()
+        .map(crate::resolved_chemdraw_font_family);
     write!(
         out,
-        r#"<tspan{}{}{}{}{}{}{}{}{}{}{}>{}</tspan>"#,
+        r#"<tspan{}{}{}{}{}{}{}{}{}{}{}{}>{}</tspan>"#,
+        optional_num_attr("x", x),
         optional_num_attr("font-size", Some(font_size)),
-        optional_str_attr("font-family", run.font_family.as_deref()),
+        optional_str_attr("font-family", resolved_font_family),
         optional_str_attr(
             "fill",
             if outline {
@@ -660,17 +809,28 @@ fn write_text_run(out: &mut String, run: &LabelRun, default_font_size: f64) {
         optional_str_attr("style", effect_style.as_deref()),
         escape_text(&run.text)
     )
-    .expect("write text run");
+    .expect("write text run segment");
 }
 
-fn text_effect_style(underline: bool, shadow: bool, effect_color: &str) -> Option<String> {
+fn text_effect_style(
+    underline: bool,
+    shadow: bool,
+    effect_color: &str,
+    internal_scale: f64,
+) -> Option<String> {
     let mut declarations = Vec::new();
     // Document underlines are emitted as explicit geometry before SVG
     // serialization. Keep this branch for non-document callers that construct
     // a text primitive directly.
     if underline {
-        declarations.push("text-decoration-thickness:0.4px".to_string());
-        declarations.push("text-underline-offset:0.6px".to_string());
+        declarations.push(format!(
+            "text-decoration-thickness:{}px",
+            fmt_num(0.4 * internal_scale)
+        ));
+        declarations.push(format!(
+            "text-underline-offset:{}px",
+            fmt_num(0.6 * internal_scale)
+        ));
     }
     if shadow {
         declarations.push(format!(
@@ -838,16 +998,107 @@ fn escape_text(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::text_effect_style;
+    use super::{chemdraw_text_shape_runs, primitives_to_svg, text_effect_style};
+    use crate::{LabelRun, RenderPrimitive, RenderRole};
+
+    #[test]
+    fn preserved_chemdraw_text_groups_trailing_spaces_with_the_word() {
+        let runs = vec![LabelRun {
+            text: "HATU (1.2 eq)".to_string(),
+            font_family: Some("Arial".to_string()),
+            font_size: Some(10.0),
+            ..LabelRun::default()
+        }];
+        let shaped = chemdraw_text_shape_runs(&runs);
+        assert_eq!(
+            shaped
+                .iter()
+                .map(|run| run.text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["HATU ", "(1.2 ", "eq)"]
+        );
+    }
+
+    #[test]
+    fn chemdraw_text_keeps_inter_run_space_as_an_explicit_shape() {
+        let runs = vec![
+            LabelRun {
+                text: "+".to_string(),
+                script: Some("superscript".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: " Cl".to_string(),
+                ..LabelRun::default()
+            },
+        ];
+        let shaped = chemdraw_text_shape_runs(&runs);
+        assert_eq!(shaped.len(), 3);
+        assert_eq!(shaped[0].text, "+");
+        assert_eq!(shaped[1].text, " ");
+        assert_eq!(shaped[2].text, "Cl");
+        assert_eq!(shaped[0].script.as_deref(), Some("superscript"));
+        assert_eq!(shaped[1].script, None);
+    }
+
+    #[test]
+    fn centered_preserved_text_serializes_explicit_chemdraw_chunk_positions() {
+        let runs = vec![LabelRun {
+            text: "HATU (1.2 eq)".to_string(),
+            font_family: Some("Arial".to_string()),
+            font_size: Some(10.0),
+            font_weight: Some(400),
+            font_style: Some("normal".to_string()),
+            ..LabelRun::default()
+        }];
+        let svg = primitives_to_svg(
+            &[RenderPrimitive::Text {
+                role: RenderRole::DocumentText,
+                object_id: Some("conditions".to_string()),
+                node_id: None,
+                x: 224.85,
+                y: 313.1,
+                baseline_offset: Some(8.2),
+                dominant_baseline: None,
+                text: String::new(),
+                font_size: 10.0,
+                font_family: Some("Arial".to_string()),
+                fill: Some("#000000".to_string()),
+                text_anchor: Some("middle".to_string()),
+                line_height: None,
+                preserve_lines: true,
+                box_width: None,
+                runs,
+                rotate: 0.0,
+                rotate_center: None,
+            }],
+            None,
+        );
+        assert_eq!(svg.matches(r#"text-anchor="start""#).count(), 3, "{svg}");
+        assert!(
+            svg.contains(r#"matrix(0.05 0 0 0.05 192.618555 313.1)"#),
+            "first chunk must start at minus half the nominal GDI line advance: {svg}"
+        );
+        assert!(
+            svg.contains(r#">HATU </text>"#)
+                && svg.contains(r#"matrix(0.05 0 0 0.05 222.618555 313.1)"#),
+            "the second chunk must start after the unkerned 30 pt HATU-space advance: {svg}"
+        );
+        assert!(
+            svg.contains(r#">(1.2 </text>"#)
+                && svg.contains(r#"matrix(0.05 0 0 0.05 242.62832 313.1)"#),
+            "the final chunk must start after the Arial digit and whitespace advances: {svg}"
+        );
+    }
 
     #[test]
     fn underline_style_uses_chemdraw_fixed_rule_geometry() {
         assert_eq!(
-            text_effect_style(true, false, "#000000").as_deref(),
+            text_effect_style(true, false, "#000000", 1.0).as_deref(),
             Some("text-decoration-thickness:0.4px;text-underline-offset:0.6px")
         );
         assert_eq!(
-            text_effect_style(true, true, "#123456").as_deref(),
+            text_effect_style(true, true, "#123456", 1.0).as_deref(),
             Some(
                 "text-decoration-thickness:0.4px;text-underline-offset:0.6px;filter:drop-shadow(0.08em 0.08em 0 #123456)"
             )

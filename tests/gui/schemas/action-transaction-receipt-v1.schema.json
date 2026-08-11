@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chemsema.gui.action-transaction-receipt.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "input", "before", "after", "completion"],
+  "properties": {
+    "schema": { "const": "chemsema.gui.action-transaction-receipt.v1" },
+    "input": { "type": "object" },
+    "before": { "type": "object" },
+    "after": { "type": "object" },
+    "completion": { "type": "object" }
+  }
+}

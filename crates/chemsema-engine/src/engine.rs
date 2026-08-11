@@ -23,10 +23,13 @@ mod history;
 mod images;
 mod io;
 mod links;
+mod locks;
+mod logical_relations;
 mod molecular_coloring;
 mod nmr_results;
 mod orbitals;
 mod palettes;
+mod patch;
 mod plasmids;
 mod pointer;
 mod presets;
@@ -34,6 +37,7 @@ mod render_state;
 mod select;
 mod selection_summary;
 mod shapes;
+mod spatial_index;
 mod spectra;
 mod stoichiometry_grids;
 mod tables;
@@ -44,22 +48,26 @@ mod tlc;
 pub(crate) use self::context_styles::expand_complete_labels_in_fragment;
 
 pub use self::command::{
-    AnnotationPropertiesPatch, ChemicalAnalysisFormat, CommandAnchor, CommandDelta,
-    CommandDoubleBond, CommandResult, CommandTargetDelta, CommandTargetSet, CommandTargets,
-    DocumentCommandFormat, EditorCommand, FocusedDeleteSource, HistoryEntry, HistorySnapshot,
-    ObjectSettingsPatch, TextCommandContent, TextCommandDisplayMode, TextEditCommandTarget,
+    AnnotationPropertiesPatch, ArrowStylePatch, ChemicalAnalysisFormat, CommandAnchor,
+    CommandDelta, CommandDoubleBond, CommandResult, CommandTargetDelta, CommandTargetSet,
+    CommandTargets, DocumentCommandFormat, EditorCommand, FocusedDeleteSource, HistoryEntry,
+    HistorySnapshot, ObjectSettingsPatch, TextCommandContent, TextCommandDisplayMode,
+    TextEditCommandTarget,
 };
-use self::text_edit::{
-    element_symbol_info, endpoint_label_world_bounds, mark_shortcut_implicit_hydrogen_label,
-    refresh_element_valence_recognition_for_all_nodes, standalone_element_hydrogen_count,
-};
+pub use self::patch::{DocumentPatch, SceneEntityPatch};
+pub use self::spatial_index::SpatialQueryResult;
 pub(crate) use self::text_edit::{
-    formula_hydrogen_count_for_node, implicit_hydrogen_label_text_for_count,
-    make_periodic_element_node_label, refresh_attached_node_label_geometry_for_all_nodes,
+    carbon_valence_hydrogen_count_for_node, formula_hydrogen_count_for_node,
+    implicit_hydrogen_label_text_for_count, make_periodic_element_node_label,
+    refresh_attached_node_label_geometry_for_all_nodes,
     refresh_attached_node_label_geometry_for_all_nodes_with_profile,
     refresh_attached_node_label_geometry_for_node,
     refresh_attached_node_label_geometry_for_node_without_implicit_hydrogen_refresh,
     refresh_implicit_hydrogens, refresh_label_recognition_for_node,
+};
+use self::text_edit::{
+    element_symbol_info, endpoint_label_world_bounds, mark_shortcut_implicit_hydrogen_label,
+    refresh_element_valence_recognition_for_all_nodes, standalone_element_hydrogen_count,
 };
 pub use self::text_edit::{
     TextEditLayout, TextEditLayoutCaret, TextEditLayoutCaretOffset, TextEditLayoutLine,
@@ -305,6 +313,7 @@ pub struct Engine {
     command_context: Vec<EditorCommand>,
     command_before_snapshot: Option<ChemSemaDocument>,
     pending_dialog: Option<serde_json::Value>,
+    spatial_index: std::cell::RefCell<Option<spatial_index::SceneSpatialIndex>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -765,9 +774,26 @@ fn document_target_delta_with_scope(
         created_objects.extend(created);
         updated_objects.extend(updated);
         deleted_objects.extend(deleted);
+        let before_logical_values = logical_target_values(before);
+        let after_logical_values = logical_target_values(after);
+        let before_logical = before_logical_values
+            .iter()
+            .map(|(id, value)| (*id, value))
+            .collect::<BTreeMap<_, _>>();
+        let after_logical = after_logical_values
+            .iter()
+            .map(|(id, value)| (*id, value))
+            .collect::<BTreeMap<_, _>>();
+        let (created, updated, deleted) = diff_target_map(&before_logical, &after_logical);
+        created_objects.extend(created);
+        updated_objects.extend(updated);
+        deleted_objects.extend(deleted);
         created_objects.sort();
+        created_objects.dedup();
         updated_objects.sort();
+        updated_objects.dedup();
         deleted_objects.sort();
+        deleted_objects.dedup();
     }
     let (created_styles, updated_styles, deleted_styles) = if scope.styles {
         diff_target_map(&before_maps.styles, &after_maps.styles)
@@ -795,6 +821,119 @@ fn document_target_delta_with_scope(
             styles: deleted_styles,
         },
     }
+}
+
+fn logical_target_values(document: &ChemSemaDocument) -> Vec<(&str, JsonValue)> {
+    let mut values = Vec::new();
+    macro_rules! append {
+        ($items:expr) => {
+            values.extend($items.iter().map(|item| {
+                (
+                    item.id.as_str(),
+                    serde_json::to_value(item).expect("logical object serializes"),
+                )
+            }));
+        };
+    }
+    append!(document.logical_objects.alternative_groups);
+    append!(document.logical_objects.bracketed_groups);
+    append!(document.logical_objects.sequences);
+    append!(document.logical_objects.cross_references);
+    append!(document.logical_objects.object_tags);
+    append!(document.logical_objects.annotations);
+    append!(document.logical_objects.registry_numbers);
+    append!(document.logical_objects.representations);
+    append!(document.links);
+    values.extend([
+        (
+            "logical-order:alternative-groups",
+            serde_json::json!(document
+                .logical_objects
+                .alternative_groups
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:bracketed-groups",
+            serde_json::json!(document
+                .logical_objects
+                .bracketed_groups
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:sequences",
+            serde_json::json!(document
+                .logical_objects
+                .sequences
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:cross-references",
+            serde_json::json!(document
+                .logical_objects
+                .cross_references
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:object-tags",
+            serde_json::json!(document
+                .logical_objects
+                .object_tags
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:annotations",
+            serde_json::json!(document
+                .logical_objects
+                .annotations
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:registry-numbers",
+            serde_json::json!(document
+                .logical_objects
+                .registry_numbers
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:representations",
+            serde_json::json!(document
+                .logical_objects
+                .representations
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+        (
+            "logical-order:reaction-schemes",
+            serde_json::json!(document
+                .reaction_schemes
+                .iter()
+                .map(|item| &item.id)
+                .collect::<Vec<_>>()),
+        ),
+    ]);
+    for scheme in &document.reaction_schemes {
+        values.push((
+            scheme.id.as_str(),
+            serde_json::to_value(scheme).expect("reaction scheme serializes"),
+        ));
+        append!(scheme.steps);
+    }
+    values
 }
 
 fn document_target_maps(document: &ChemSemaDocument) -> DocumentTargetMaps<'_> {
@@ -1214,7 +1353,7 @@ mod tests {
         ChemSemaDocument {
             format: FormatInfo {
                 name: "chemsema".to_string(),
-                version: "0.1".to_string(),
+                version: "0.2".to_string(),
                 unit: "pt".to_string(),
             },
             document: DocumentInfo {
@@ -1235,6 +1374,8 @@ mod tests {
                 molecule_object("obj_mol_b", "mol_b"),
             ],
             links: Vec::new(),
+            orders: Default::default(),
+            logical_objects: Default::default(),
             reaction_schemes: Vec::new(),
             chemical_properties: Vec::new(),
             resources,
@@ -1261,6 +1402,301 @@ mod tests {
             !delta.updated.nodes.contains(&"node_a".to_string()),
             "unchanged node in first molecule should not be reported: {delta:?}"
         );
+    }
+
+    #[test]
+    fn locking_selected_molecule_is_one_undoable_command() {
+        let mut engine = Engine::new();
+        engine.state.document = two_molecule_document();
+        engine.state.selection = SelectionState {
+            molecule_objects: vec!["obj_mol_a".to_string()],
+            nodes: vec!["node_a".to_string()],
+            ..SelectionState::default()
+        };
+
+        assert!(engine.set_selection_locked(true));
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some_and(|object| object.locked));
+        assert!(engine.undo());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some_and(|object| !object.locked));
+        assert!(engine.redo());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some_and(|object| object.locked));
+    }
+
+    #[test]
+    fn mixed_delete_preserves_locked_object_and_remains_one_history_step() {
+        let mut engine = Engine::new();
+        engine.state.document = two_molecule_document();
+        engine
+            .state
+            .document
+            .find_scene_object_mut("obj_mol_a")
+            .expect("first molecule exists")
+            .locked = true;
+
+        assert!(engine.select_all());
+        assert!(engine.delete_selection());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_b")
+            .is_none());
+
+        assert!(engine.undo());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_b")
+            .is_some());
+        assert!(engine.redo());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some());
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_b")
+            .is_none());
+
+        assert!(engine.select_all());
+        assert!(
+            !engine.delete_selection(),
+            "an all-locked selection must be a no-op"
+        );
+        assert!(engine
+            .state
+            .document
+            .find_scene_object("obj_mol_a")
+            .is_some());
+    }
+
+    #[test]
+    fn mixed_target_move_changes_only_the_editable_molecule_and_is_undoable() {
+        let mut engine = Engine::new();
+        engine.state.document = two_molecule_document();
+        engine
+            .state
+            .document
+            .find_scene_object_mut("obj_mol_a")
+            .expect("first molecule exists")
+            .locked = true;
+        let targets = CommandTargetSet {
+            nodes: vec!["node_a".to_string(), "node_b".to_string()],
+            ..CommandTargetSet::default()
+        };
+
+        assert!(
+            engine
+                .execute_command(EditorCommand::MoveTargets {
+                    targets,
+                    delta: CommandDelta { dx: 5.0, dy: 3.0 },
+                })
+                .expect("move command executes")
+                .changed
+        );
+        let positions = engine
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .flat_map(|entry| {
+                entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .map(|node| (node.id.clone(), node.position))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(positions["node_a"], [10.0, 10.0]);
+        assert_eq!(positions["node_b"], [45.0, 43.0]);
+
+        assert!(engine.undo());
+        let positions = engine
+            .state
+            .document
+            .editable_fragments()
+            .into_iter()
+            .flat_map(|entry| {
+                entry
+                    .fragment
+                    .nodes
+                    .iter()
+                    .map(|node| (node.id.clone(), node.position))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(positions["node_a"], [10.0, 10.0]);
+        assert_eq!(positions["node_b"], [40.0, 40.0]);
+    }
+
+    #[test]
+    fn all_locked_target_move_is_a_no_op_without_history() {
+        let mut engine = Engine::new();
+        engine.state.document = two_molecule_document();
+        for object_id in ["obj_mol_a", "obj_mol_b"] {
+            engine
+                .state
+                .document
+                .find_scene_object_mut(object_id)
+                .expect("molecule exists")
+                .locked = true;
+        }
+        let targets = CommandTargetSet {
+            nodes: vec!["node_a".to_string(), "node_b".to_string()],
+            ..CommandTargetSet::default()
+        };
+
+        assert!(
+            !engine
+                .execute_command(EditorCommand::MoveTargets {
+                    targets,
+                    delta: CommandDelta { dx: 5.0, dy: 3.0 },
+                })
+                .expect("move command executes")
+                .changed
+        );
+        assert!(!engine.can_undo());
+    }
+
+    #[test]
+    fn mixed_arrow_pointer_drag_moves_only_the_editable_object() {
+        let mut engine = Engine::new();
+        let first_id = engine
+            .add_arrow_between(Point::new(10.0, 20.0), Point::new(40.0, 20.0))
+            .expect("first arrow is created");
+        let second_id = engine
+            .add_arrow_between(Point::new(60.0, 50.0), Point::new(90.0, 50.0))
+            .expect("second arrow is created");
+        engine
+            .state
+            .document
+            .find_scene_object_mut(&first_id)
+            .expect("first arrow exists")
+            .locked = true;
+        engine.state.selection = SelectionState {
+            arrow_objects: vec![first_id.clone(), second_id.clone()],
+            ..SelectionState::default()
+        };
+        let points = |engine: &Engine, object_id: &str| {
+            engine
+                .state
+                .document
+                .find_scene_object(object_id)
+                .and_then(|object| object.payload.extra.get("points"))
+                .cloned()
+                .expect("arrow points exist")
+        };
+        let first_before = points(&engine, &first_id);
+        let second_before = points(&engine, &second_id);
+
+        assert!(engine.begin_selection_move_at_point(Point::new(75.0, 50.0), false, false));
+        assert!(engine.finish_selection_move(Point::new(87.0, 50.0), true));
+
+        assert_eq!(points(&engine, &first_id), first_before);
+        assert_ne!(points(&engine, &second_id), second_before);
+    }
+
+    #[test]
+    fn locked_group_ancestor_blocks_descendant_motion_in_mixed_pointer_drag() {
+        let mut engine = Engine::new();
+        let first_id = engine
+            .add_arrow_between(Point::new(10.0, 20.0), Point::new(40.0, 20.0))
+            .expect("first grouped arrow is created");
+        let second_id = engine
+            .add_arrow_between(Point::new(10.0, 40.0), Point::new(40.0, 40.0))
+            .expect("second grouped arrow is created");
+        engine.state.selection = SelectionState {
+            arrow_objects: vec![first_id.clone(), second_id.clone()],
+            ..SelectionState::default()
+        };
+        assert!(engine.group_selection());
+        let group_id = engine.state.selection.arrow_objects[0].clone();
+        assert!(engine.set_selection_locked(true));
+
+        let editable_id = engine
+            .add_arrow_between(Point::new(70.0, 60.0), Point::new(100.0, 60.0))
+            .expect("editable root arrow is created");
+        let points = |engine: &Engine, object_id: &str| {
+            engine
+                .state
+                .document
+                .find_scene_object(object_id)
+                .and_then(|object| object.payload.extra.get("points"))
+                .cloned()
+                .expect("arrow points exist")
+        };
+        let first_before = points(&engine, &first_id);
+        let second_before = points(&engine, &second_id);
+        let editable_before = points(&engine, &editable_id);
+        let group_before = engine
+            .state
+            .document
+            .find_scene_object(&group_id)
+            .expect("group exists")
+            .transform
+            .clone();
+
+        assert!(engine.select_all());
+        assert!(engine.begin_selection_move_at_point(Point::new(85.0, 60.0), false, false));
+        assert!(engine.finish_selection_move(Point::new(97.0, 60.0), true));
+
+        assert_eq!(points(&engine, &first_id), first_before);
+        assert_eq!(points(&engine, &second_id), second_before);
+        assert_eq!(
+            engine
+                .state
+                .document
+                .find_scene_object(&group_id)
+                .expect("group remains")
+                .transform,
+            group_before
+        );
+        assert_ne!(points(&engine, &editable_id), editable_before);
+
+        assert!(engine.undo());
+        engine.state.selection = SelectionState {
+            arrow_objects: vec![group_id.clone()],
+            ..SelectionState::default()
+        };
+        assert!(engine.set_selection_locked(false));
+        assert!(engine.select_all());
+        assert!(engine.begin_selection_move_at_point(Point::new(85.0, 60.0), false, false));
+        assert!(engine.finish_selection_move(Point::new(97.0, 60.0), true));
+
+        assert_ne!(
+            engine
+                .state
+                .document
+                .find_scene_object(&group_id)
+                .expect("unlocked group remains")
+                .transform,
+            group_before
+        );
+        assert_ne!(points(&engine, &editable_id), editable_before);
     }
 
     fn distance_annotation_engine() -> Engine {
@@ -1789,10 +2225,21 @@ fn editor_command_is_relationship(command: &EditorCommand) -> bool {
     )
 }
 
+fn editor_command_is_logical_object(command: &EditorCommand) -> bool {
+    matches!(
+        command,
+        EditorCommand::SetLogicalObject { .. }
+            | EditorCommand::DeleteLogicalObject { .. }
+            | EditorCommand::ReorderLogicalObject { .. }
+    )
+}
+
 fn editor_command_is_style(command: &EditorCommand) -> bool {
     matches!(
         command,
         EditorCommand::ApplyArrowStyle { .. }
+            | EditorCommand::ApplyArrowEndpoints { .. }
+            | EditorCommand::ApplyArrowStylePatch { .. }
             | EditorCommand::ApplyShapeStyle { .. }
             | EditorCommand::ApplyBracketKind { .. }
             | EditorCommand::ApplyOrbitalTemplate { .. }
@@ -1835,14 +2282,18 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::AddElement { .. } => "add-element",
         EditorCommand::AddText { .. } => "add-text",
         EditorCommand::AddImage { .. } => "add-image",
+        EditorCommand::SetImageCrop { .. } => "set-image-crop",
         EditorCommand::SetTextRuns { .. } => "set-text-runs",
         EditorCommand::SetNodeLabelRuns { .. } => "set-node-label-runs",
         EditorCommand::SetNodeCharge { .. } => "set-node-charge",
         EditorCommand::ReplaceNodeLabel { .. } => "replace-node-label",
         EditorCommand::MoveChromatographyMark { .. } => "move-chromatography-mark",
         EditorCommand::ApplyArrowStyle { .. } => "apply-arrow-style",
+        EditorCommand::ApplyArrowEndpoints { .. } => "apply-arrow-endpoints",
+        EditorCommand::ApplyArrowStylePatch { .. } => "apply-arrow-style-patch",
         EditorCommand::CycleBondStyle { .. } => "cycle-bond-style",
         EditorCommand::DeleteSelection => "delete-selection",
+        EditorCommand::SetObjectsLocked { .. } => "set-objects-locked",
         EditorCommand::DeleteTargets { .. } => "delete-targets",
         EditorCommand::DeleteFocusedAtPoint { .. } => "delete-focused-at-point",
         EditorCommand::PasteClipboard => "paste-clipboard",
@@ -1885,6 +2336,9 @@ fn editor_command_type_name(command: &EditorCommand) -> &'static str {
         EditorCommand::SetStoichiometryDatum { .. } => "set-stoichiometry-datum",
         EditorCommand::EditStoichiometryGrid { .. } => "edit-stoichiometry-grid",
         EditorCommand::BindStoichiometryGrid { .. } => "bind-stoichiometry-grid",
+        EditorCommand::SetLogicalObject { .. } => "set-logical-object",
+        EditorCommand::DeleteLogicalObject { .. } => "delete-logical-object",
+        EditorCommand::ReorderLogicalObject { .. } => "reorder-logical-object",
         EditorCommand::SetLinkPolicy { .. } => "set-link-policy",
         EditorCommand::UnlinkSelection { .. } => "unlink-selection",
         EditorCommand::JoinSelection => "join-selection",

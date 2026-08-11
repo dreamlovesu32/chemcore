@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 
 import { resolveLayout } from "../../viewer/document_layout_host.js";
 import { buildImagePagesPdf } from "../../viewer/export_preview.js";
+import {
+  headerFooterSections,
+  pageTextAnnotations,
+  pageTrimMarkSegments,
+} from "../../viewer/document_page_decorations.js";
 
 const A4 = { width: 595.275590551, height: 841.88976378 };
 
@@ -22,7 +27,9 @@ function layout(overrides = {}) {
     footer: "",
     footerPosition: 36,
     magnificationPercent: 100,
-    splitterPositions: [],
+    pageDefinition: "undefined",
+    splitters: [],
+    legacySplitterPositionIds: [],
     fixInPlaceExtent: null,
     fixInPlaceGap: null,
     ...overrides,
@@ -102,4 +109,75 @@ test("multi-page PDF contains one physical page object and MediaBox per tile", (
   assert.match(text, /\/MediaBox \[0 0 792 612\]/);
   assert.equal((text.match(/\/Type \/Page\b/g) || []).length, 2);
   assert.match(text, /startxref\n\d+\n%%EOF\n$/);
+});
+
+test("paper view and PDF share one header, footer, and trim-mark rule", () => {
+  const now = new Date("2026-07-28T12:34:00Z");
+  const configured = layout({
+    header: "&lChemSema&cPage &p&r&f",
+    headerPosition: 24,
+    footer: "&cVerified &d &t",
+    footerPosition: 25,
+    printTrimMarks: true,
+  });
+  const page = {
+    x: 100,
+    y: 200,
+    width: 300,
+    height: 400,
+    pageNumber: 2,
+  };
+  const annotations = pageTextAnnotations(
+    { document: { title: "layout.ccjs" } },
+    configured,
+    page,
+    now,
+  );
+  assert.deepEqual(
+    annotations.slice(0, 3).map(({ role, pageNumber, anchor, text, x, y }) => ({
+      role, pageNumber, anchor, text, x, y,
+    })),
+    [
+      {
+        role: "header",
+        pageNumber: 2,
+        anchor: "start",
+        text: "ChemSema",
+        x: 106,
+        y: 224,
+      },
+      {
+        role: "header",
+        pageNumber: 2,
+        anchor: "middle",
+        text: "Page 2",
+        x: 250,
+        y: 224,
+      },
+      {
+        role: "header",
+        pageNumber: 2,
+        anchor: "end",
+        text: "layout.ccjs",
+        x: 394,
+        y: 224,
+      },
+    ],
+  );
+  assert.equal(annotations.at(-1).role, "footer");
+  assert.equal(annotations.at(-1).y, 575);
+  assert.match(annotations.at(-1).text, /^Verified /);
+
+  assert.deepEqual(
+    headerFooterSections("&c&& &p", { p: "7" }),
+    { left: "", center: "&& 7", right: "" },
+  );
+  const trimMarks = pageTrimMarkSegments(page.x, page.y, page.width, page.height);
+  assert.equal(trimMarks.length, 8);
+  for (const [x1, y1, x2, y2] of trimMarks) {
+    assert(x1 >= page.x && x1 <= page.x + page.width);
+    assert(x2 >= page.x && x2 <= page.x + page.width);
+    assert(y1 >= page.y && y1 <= page.y + page.height);
+    assert(y2 >= page.y && y2 <= page.y + page.height);
+  }
 });

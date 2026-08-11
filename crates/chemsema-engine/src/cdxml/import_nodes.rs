@@ -27,7 +27,10 @@ pub(super) fn normalize_node(
     defaults: CdxmlDefaults,
 ) -> Option<Node> {
     let id = node.attr("id")?.to_string();
-    let position = parse_xy(node.attr("p")).or_else(|| node_positions.get(id.as_str()).copied())?;
+    let position = node_positions
+        .get(id.as_str())
+        .copied()
+        .or_else(|| parse_xy(node.attr("p")))?;
     let local_position = [
         round2(position[0] - origin[0]),
         round2(position[1] - origin[1]),
@@ -116,6 +119,7 @@ pub(super) fn normalize_node(
             "cdxml": {
                 "z": parse_i32(node.attr("Z")),
                 "nodeType": empty_as_null(node.attr("NodeType")),
+                "hasCollapsedFragment": node.direct_children("fragment").next().is_some(),
                 "geometry": empty_as_null(node.attr("Geometry")),
                 "bondOrdering": empty_as_null(node.attr("BondOrdering")),
                 "hDot": parse_cdxml_bool(node.attr("HDot")).unwrap_or(false),
@@ -134,6 +138,9 @@ pub(super) fn normalize_node(
     });
     if radical_count != 0 {
         meta["radicalCount"] = json!(radical_count);
+    }
+    if node.attr("p").is_none() {
+        meta["import"]["cdxml"]["generatedPositionValue"] = json!(position.map(round2));
     }
     Some(Node {
         id,
@@ -398,6 +405,14 @@ pub(super) fn node_label(
         return None;
     }
     let bbox = parse_bbox(text_el.attr("BoundingBox"));
+    let local_bbox = bbox.map(|box_value| {
+        [
+            round2(box_value[0] - origin[0]),
+            round2(box_value[1] - origin[1]),
+            round2(box_value[2] - origin[0]),
+            round2(box_value[3] - origin[1]),
+        ]
+    });
     let explicit_interpret_chemically = parse_cdxml_bool(text_el.attr("InterpretChemically"))
         .or_else(|| parse_cdxml_bool(node.attr("InterpretChemically")));
     let parent_face = parse_u32(text_el.attr("face")).unwrap_or(defaults.label_face);
@@ -407,15 +422,6 @@ pub(super) fn node_label(
         // Face controls its appearance; absent semantic settings still use
         // ChemDraw's normal chemically interpreted node-label behavior.
         .unwrap_or(true);
-    let default_label_font = defaults.label_font.to_string();
-    let parent_font = text_el
-        .attr("font")
-        .or_else(|| {
-            text_el
-                .direct_children("s")
-                .find_map(|run| run.attr("font"))
-        })
-        .unwrap_or(default_label_font.as_str());
     let parent_color = text_el
         .attr("color")
         .or_else(|| {
@@ -430,15 +436,17 @@ pub(super) fn node_label(
             .find_map(|run| parse_f64(run.attr("size")))
             .unwrap_or(defaults.label_size)
     });
+    let mut font_state = CdxmlFontRunState::default();
     let mut source_runs: Vec<LabelRun> = text_el
         .direct_children("s")
         .filter_map(|run| {
             let run_text = run.full_text();
             (!run_text.is_empty()).then(|| {
+                let font_id = font_state.resolve(run.attr("font"));
                 label_source_run(
                     &run_text,
                     parse_u32(run.attr("face")).unwrap_or(parent_face),
-                    run.attr("font").unwrap_or(parent_font),
+                    font_id,
                     run.attr("color").unwrap_or(parent_color),
                     parse_f64(run.attr("size")).unwrap_or(parent_size),
                     colors,
@@ -447,11 +455,20 @@ pub(super) fn node_label(
             })
         })
         .collect();
-    let (text, wrapped_source_runs) =
+    let font_family = source_runs
+        .first()
+        .and_then(|run| run.font_family.clone())
+        .unwrap_or_else(|| "Arial".to_string());
+    let (text, wrapped_source_runs, normalized_line_starts) =
         if text_el.attr("WordWrapWidth").is_some() || text_el.attr("LineStarts").is_some() {
-            apply_cdxml_line_starts(&text, source_runs, text_el.attr("LineStarts"))
+            apply_cdxml_line_starts(
+                &text,
+                source_runs,
+                text_el.attr("LineStarts"),
+                text_el.attr("WordWrapWidth").is_some(),
+            )
         } else {
-            (text, source_runs)
+            (text, source_runs, None)
         };
     source_runs = wrapped_source_runs;
     let runs = label_display_runs_from_source_runs(&source_runs);
@@ -461,8 +478,12 @@ pub(super) fn node_label(
         Vec::new()
     };
     let text_position = parse_xy(text_el.attr("p")).or_else(|| parse_xy(node.attr("p")));
-    let local_node_position = parse_xy(node.attr("p"))
+    let source_node_position = parse_xy(node.attr("p"));
+    let local_node_position = source_node_position
         .map(|point| [round2(point[0] - origin[0]), round2(point[1] - origin[1])]);
+    let text_offset_from_node = text_position
+        .zip(source_node_position)
+        .map(|(text, node)| [round2(text[0] - node[0]), round2(text[1] - node[1])]);
     let label_display = node.attr("LabelDisplay");
     let label_justification = text_el
         .attr("LabelJustification")
@@ -504,12 +525,7 @@ pub(super) fn node_label(
             }
             .to_string(),
         ),
-        font_family: Some(
-            fonts
-                .get(parent_font)
-                .cloned()
-                .unwrap_or_else(|| "Arial".to_string()),
-        ),
+        font_family: Some(font_family),
         fill: Some(colors.resolve(Some(parent_color))),
         font_size: Some(parent_size),
         line_height: Some(round2(line_spacing.line_height)),
@@ -522,12 +538,15 @@ pub(super) fn node_label(
             .collect(),
         glyph_polygons: Vec::new(),
         glyph_clip_polygons: Vec::new(),
+        glyph_clip_polygon_owners: Vec::new(),
         box_value: None,
         meta: json!({
             "import": {
                 "cdxml": {
                     "textPosition": text_position,
+                    "textOffsetFromNode": text_offset_from_node,
                     "boundingBox": bbox,
+                    "localBoundingBox": local_bbox,
                     "sourceId": empty_as_null(text_el.attr("id")),
                     "labelDisplay": empty_as_null(label_display),
                     "labelAlignment": empty_as_null(text_el.attr("LabelAlignment")),
@@ -536,8 +555,9 @@ pub(super) fn node_label(
                     "lineHeight": empty_as_null(text_el.attr("LineHeight")),
                     "labelLineHeight": empty_as_null(text_el.attr("LabelLineHeight")),
                     "wordWrapWidth": empty_as_null(text_el.attr("WordWrapWidth")),
-                    "lineStarts": empty_as_null(text_el.attr("LineStarts")),
+                    "lineStarts": normalized_line_starts,
                     "resolvedLineHeight": round2(line_spacing.line_height),
+                    "resolvedLineHeightMode": line_spacing.mode,
                     "interpretChemically": interpret_chemically,
                     "interpretChemicallyExplicit": explicit_interpret_chemically.is_some(),
                     "marginWidth": defaults.margin_width,
@@ -577,25 +597,40 @@ pub(super) fn apply_cdxml_line_starts(
     text: &str,
     runs: Vec<LabelRun>,
     line_starts: Option<&str>,
-) -> (String, Vec<LabelRun>) {
+    materialize_soft_wraps: bool,
+) -> (String, Vec<LabelRun>, Option<String>) {
     if line_starts.is_none() {
-        return (text.to_string(), runs);
+        return (text.to_string(), runs, None);
     }
     // CDXML stores zero-based offsets into the authored styled-text stream.
-    // End-of-line characters are part of that stream and therefore advance
-    // subsequent offsets even though they normalize to a single rendered LF.
-    // The final offset may be the end-of-text sentinel.
+    // For wrapped captions, WordWrapWidth makes interior offsets authoritative
+    // soft line boundaries even when the XML text contains no EOL character.
+    // Without WordWrapWidth, ChemDraw does not create lines from an otherwise
+    // unbroken Text object. Atom-label LineStarts are likewise derived chemical
+    // layout records (H above/below an element, charge placement, and so on),
+    // not instructions to insert LF characters into the authored formula.
+    // Existing CR/LF characters remain structural in every context.
     let raw_len = runs
         .iter()
         .map(|run| run.text.len())
         .sum::<usize>()
         .max(text.len());
-    let starts: BTreeSet<usize> = line_starts
+    let raw_starts = line_starts
         .into_iter()
         .flat_map(str::split_whitespace)
         .filter_map(|value| value.parse::<usize>().ok())
         .filter(|offset| *offset > 0 && *offset < raw_len)
-        .collect();
+        .collect::<Vec<_>>();
+    let has_end_sentinel = line_starts
+        .into_iter()
+        .flat_map(str::split_whitespace)
+        .filter_map(|value| value.parse::<usize>().ok())
+        .any(|offset| offset >= raw_len);
+    let starts = if materialize_soft_wraps {
+        raw_starts.iter().copied().collect::<BTreeSet<_>>()
+    } else {
+        BTreeSet::new()
+    };
     let source_runs = if runs.is_empty() {
         vec![LabelRun {
             text: text.to_string(),
@@ -637,7 +672,36 @@ pub(super) fn apply_cdxml_line_starts(
         .iter()
         .map(|run| run.text.as_str())
         .collect::<String>();
-    (text, wrapped_runs)
+    if !materialize_soft_wraps {
+        let preserved_line_starts = line_starts
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToString::to_string);
+        return (text, wrapped_runs, preserved_line_starts);
+    }
+
+    // Once authored wrap positions have been materialized as LF characters,
+    // their offsets must describe that materialized stream. Re-exporting the
+    // original offsets alongside the inserted LFs shifts every later break and
+    // causes another LF to be inserted on each save. CDXML offsets count UTF-8
+    // bytes, and an existing LF advances the following line start by one byte.
+    let mut normalized_starts = text
+        .bytes()
+        .enumerate()
+        .filter_map(|(offset, byte)| (byte == b'\n').then_some(offset + 1))
+        .take(raw_starts.len())
+        .collect::<Vec<_>>();
+    if has_end_sentinel {
+        normalized_starts.push(text.len());
+    }
+    let normalized_line_starts = (!normalized_starts.is_empty()).then(|| {
+        normalized_starts
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(" ")
+    });
+    (text, wrapped_runs, normalized_line_starts)
 }
 
 pub(super) fn attr_eq_ignore_ascii_case(value: Option<&str>, expected: &str) -> bool {

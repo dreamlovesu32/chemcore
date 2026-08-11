@@ -1,6 +1,438 @@
 use super::*;
 
 #[test]
+fn cdxml_styled_string_fonts_follow_chemdraw_run_state() {
+    let source = r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="12" CaptionFont="4" CaptionSize="12">
+  <fonttable>
+    <font id="2" charset="iso-8859-1" name="Arial"/>
+    <font id="3" charset="iso-8859-1" name="Times New Roman"/>
+  </fonttable>
+  <page>
+    <fragment>
+      <n id="missing" p="20 30" NodeType="Nickname">
+        <t p="20 34"><s>NiA</s></t>
+      </n>
+      <n id="preceding" p="80 30" NodeType="Nickname">
+        <t p="80 34"><s font="3">A3</s><s>B0</s></t>
+      </n>
+      <n id="text-parent" p="140 30" NodeType="Nickname">
+        <t p="140 34" font="3"><s>Ct</s></t>
+      </n>
+    </fragment>
+    <t id="free-state" p="20 80"><s>G0</s><s font="3">H3</s><s>Ix</s></t>
+    <t id="free-invalid" p="160 80"><s font="4">TxU</s></t>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(source, Some("styled string font state")).expect("CDXML parses");
+    let label = |node_id: &str| {
+        document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .find(|node| node.id == node_id)
+            .and_then(|node| node.label.as_ref())
+            .expect("node label")
+    };
+
+    assert_eq!(label("missing").font_family.as_deref(), Some("Arial"));
+    assert!(label("missing")
+        .runs
+        .iter()
+        .all(|run| run.font_family.as_deref() == Some("Arial")));
+    assert_eq!(
+        label("preceding")
+            .runs
+            .iter()
+            .map(|run| (run.text.as_str(), run.font_family.as_deref()))
+            .collect::<Vec<_>>(),
+        vec![("A3B0", Some("Times New Roman"))]
+    );
+    assert_eq!(
+        label("text-parent").font_family.as_deref(),
+        Some("Arial"),
+        "ChemDraw ignores font on <t>; only preceding <s> run state is inherited"
+    );
+
+    let text_runs = |source_id: &str| {
+        document
+            .objects
+            .iter()
+            .find(|object| {
+                object
+                    .meta
+                    .get("textId")
+                    .and_then(serde_json::Value::as_str)
+                    == Some(source_id)
+            })
+            .and_then(|object| object.payload.extra.get("runs"))
+            .and_then(serde_json::Value::as_array)
+            .expect("text runs")
+    };
+    assert_eq!(
+        text_runs("free-state")
+            .iter()
+            .map(|run| {
+                (
+                    run.get("text").and_then(serde_json::Value::as_str),
+                    run.get("fontFamily").and_then(serde_json::Value::as_str),
+                )
+            })
+            .collect::<Vec<_>>(),
+        vec![
+            (Some("G0"), Some("Arial")),
+            (Some("H3"), Some("Times New Roman")),
+            (Some("Ix"), Some("Times New Roman")),
+        ]
+    );
+    assert_eq!(
+        text_runs("free-invalid")[0]
+            .get("fontFamily")
+            .and_then(serde_json::Value::as_str),
+        Some("Arial"),
+        "an undefined font-table ID resolves to ChemDraw's Arial fallback"
+    );
+}
+
+#[test]
+fn parse_cdxml_fixed_edge_labels_anchor_subscripts_but_not_superscripts() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.4">
+  <fonttable><font id="4" charset="0" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="left" p="100 100" NodeType="Unspecified" LabelDisplay="Left">
+        <t p="100 102.67" LabelAlignment="Left" LabelJustification="Left">
+          <s font="4" size="7" face="64">+</s><s font="4" size="7" face="32">3</s><s font="4" size="7" face="96">(Aax)</s>
+        </t>
+      </n>
+      <n id="left-neighbor" p="85.6 100"/>
+      <b id="left-bond" B="left" E="left-neighbor"/>
+      <n id="right" p="140 100" NodeType="Unspecified" LabelDisplay="Right">
+        <t p="140 102.67" LabelAlignment="Right" LabelJustification="Right">
+          <s font="4" size="7" face="96">(Aax)</s><s font="4" size="7" face="34">n</s><s font="4" size="7" face="66">+</s>
+        </t>
+      </n>
+      <n id="right-neighbor" p="154.4 100"/>
+      <b id="right-bond" B="right" E="right-neighbor"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("fixed edge script anchors")).expect("CDXML parses");
+    let find_node = |id: &str| {
+        document
+            .resources
+            .values()
+            .filter_map(|resource| resource.data.as_fragment())
+            .flat_map(|fragment| fragment.nodes.iter())
+            .find(|node| node.id == id)
+            .expect("node")
+    };
+    let center_x = |polygon: &Vec<[f64; 2]>| {
+        let min = polygon
+            .iter()
+            .map(|point| point[0])
+            .fold(f64::INFINITY, f64::min);
+        let max = polygon
+            .iter()
+            .map(|point| point[0])
+            .fold(f64::NEG_INFINITY, f64::max);
+        (min + max) * 0.5
+    };
+
+    let left = find_node("left");
+    let left_label = left.label.as_ref().expect("left label");
+    let left_subscript_distance =
+        (center_x(&left_label.glyph_polygons[1]) - left.position[0]).abs();
+    assert!(
+        left_subscript_distance
+            < (center_x(&left_label.glyph_polygons[2]) - left.position[0]).abs(),
+        "the leading subscript advance cell is the fixed left attachment: {left_subscript_distance}"
+    );
+
+    let right = find_node("right");
+    let right_label = right.label.as_ref().expect("right label");
+    let right_subscript_distance =
+        (center_x(&right_label.glyph_polygons[5]) - right.position[0]).abs();
+    assert!(
+        right_subscript_distance
+            < (center_x(&right_label.glyph_polygons[4]) - right.position[0]).abs(),
+        "the trailing subscript advance cell is the fixed right attachment: {right_subscript_distance}"
+    );
+    assert!(
+        (center_x(&right_label.glyph_polygons[6]) - right.position[0]).abs() > 0.5,
+        "the trailing superscript remains a decoration, not an attachment glyph"
+    );
+}
+
+#[test]
+fn render_single_line_attached_labels_uses_resolved_box_without_authored_overhang() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="4" LabelSize="7">
+  <fonttable><font id="4" charset="0" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="right" p="100 100" NodeType="Unspecified" LabelDisplay="Right">
+        <t p="102 102.73" BoundingBox="82 96 102 103"
+           LabelAlignment="Right" LabelJustification="Right">
+          <s font="4" size="7" face="96">(Aax)</s><s font="4" size="7" face="34">n</s>
+        </t>
+      </n>
+      <n id="neighbor" p="116 100"/>
+      <b id="bond" B="right" E="neighbor"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("resolved label render origin")).expect("CDXML parses");
+    let entry = document
+        .editable_fragments()
+        .into_iter()
+        .next()
+        .expect("fragment");
+    let node = entry
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "right")
+        .expect("right label node");
+    let label = node.label.as_ref().expect("right label");
+    let box_value = label.bbox().expect("resolved active label box");
+    let last_glyph = label
+        .glyph_polygons
+        .last()
+        .expect("trailing subscript glyph");
+    let last_min_x = last_glyph
+        .iter()
+        .map(|point| point[0])
+        .fold(f64::INFINITY, f64::min);
+    let last_max_x = last_glyph
+        .iter()
+        .map(|point| point[0])
+        .fold(f64::NEG_INFINITY, f64::max);
+    let previous_glyph = &label.glyph_polygons[label.glyph_polygons.len() - 2];
+    let previous_center_x =
+        previous_glyph.iter().map(|point| point[0]).sum::<f64>() / previous_glyph.len() as f64;
+    let last_center_x = (last_min_x + last_max_x) * 0.5;
+    assert!(
+        (last_center_x - node.position[0]).abs() < (previous_center_x - node.position[0]).abs(),
+        "the semantic fixed-edge rule must attach the trailing subscript advance cell"
+    );
+
+    let (render_x, render_anchor) = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Text {
+                node_id,
+                x,
+                text_anchor,
+                ..
+            } if node_id.as_deref() == Some("right") => Some((x, text_anchor)),
+            _ => None,
+        })
+        .expect("rendered right label");
+    let expected_x = entry.object.transform.translate[0] + box_value[0];
+    assert_close(render_x, expected_x);
+    assert_eq!(render_anchor.as_deref(), Some("start"));
+}
+
+#[test]
+fn parse_cdxml_vertical_bond_retreat_ignores_distant_formula_subscript() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.6" MarginWidth="1.6" LabelFont="3" LabelSize="10">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="32">
+    <fragment id="6">
+      <n id="7" p="133.97 199.80" AS="N"/>
+      <n id="11" p="133.97 185.40" NumHydrogens="3" AS="N">
+        <t p="130.36 189.30" BoundingBox="130.36 180.84 148.97 191.60"
+           LabelJustification="Left" LabelAlignment="Left">
+          <s font="3" size="10" color="0" face="96">CH3</s>
+        </t>
+      </n>
+      <b id="12" B="7" E="11"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("vertical CH3 attachment")).expect("CDXML parses");
+    let polygon = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            }
+            | RenderPrimitive::FilledPath {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if role == RenderRole::DocumentBond && bond_id == "12" => Some(points),
+            _ => None,
+        })
+        .expect("bond polygon");
+    let (from, to) = bond_axis_from_points(&polygon).expect("bond axis");
+    let label_endpoint = if from.y < to.y { from } else { to };
+
+    assert!(
+        (label_endpoint.y - 191.02).abs() < 0.08,
+        "ChemDraw's attachment column is set by C, not the distant subscript 3: {polygon:?}"
+    );
+}
+
+#[test]
+fn parse_cdxml_vertical_bond_retreat_uses_the_glyph_owned_by_the_bond_column() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.5" MarginWidth="1.25" LabelFont="20" LabelSize="7">
+  <fonttable><font id="20" charset="0" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="13" p="82.34 264.80" NodeType="Nickname" LabelDisplay="Left">
+        <t p="79.82 267.45" BoundingBox="79.82 261.79 90.32 267.55"
+           LabelJustification="Left" LabelAlignment="Left">
+          <s font="20" size="7" face="96">Gln</s>
+        </t>
+      </n>
+      <n id="17" p="85.72 280.80" NodeType="Nickname" LabelDisplay="Center">
+        <t p="85.72 283.45" BoundingBox="80.47 278.02 90.97 284.95"
+           LabelJustification="Center" Justification="Center" LabelAlignment="Left">
+          <s font="20" size="7" face="96">Lys</s>
+        </t>
+      </n>
+      <b id="18" B="13" E="17" BeginAttach="1"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("vertical Lys attachment")).expect("CDXML parses");
+    let polygon = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            }
+            | RenderPrimitive::FilledPath {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if role == RenderRole::DocumentBond && bond_id == "18" => Some(points),
+            _ => None,
+        })
+        .expect("bond polygon");
+    let (from, to) = bond_axis_from_points(&polygon).expect("bond axis");
+    let label_endpoint = if from.y > to.y { from } else { to };
+
+    assert!(
+        (label_endpoint.y - 279.07).abs() < 0.12,
+        "the y glyph owns the vertical column; the expanded L must not shorten the bond: {polygon:?}"
+    );
+}
+
+#[test]
+fn parse_cdxml_downward_label_retreat_keeps_the_column_local_axis_contact() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.5" MarginWidth="1.25" LabelFont="4" LabelSize="7">
+  <fonttable><font id="4" charset="0" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="11" p="28.56 18.65" NodeType="Unspecified" LabelDisplay="Left">
+        <t p="26.40 21.38" BoundingBox="26.40 15.64 36.51 21.87"
+           LabelJustification="Left" LabelAlignment="Left">
+          <s font="4" size="7" face="96">Tyr</s>
+        </t>
+      </n>
+      <n id="13" p="28.56 32.58"/>
+      <b id="14" B="11" E="13"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("downward Tyr attachment")).expect("CDXML parses");
+    let polygon = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            }
+            | RenderPrimitive::FilledPath {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if role == RenderRole::DocumentBond && bond_id == "14" => Some(points),
+            _ => None,
+        })
+        .expect("bond polygon");
+    let (from, to) = bond_axis_from_points(&polygon).expect("bond axis");
+    let label_endpoint = if from.y < to.y { from } else { to };
+
+    assert!(
+        (label_endpoint.y - 24.054_152).abs() < 0.01,
+        "ChemDraw keeps the column-local baseline contact below Tyr: {polygon:?}"
+    );
+}
+
+#[test]
+fn parse_cdxml_horizontal_label_retreat_uses_the_cardinal_run_contact() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LineWidth="0.5" MarginWidth="1.25" LabelFont="20" LabelSize="7">
+  <fonttable><font id="20" charset="iso-8859-1" name="Times New Roman"/></fonttable>
+  <page>
+    <fragment>
+      <n id="1" p="100 100" NodeType="Nickname" LabelDisplay="Center">
+        <t p="100 102.65" BoundingBox="94.95 97.22 105.05 104.15"
+           LabelJustification="Center" Justification="Center" LabelAlignment="Center">
+          <s font="20" size="7" face="96">Tyr</s>
+        </t>
+      </n>
+      <n id="2" p="116 100"/>
+      <b id="4" B="1" E="2"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(source, Some("horizontal Tyr attachment")).expect("CDXML parses");
+    let polygon = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Polygon {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            }
+            | RenderPrimitive::FilledPath {
+                role,
+                bond_id: Some(bond_id),
+                points,
+                ..
+            } if role == RenderRole::DocumentBond && bond_id == "4" => Some(points),
+            _ => None,
+        })
+        .expect("bond polygon");
+    let (from, to) = bond_axis_from_points(&polygon).expect("bond axis");
+    let label_endpoint = if from.x < to.x { from } else { to };
+
+    assert!(
+        (label_endpoint.x - 105.8465).abs() < 0.05,
+        "ChemDraw uses the horizontal cardinal run contact for Tyr: {polygon:?}"
+    );
+}
+
+#[test]
 fn parse_cdxml_applies_authored_line_starts_to_unbroken_caption_runs() {
     let source = r##"<?xml version="1.0" encoding="UTF-8"?>
 <CDXML CaptionJustification="Center">
@@ -25,6 +457,81 @@ fn parse_cdxml_applies_authored_line_starts_to_unbroken_caption_runs() {
         .and_then(|value| value.as_array())
         .expect("styled runs");
     assert_eq!(rendered_runs[0].get("text"), Some(&json!("alpha\nbeta")));
+}
+
+#[test]
+fn parse_cdxml_does_not_materialize_line_starts_without_word_wrap_width() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionJustification="Left">
+  <page id="1">
+    <t id="2" p="50 20" BoundingBox="10 10 90 34" LineStarts="2 3">
+      <s font="3" size="10">ABC</s>
+    </t>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(source, Some("non-wrapped line starts")).expect("CDXML");
+    let text = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("text object");
+    assert_eq!(text.payload.extra.get("text"), Some(&json!("ABC")));
+    assert_eq!(
+        text.meta.pointer("/import/cdxml/lineStarts"),
+        Some(&json!("2 3"))
+    );
+}
+
+#[test]
+fn parse_cdxml_chemical_node_line_starts_remain_derived_layout_metadata() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML BondLength="14.4" LabelFont="3" LabelSize="10">
+  <page id="1">
+    <fragment id="10">
+      <n id="11" p="72 72" Element="7" NumHydrogens="1" Charge="1">
+        <t id="20" p="72 72" InterpretChemically="yes"
+           LabelAlignment="Above" LineStarts="2 4 6">
+          <s font="3" size="10" face="96">NH+</s>
+        </t>
+      </n>
+      <n id="12" p="54 82"/><n id="13" p="90 82"/>
+      <b id="14" B="12" E="11"/><b id="15" B="11" E="13"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document = parse_cdxml_document(source, Some("chemical label line starts")).expect("CDXML");
+    let label = document
+        .resources
+        .values()
+        .filter_map(|resource| resource.data.as_fragment())
+        .flat_map(|fragment| fragment.nodes.iter())
+        .find(|node| node.id == "11")
+        .and_then(|node| node.label.as_ref())
+        .expect("N label");
+
+    assert_eq!(label.source_text.as_deref(), Some("NH+"));
+    assert_eq!(label.text, "H+\nN");
+    assert_eq!(label.lines, ["H+", "N"]);
+    assert_eq!(
+        label.meta.pointer("/import/cdxml/lineStarts"),
+        Some(&json!("2 4 6"))
+    );
+    assert_eq!(
+        label
+            .meta
+            .get("sourceRuns")
+            .and_then(|value| value.as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|run| run.get("text").and_then(|value| value.as_str()))
+            .collect::<String>(),
+        "NH+"
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert!(exported.contains("LineStarts=\"2 4 6\""), "{exported}");
+    assert!(exported.contains(">NH+</s>"), "{exported}");
+    assert!(!exported.contains("NH&#10;+"), "{exported}");
 }
 
 #[test]
@@ -74,6 +581,47 @@ fn parse_cdxml_line_starts_are_utf8_byte_offsets() {
     assert_eq!(
         text.payload.extra.get("text"),
         Some(&json!("alpha′\nbetagamma"))
+    );
+}
+
+#[test]
+fn materialized_utf8_line_starts_are_idempotent_across_cdxml_saves() {
+    let source = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionJustification="Center">
+  <page id="1">
+    <t id="2" p="50 20" BoundingBox="10 10 90 46"
+       CaptionJustification="Center" WordWrapWidth="80" LineStarts="8 12 17">
+      <s font="3" size="10">alpha′betagamma</s>
+    </t>
+  </page>
+</CDXML>"##;
+    let first = parse_cdxml_document(source, Some("UTF-8 authored wraps")).expect("CDXML");
+    let first_text = first
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("text object");
+    assert_eq!(
+        first_text.payload.extra.get("text"),
+        Some(&json!("alpha′\nbeta\ngamma"))
+    );
+
+    let exported = document_to_cdxml(&first);
+    assert!(exported.contains("LineStarts=\"9 14 19\""), "{exported}");
+    let second =
+        parse_cdxml_document(&exported, Some("UTF-8 authored wraps reopened")).expect("CDXML");
+    let second_text = second
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("reopened text object");
+    assert_eq!(
+        second_text.payload.extra.get("text"),
+        first_text.payload.extra.get("text")
+    );
+    assert_eq!(
+        second_text.payload.extra.get("runs"),
+        first_text.payload.extra.get("runs")
     );
 }
 
@@ -407,6 +955,41 @@ fn parse_cdxml_double_bond_spacing_uses_chemdraw_line_width_floor() {
             (formula - expected_center_distance).abs() < 0.01,
             "{name}: expected {expected_center_distance}, formula {formula}"
         );
+    }
+}
+
+#[test]
+fn parse_cdxml_triple_bond_spacing_matches_chemdraw_percentage_and_absolute_rules() {
+    for (name, line_width, bond_length, bond_spacing, bond_spacing_abs, expected_center_distance) in [
+        ("acs", 0.60, 14.40, 18.0, None, 2.592),
+        ("length-scaled", 0.60, 30.00, 18.0, None, 5.400),
+        ("line-width-floor", 2.00, 14.40, 8.0, None, 5.000),
+        (
+            "absolute-suppresses-authored-percent-and-uses-default-floor",
+            2.00,
+            14.40,
+            30.0,
+            Some(0.5),
+            5.000,
+        ),
+    ] {
+        let spacing_abs = bond_spacing_abs
+            .map(|value| format!(r#" BondSpacingAbs="{value}""#))
+            .unwrap_or_default();
+        let cdxml = format!(
+            r#"<?xml version="1.0" encoding="UTF-8" ?>
+<CDXML LineWidth="{line_width}" BondLength="14.4" BondSpacing="{bond_spacing}">
+  <page id="1"><fragment id="2">
+    <n id="3" p="20 20"/><n id="4" p="20 {}"/>
+    <b id="5" B="3" E="4" Order="3"{spacing_abs}/>
+  </fragment></page>
+</CDXML>"#,
+            20.0 + bond_length,
+        );
+        let document = parse_cdxml_document(&cdxml, Some(name)).expect("cdxml should parse");
+        let primitives = render_document(&document);
+        let metrics = imported_vertical_line_metrics(&primitives, "obj_mol_001");
+        assert_adjacent_line_spacing(&metrics, expected_center_distance, name);
     }
 }
 
@@ -1463,4 +2046,536 @@ fn render_document_emits_text_lines_from_runs() {
     assert_eq!(text_lines[1].2[0].text, "Cl");
     assert!(text_lines[1].1 > text_lines[0].1);
     assert_eq!(text_lines[0].3.as_deref(), Some("middle"));
+}
+
+#[test]
+fn preserved_free_text_shapes_words_at_whitespace_boundaries() {
+    let document: ChemSemaDocument = serde_json::from_value(json!({
+        "format": { "name": "chemsema", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "preserved text shaping",
+            "page": { "width": 240.0, "height": 100.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_text": {
+                "kind": "text",
+                "fontFamily": "Times New Roman",
+                "fontSize": 7.0,
+                "fill": "#000000"
+            }
+        },
+        "objects": [{
+            "id": "obj_text",
+            "type": "text",
+            "visible": true,
+            "zIndex": 1,
+            "transform": {
+                "translate": [20.0, 30.0],
+                "rotate": 0.0,
+                "scale": [1.0, 1.0]
+            },
+            "styleRef": "style_text",
+            "payload": {
+                "text": "R is a hydrogen atom",
+                "box": [0.0, 0.0, 120.0, 14.0],
+                "align": "left",
+                "fontSize": 7.0,
+                "lineHeight": 8.16,
+                "baselineOffset": 5.3,
+                "preserveLines": true,
+                "runs": [{
+                    "text": "R is a hydrogen atom",
+                    "fontFamily": "Times New Roman",
+                    "fontSize": 7.0,
+                    "fontWeight": 400,
+                    "fontStyle": "normal",
+                    "script": "normal",
+                    "fill": "#000000"
+                }]
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("preserved text document");
+
+    let primitives = render_document(&document);
+    assert!(primitives.iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Text {
+            object_id,
+            preserve_lines: true,
+            ..
+        } if object_id.as_deref() == Some("obj_text")
+    )));
+    let svg = document_to_svg(&document);
+    assert!(svg.contains(">R </text>"), "{svg}");
+    assert!(svg.contains(">is </text>"), "{svg}");
+    assert!(svg.contains(">hydrogen </text>"), "{svg}");
+    assert_eq!(svg.matches("<text ").count(), 5, "{svg}");
+}
+
+#[test]
+fn free_text_without_authored_box_uses_face_aware_ink_bounds() {
+    let text = "3-methoxy-4-((4-(trifluoromethyl)benzyl)oxy)benzaldehyde";
+    let source = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionFont="4" CaptionSize="9.33333">
+  <fonttable><font id="4" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <t id="2" p="537.279968 128.929993" Justification="Left" InterpretChemically="no">
+      <s font="4" size="9.33333" face="1">{text}</s>
+    </t>
+  </page>
+</CDXML>"#
+    );
+    let document =
+        parse_cdxml_document(&source, Some("face-aware free text")).expect("CDXML parses");
+    let object = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("free text imports");
+    assert_eq!(
+        object
+            .meta
+            .pointer("/import/cdxml/authoredBoundingBox")
+            .and_then(serde_json::Value::as_bool),
+        Some(false)
+    );
+    let local_box = object
+        .payload
+        .extra
+        .get("box")
+        .and_then(serde_json::Value::as_array)
+        .expect("derived box");
+    assert_eq!(local_box[0].as_f64(), Some(0.35));
+    assert_eq!(local_box[2].as_f64(), Some(256.94));
+
+    let primitive = render_document(&document)
+        .into_iter()
+        .find(|primitive| {
+            matches!(
+                primitive,
+                RenderPrimitive::Text {
+                    object_id: Some(object_id),
+                    ..
+                } if object_id == &object.id
+            )
+        })
+        .expect("text primitive");
+    let bounds = render_primitives_bounds(std::iter::once(&primitive)).expect("text visual bounds");
+    assert!((bounds[2] - 794.574794).abs() < 1.0e-5, "{bounds:?}");
+
+    let svg = document_to_svg(&document);
+    let view_box = svg
+        .split_once("viewBox=\"")
+        .and_then(|(_, tail)| tail.split_once('"'))
+        .map(|(value, _)| {
+            value
+                .split_whitespace()
+                .map(|part| part.parse::<f64>().expect("viewBox number"))
+                .collect::<Vec<_>>()
+        })
+        .expect("root viewBox");
+    let view_box_right = view_box[0] + view_box[2];
+    assert!(
+        view_box_right >= bounds[2] + 7.999,
+        "{view_box:?} versus {bounds:?}"
+    );
+    let exported = document_to_cdxml(&document);
+    let text_tag = exported
+        .split_once("<t ")
+        .and_then(|(_, tail)| tail.split_once('>'))
+        .map(|(tag, _)| tag)
+        .expect("exported text tag");
+    assert!(!text_tag.contains("BoundingBox="), "{text_tag}");
+    let reopened =
+        parse_cdxml_document(&exported, Some("reopened unboxed text")).expect("reopen export");
+    let reopened_object = reopened
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("reopened text");
+    assert_eq!(
+        reopened_object.payload.extra.get("box"),
+        object.payload.extra.get("box")
+    );
+}
+
+#[test]
+fn authored_text_box_is_unioned_with_real_ink_instead_of_clipping_it() {
+    let source = r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionFont="4" CaptionSize="10">
+  <fonttable><font id="4" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <t id="2" p="100 50" BoundingBox="100 40 110 55"
+       Justification="Left" InterpretChemically="no">
+      <s font="4" size="10" face="1">Arial bold text extends beyond its authored box</s>
+    </t>
+  </page>
+</CDXML>"#;
+    let document =
+        parse_cdxml_document(source, Some("narrow authored text box")).expect("CDXML parses");
+    let object = document
+        .objects
+        .iter()
+        .find(|object| object.object_type == "text")
+        .expect("free text imports");
+    assert_eq!(
+        object
+            .meta
+            .pointer("/import/cdxml/authoredBoundingBox")
+            .and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        object.payload.extra.get("box"),
+        Some(&json!([0.0, 0.0, 10.0, 15.0]))
+    );
+    let primitive = render_document(&document)
+        .into_iter()
+        .find(|primitive| matches!(primitive, RenderPrimitive::Text { .. }))
+        .expect("text primitive");
+    let visual = render_primitives_bounds(std::iter::once(&primitive)).expect("text visual bounds");
+    assert!(
+        visual[2] > 290.0,
+        "real glyph ink must outrun the 10 pt authored box: {visual:?}"
+    );
+    let svg = document_to_svg(&document);
+    let view_box = svg
+        .split_once("viewBox=\"")
+        .and_then(|(_, tail)| tail.split_once('"'))
+        .map(|(value, _)| {
+            value
+                .split_whitespace()
+                .map(|part| part.parse::<f64>().expect("viewBox number"))
+                .collect::<Vec<_>>()
+        })
+        .expect("root viewBox");
+    assert!(view_box[0] + view_box[2] >= visual[2] + 7.999);
+    let exported = document_to_cdxml(&document);
+    let text_tag = exported
+        .split_once("<t ")
+        .and_then(|(_, tail)| tail.split_once('>'))
+        .map(|(tag, _)| tag)
+        .expect("exported text tag");
+    assert!(text_tag.contains("BoundingBox="), "{text_tag}");
+}
+
+#[test]
+fn cdxml_free_text_renders_from_authored_p_anchor_for_every_justification() {
+    for (justification, bbox, point, expected_anchor) in [
+        ("Left", "100 40 150 70", "90 55", "start"),
+        ("Center", "100 40 150 70", "120 55", "middle"),
+        ("Right", "100 40 150 70", "160 55", "end"),
+    ] {
+        let cdxml = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML CaptionSize="10" CaptionFace="0" CaptionFont="3">
+  <fonttable><font id="3" charset="iso-8859-1" name="Arial"/></fonttable>
+  <page id="1">
+    <t id="2" p="{point}" BoundingBox="{bbox}" CaptionJustification="{justification}"
+       LineHeight="12" LineStarts="4 8">
+      <s font="3" size="10" color="0" face="0">one&#10;two</s>
+    </t>
+  </page>
+</CDXML>"#
+        );
+        let document = parse_cdxml_document(&cdxml, Some(justification))
+            .expect("free text anchor fixture should import");
+        let object = document
+            .objects
+            .iter()
+            .find(|object| object.object_type == "text")
+            .expect("text object");
+        let point_x = point
+            .split_whitespace()
+            .next()
+            .expect("point x")
+            .parse::<f64>()
+            .expect("numeric point x");
+        let imported_offset = object
+            .payload
+            .extra
+            .get("anchorOffsetX")
+            .and_then(serde_json::Value::as_f64)
+            .expect("CDXML p-to-box anchor offset");
+        assert_close(object.transform.translate[0] + imported_offset, point_x);
+
+        let rendered = render_document(&document)
+            .into_iter()
+            .filter_map(|primitive| match primitive {
+                RenderPrimitive::Text {
+                    object_id,
+                    x,
+                    y,
+                    text_anchor,
+                    ..
+                } if object_id.as_deref() == Some(object.id.as_str()) => Some((x, y, text_anchor)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(rendered.len(), 2, "{justification}");
+        assert!(
+            rendered
+                .iter()
+                .all(|(x, _, _)| (*x - point_x).abs() < 0.001),
+            "{justification}: all lines must use CDXML p.x={point_x}, got {rendered:?}"
+        );
+        assert_close(rendered[0].1, 55.0);
+        assert_close(rendered[1].1, 67.0);
+        assert!(
+            rendered
+                .iter()
+                .all(|(_, _, anchor)| anchor.as_deref() == Some(expected_anchor)),
+            "{justification}: {rendered:?}"
+        );
+    }
+}
+
+#[test]
+fn text_anchor_offset_is_independent_of_line_preservation() {
+    for preserve_lines in [true, false] {
+        let document: ChemSemaDocument = serde_json::from_value(json!({
+            "format": { "name": "chemsema", "version": "0.1" },
+            "document": {
+                "id": "doc_test",
+                "title": "text anchor offset",
+                "page": { "width": 200.0, "height": 100.0, "background": "#ffffff" }
+            },
+            "styles": {
+                "style_text": {
+                    "kind": "text",
+                    "fontFamily": "Arial",
+                    "fontSize": 10.0,
+                    "fill": "#000000"
+                }
+            },
+            "objects": [{
+                "id": "obj_text",
+                "type": "text",
+                "visible": true,
+                "zIndex": 1,
+                "transform": {
+                    "translate": [50.0, 20.0],
+                    "rotate": 23.0,
+                    "scale": [1.0, 1.0]
+                },
+                "styleRef": "style_text",
+                "payload": {
+                    "text": "anchor",
+                    "box": [0.0, 0.0, 80.0, 20.0],
+                    "align": "left",
+                    "fontSize": 10.0,
+                    "lineHeight": 12.0,
+                    "anchorOffsetX": -7.5,
+                    "baselineOffset": 8.0,
+                    "preserveLines": preserve_lines
+                }
+            }],
+            "resources": {}
+        }))
+        .expect("text document");
+        let primitive = render_document(&document)
+            .into_iter()
+            .find_map(|primitive| match primitive {
+                RenderPrimitive::Text {
+                    object_id,
+                    x,
+                    rotate,
+                    rotate_center,
+                    ..
+                } if object_id.as_deref() == Some("obj_text") => Some((x, rotate, rotate_center)),
+                _ => None,
+            })
+            .expect("rendered text");
+        assert_close(primitive.0, 42.5);
+        assert_close(primitive.1, 23.0);
+        assert_eq!(primitive.2, Some(Point::new(50.0, 20.0)));
+    }
+}
+
+#[test]
+fn bracket_object_tag_text_renders_from_owning_layout_anchor() {
+    let document: ChemSemaDocument = serde_json::from_value(json!({
+        "format": { "name": "chemsema", "version": "0.1" },
+        "document": {
+            "id": "doc_test",
+            "title": "bracket label anchor",
+            "page": { "width": 200.0, "height": 100.0, "background": "#ffffff" }
+        },
+        "styles": {
+            "style_text": {
+                "kind": "text",
+                "fontFamily": "Arial",
+                "fontSize": 7.5,
+                "fill": "#000000"
+            }
+        },
+        "objects": [{
+            "id": "obj_text",
+            "type": "text",
+            "visible": true,
+            "zIndex": 1,
+            "transform": {
+                "translate": [81.41, 67.37],
+                "rotate": 0.0,
+                "scale": [1.0, 1.0]
+            },
+            "styleRef": "style_text",
+            "meta": { "role": "bracket_usage" },
+            "payload": {
+                "text": "2",
+                "box": [2.34, 0.0, 3.62, 5.27],
+                "align": "left",
+                "fontSize": 7.5,
+                "lineHeight": 6.68,
+                "anchorOffsetX": 2.1,
+                "baselineOffset": 5.27,
+                "preserveLines": true
+            }
+        }],
+        "resources": {}
+    }))
+    .expect("bracket label document");
+
+    let x = render_document(&document)
+        .into_iter()
+        .find_map(|primitive| match primitive {
+            RenderPrimitive::Text { object_id, x, .. }
+                if object_id.as_deref() == Some("obj_text") =>
+            {
+                Some(x)
+            }
+            _ => None,
+        })
+        .expect("rendered bracket label");
+    assert_close(x, 81.41);
+}
+
+#[test]
+fn attached_text_p_is_authoritative_only_without_explicit_label_alignment() {
+    let cdxml = r##"<?xml version="1.0" encoding="UTF-8"?>
+<CDXML LabelFont="3" LabelSize="7">
+  <fonttable><font id="3" charset="iso-8859-1" name="Times New Roman"/></fonttable>
+  <page id="1">
+    <fragment id="2" BoundingBox="20 20 170 80">
+      <n id="1" p="50 50" NodeType="Nickname" AS="N">
+        <t p="38 54" BoundingBox="37.7 48 48 54.2"
+           LabelJustification="Right" Justification="Right">
+          <s font="3" size="7" face="96">tBu</s>
+        </t>
+      </n>
+      <n id="2" p="100 50" NodeType="Nickname" AS="N">
+        <t p="70 54" BoundingBox="59 48 70 54.2"
+           LabelJustification="Right" Justification="Right" LabelAlignment="Right">
+          <s font="3" size="7" face="96">HCO</s>
+        </t>
+      </n>
+      <n id="4" p="150 50" Element="8" AS="N">
+        <t p="120 54" BoundingBox="112 48 120 54.2"
+           LabelJustification="Right" Justification="Right">
+          <s font="3" size="7" face="96">O</s>
+        </t>
+      </n>
+      <b id="3" B="1" E="2"/>
+      <b id="5" B="2" E="4"/>
+    </fragment>
+  </page>
+</CDXML>"##;
+    let document =
+        parse_cdxml_document(cdxml, Some("attached anchor authority")).expect("CDXML parses");
+    let fragment = document
+        .resources
+        .values()
+        .find_map(|resource| resource.data.as_fragment())
+        .expect("molecule fragment");
+    let authored_node = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "1")
+        .expect("authored attached node");
+    let authored = authored_node
+        .label
+        .as_ref()
+        .expect("authored attached label");
+    let authored_offset: [f64; 2] = serde_json::from_value(
+        authored
+            .meta
+            .pointer("/import/cdxml/textOffsetFromNode")
+            .cloned()
+            .expect("authored text offset"),
+    )
+    .expect("numeric authored text offset");
+    let authored_position = authored.position.expect("authored position");
+    assert_close(
+        authored_position[0],
+        authored_node.position[0] + authored_offset[0],
+    );
+    assert_close(
+        authored_position[1],
+        authored_node.position[1] + authored_offset[1],
+    );
+
+    let automatic_node = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "2")
+        .expect("automatic attached node");
+    let automatic = automatic_node
+        .label
+        .as_ref()
+        .expect("automatic attached label");
+    let ignored_offset: [f64; 2] = serde_json::from_value(
+        automatic
+            .meta
+            .pointer("/import/cdxml/textOffsetFromNode")
+            .cloned()
+            .expect("automatic source text offset"),
+    )
+    .expect("numeric automatic source text offset");
+    let automatic_position = automatic.position.expect("automatic position");
+    let ignored_position = [
+        automatic_node.position[0] + ignored_offset[0],
+        automatic_node.position[1] + ignored_offset[1],
+    ];
+    assert!(
+        (automatic_position[0] - ignored_position[0]).abs() > 0.01
+            || (automatic_position[1] - ignored_position[1]).abs() > 0.01,
+        "LabelAlignment must make ChemDraw's node-relative layout authoritative: \
+         automatic={automatic_position:?}, authored={ignored_position:?}"
+    );
+
+    let element_node = fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == "4")
+        .expect("element node");
+    let element = element_node.label.as_ref().expect("element label");
+    let element_offset: [f64; 2] = serde_json::from_value(
+        element
+            .meta
+            .pointer("/import/cdxml/textOffsetFromNode")
+            .cloned()
+            .expect("element source text offset"),
+    )
+    .expect("numeric element source text offset");
+    let element_position = element.position.expect("element position");
+    let ignored_element_position = [
+        element_node.position[0] + element_offset[0],
+        element_node.position[1] + element_offset[1],
+    ];
+    assert!(
+        (element_position[0] - ignored_element_position[0]).abs() > 0.01
+            || (element_position[1] - ignored_element_position[1]).abs() > 0.01,
+        "ordinary elements stay atom-laid-out without LabelAlignment"
+    );
+
+    let exported = document_to_cdxml(&document);
+    assert_eq!(
+        exported.matches("LabelAlignment=").count(),
+        2,
+        "export must preserve the absent-vs-explicit alignment branch: {exported}"
+    );
 }

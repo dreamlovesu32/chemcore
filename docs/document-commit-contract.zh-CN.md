@@ -99,6 +99,8 @@ desktop_engine_execute_command_json(sessionId, commandJson): string
 
 历史只存在于运行时，不写入 `.ccjs`、`.ccjz`、`.cdxml`、EMF 或 Office/OLE storage。重新打开文件后从空 history 开始。
 
+这与 [Recovery Journal v1](./protocol/journal-v1.md) 不冲突：journal 只保存自上次已验证 snapshot 以来可重放的 Document Patch，用于崩溃恢复；它没有 undo/redo 游标，也不是用户可见编辑历史。保存并验证新 snapshot 后会删除已吸收的 journal，而运行时 undo stack 默认保留。
+
 ## Revision 与保存状态
 
 每次 Document Commit 推进一次 `revision`。保存成功后记录：

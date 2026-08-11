@@ -42,16 +42,70 @@
       "regressionCases": ["0032", "0049", "0059", "0060", "0067", "0069", "0070", "0251", "0409"]
     },
     {
+      "name": "double-bond-rendering",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/render/bond_metrics.rs",
+        "crates/chemsema-engine/src/render_bonds.rs"
+      ],
+      "features": ["double-bond"],
+      "regressionCases": ["0017"]
+    },
+    {
+      "name": "dative-bond-rendering",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/render_bonds.rs"
+      ],
+      "features": ["dative-bond"],
+      "regressionCases": ["0010"]
+    },
+    {
+      "name": "triple-bond-rendering",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/render/bond_metrics.rs",
+        "crates/chemsema-engine/src/render_bonds.rs"
+      ],
+      "features": ["triple-bond"],
+      "regressionCases": ["0248"]
+    },
+    {
+      "name": "wavy-bond-rendering",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/render/bond_metrics.rs",
+        "crates/chemsema-engine/src/render_bonds.rs"
+      ],
+      "features": ["wavy-bond"],
+      "regressionCases": ["0006", "0074", "0075", "0110", "0160"]
+    },
+    {
+      "name": "label-glyph-retreat",
+      "pathSubstrings": [
+        "crates/chemsema-engine/src/glyph_kernel.rs",
+        "crates/chemsema-engine/src/render/labels.rs"
+      ],
+      "features": ["bond", "text"],
+      "regressionCases": ["0136", "0137", "0249"]
+    },
+    {
       "name": "render-core",
       "pathEquals": ["crates/chemsema-engine/src/render.rs"],
       "features": ["bond", "text", "graphics"],
       "regressionCases": ["0032", "0049", "0061", "0062"]
     },
     {
+      "name": "atom-query-rendering",
+      "pathEquals": [
+        "crates/chemsema-engine/src/render_objects.rs",
+        "crates/chemsema-engine/src/engine/text_edit/labels.rs"
+      ],
+      "features": ["query"],
+      "regressionCases": ["0001"]
+    },
+    {
       "name": "visual-gate-definition",
       "pathSubstrings": [
         "scripts/public-cdxml-visual-gate.mjs",
         "scripts/render-public-cdxml-visual-review.mjs",
+        "scripts/public-cdxml-case-filter.mjs",
         "scripts/public-cdxml-impact.mjs",
         "scripts/plan-public-cdxml-affected-gate.mjs",
         "benchmarks/public-cdxml/visual-impact-map.json"
@@ -61,7 +115,8 @@
   ],
   "ignoredPathPrefixes": [
     "docs/",
-    "crates/chemsema-engine/tests/"
+    "crates/chemsema-engine/tests/",
+    "scripts/chemdraw-"
   ],
   "productionPathPrefixes": [
     "crates/chemsema-engine/src/",

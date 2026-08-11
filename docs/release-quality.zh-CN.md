@@ -6,10 +6,12 @@
 | --- | --- | --- |
 | CDXML 导入 | Beta | 公开 fixture、论文图、golden SVG snapshot、解析回归 |
 | CDX 导入/导出 | Beta | round-trip 测试和二进制存储回归 |
+| CCJS 0.2 / CCJZ v1 | Beta | Schema、迁移、稳定诊断、五格式往返、Rust/JS/Python 交叉读取、可见区加载、COW/Zip64、journal 与性能门禁；生态/corpus/full 报告边界见稳定化合同 |
 | SVG 导出 | Usable | golden SVG snapshot 和像素比较脚本 |
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |
 | 桌面端 | Beta | Tauri build、文件关联配置、hybrid latency 回归、安装验证 |
+| GUI 测试平台 | 实施中；[总清单与进度](./gui-test-progress.zh-CN.md)登记 25 个场景，当前候选资格为通过 1、缺失 24、整体红灯；最新单元覆盖原生 TLC/凝胶创建、可访问的二级工具选择、多板批量颜色、内部斑点/条带精确拖动、历史与持久化 | 版本化 Schema/runner/资格 manifest、真实 Playwright 与隔离 Hyper-V production 路径、精确影响/资源门禁、内容寻址候选、受守卫 UIA/CDP 定位、真实输入、相互独立的产品与传输窗口、原生保存/重开、独立 CCJS 化学/属性/几何/层级/Table/色谱 oracle、选择/剪贴板/历史/锁定/组合、trace 归因、先失败后通过仍阻断的汇总、受 root 约束的证据重哈希、有界 bundle 及 guest/host SHA-256 验证已运行；色谱单元通过 23/23 个真实动作与 3/3 个 oracle，证明两块 12 泳道板、精确移动后的标记值及外框/内部颜色同步持久化；完整功能—对象—属性—值域与 `0/1/2/many` 矩阵、复杂/large/xlarge 构建、环境/模型/故障/变异覆盖、耐久、连续 1,000 次展示资格和最终安装包资格仍待完成 |
 | CLI one-shot 命令 | Usable | Rust 测试、`npm run verify`、稳定性报告、输出写入验证 |
 | CLI JSONL session | Experimental/usable | session 单测和大文件性能报告 |
 | Agent 精确截图 | Usable beta | PNG/SVG capture 测试、公开 fixture crop、README 示例图 |
@@ -23,6 +25,7 @@
 | 区域 | 基线 |
 | --- | --- |
 | 文件导入 | 已有公开 fixture 和解析回归；恶意输入 corpus 继续扩展 |
+| CCJZ 容器 | 已限制 entry 数、单 entry/总尺寸、路径、重复/大小写碰撞、哈希和声明绑定；公开拒绝类 conformance corpus 仍待统一 |
 | XML/CDXML 解析 | 已有 parser 测试；深度和大小限制属于 beta 硬化项 |
 | 栅格/矢量导出 | 已验证输出路径、字节数；渲染超时和超大输出限制属于 beta 硬化项 |
 | CLI session | 已有确定性 JSONL 协议；请求超时和资源预算策略属于 beta 硬化项 |
@@ -40,6 +43,8 @@
 5. 用 `npm run desktop:build` 构建安装包。
 6. 确认 GitHub CI 在 `main` 和 release tag 上通过。
 7. 上传安装包并记录 SHA256。
+
+以上是当前 beta 门禁，不等于完整 GUI 或展示资格。GUI 测试平台落地后，stable/正式展示还必须通过 `gui-pr`、`gui-nightly`、最终安装包 `release-qualification` 和 [Demo Qualification Gate](./gui-test-platform-and-demo-reliability.zh-CN.md#16-demo-qualification-gate)；资格 manifest 必须证明每个用户可见功能经过真实点击/输入/拖拽、每类对象经过实际绘制或创建、全部公开属性、`0/1/2/many` 多对象及复杂/大文档矩阵均有当前有效证据。闭包未变的证据可以复用，受影响、过期和不可缓存测试必须重跑。第一次失败后重跑成功仍记为 flaky failure，不能改写为通过。真实输入动作必须把产品完成时限与更大的宿主机/来宾事务外壳分开，既不能让基础设施延迟吞掉功能观察窗口，也不能借此放宽产品 oracle。
 
 ## 当前对外边界
 

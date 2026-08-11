@@ -87,7 +87,11 @@ chemsema-cli about [--pretty] [--out <path>]
 chemsema-cli capabilities [--pretty] [--out <path>]
 chemsema-cli doctor [--pretty] [--out <path>]
 chemsema-cli examples [basic|capture-copy|all] [--pretty] [--out <path>]
-chemsema-cli schema [protocol|commands|targets|capture|context|bundle|detail|diff|guide|copy|json-output|command-script|command-transaction|all] [--pretty] [--out <path>]
+chemsema-cli schema [ccjs-v0.2|ccjz-container|journal|protocol|commands|targets|capture|context|bundle|detail|diff|guide|copy|json-output|command-script|command-transaction|all] [--pretty] [--out <path>]
+chemsema-cli validate <input> [--level structural|chemical|roundtrip] [--out <report.json>] [--pretty]
+chemsema-cli canonicalize <input> --out <document.ccjs|document.ccjz> [--format ccjs|ccjz] [--pretty]
+chemsema-cli migrate <input> --out <document.ccjs|document.ccjz> [--format ccjs|ccjz] [--pretty]
+chemsema-cli conformance [--out <report.json>] [--pretty]
 chemsema-cli inspect <input> [--include summary,objects,molecules,resources,styles] [--out <path>] [--pretty]
 chemsema-cli targets <input> [--out <path>] [--pretty]
 chemsema-cli context <input> --target <selector> [--target <selector> ...] [--targets <selector;selector>] [--radius <pt>] [--out <context.json>] [--capture-out <path.svg|path.png>] [--scale <n>|--width <px>|--height <px>] [--pretty]
@@ -120,7 +124,18 @@ npm run cli -- convert input.cdxml output.emf
 npm run cli -- convert input.cdxml output.ccjs
 npm run cli -- bundle input.cdxml --target molecule:0 --out-dir molecule-0-bundle --context-radius 40 --capture-format png --subset-format ccjs --pretty
 npm run cli -- diff before.ccjs after.ccjs --out diff.json --pretty
+npm run cli -- validate document.ccjz --level roundtrip --target-format ccjs,ccjz,cdxml,cdx --pretty
+npm run cli -- canonicalize input.ccjs --out canonical.ccjz --pretty
+npm run cli -- migrate legacy.ccjs --out migrated.ccjz --pretty
+npm run cli -- conformance --pretty
 ```
+
+格式治理命令：
+
+- `validate` 先验证 CCJZ manifest/hash 或 CCJS 文本结构；`structural` 再检查引擎文档不变量，`chemical` 显式校验每个可编辑分子图，`roundtrip` 按重复 `--target-format` 或逗号列表实际执行 CCJS/CCJZ/CDXML/CDX/SDF 导出再导入。SDF 无法表达非分子 scene 或 relation 时返回 confirmed information loss，而不是伪装无损。
+- `canonicalize` 和 `migrate` 必须显式给出不同的 `--out`，拒绝原地覆盖源文件。两者都通过权威引擎写出当前 CCJS 0.2；`migrate` 用于强调旧版/外部输入升级，`canonicalize` 用于当前文档规范化。
+- `schema ccjs-v0.2|ccjz-container|journal` 返回随 CLI 分发的机器可读 schema；`conformance` 执行内置确定性容器和 journal probe。跨 Rust/JavaScript/Python 的完整容器检查使用仓库命令 `npm run conformance:ccjz`。
+- `validate` 使用 `chemsema.validation-report.v1`；每个 issue 固定包含 code、stage、JSON Pointer/entry、规范条款、severity、information-loss 和 message。roundtrip 的语义指纹精确比较，有视觉表达的目标再比较去身份、数值规范化后的 primitive 多重集，显式容差为 2 pt。合同与仍需发布归档的 corpus/full profile 见 [CCJS 0.2 稳定化架构](./ccjs-v0.2-stability-architecture.zh-CN.md)。
 
 标签查询示例：
 
@@ -189,6 +204,7 @@ source `runs`、`defaultChemical`，以及必要时的 `displayMode`。OCR 调�
 - `chemsema-cli --version` 输出一行纯文本，适合 shell 检查。
 - `chemsema-cli version --pretty` 以 JSON 返回产品版本和协议版本。
 - `chemsema-cli schema protocol --pretty` 返回当前运行时的协议 id。
+- `chemsema-cli schema ccjs-v0.2|ccjz-container|journal --pretty` 返回当前文档、容器和恢复日志 schema。
 - 面向机器的稳定 contract 放在 [docs/protocol](./protocol/README.md)。
 
 `new` 从空白 ChemSema 内部文档开始。命令接收命令脚本和输出路径。保存格式由 `--out` 后缀决定：
@@ -220,7 +236,7 @@ npm run cli -- convert input.cdxml output --format emf
 | --- | --- | --- | --- |
 | `json` | yes | yes | ChemSema 内部 JSON，`.json` 后缀按内部 JSON 处理 |
 | `ccjs` | yes | yes | ChemSema 内部 JSON，推荐作为未压缩内部格式 |
-| `ccjz` | yes | yes | gzip 压缩 ChemSema JSON |
+| `ccjz` | yes | yes | 带哈希、scene 分块和内容寻址资源的确定性 ZIP；旧 gzip 只读兼容 |
 | `cdxml` | yes | yes | ChemDraw XML |
 | `cdx` | yes | yes | ChemDraw binary |
 | `sdf` | yes | yes | MDL SD file |

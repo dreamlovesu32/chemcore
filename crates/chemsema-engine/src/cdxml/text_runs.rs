@@ -4,6 +4,25 @@ use std::collections::BTreeMap;
 use super::colors::CdxmlColorTable;
 use super::round2;
 
+#[derive(Default)]
+pub(super) struct CdxmlFontRunState {
+    font_id: Option<String>,
+}
+
+impl CdxmlFontRunState {
+    pub(super) fn resolve(&mut self, explicit_font_id: Option<&str>) -> &str {
+        if let Some(font_id) = explicit_font_id {
+            self.font_id = Some(font_id.to_string());
+        }
+        // ChemDraw's styled-string font state starts at Arial independently
+        // of LabelFont/CaptionFont. A missing font on a later <s> retains the
+        // preceding <s> font; a font attribute on <t> is not part of that
+        // state. An empty ID deliberately reaches label_source_run's Arial
+        // rule without inventing a font-table entry.
+        self.font_id.as_deref().unwrap_or("")
+    }
+}
+
 pub(super) fn label_source_run(
     text: &str,
     face: u32,
@@ -118,29 +137,7 @@ fn expand_cdxml_chemical_runs(base_runs: &[LabelRun]) -> Vec<LabelRun> {
 }
 
 fn expand_cdxml_mixed_runs(base_runs: &[LabelRun]) -> Vec<LabelRun> {
-    let chars: Vec<char> = base_runs.iter().flat_map(|run| run.text.chars()).collect();
-    let mut scripts = vec!["normal"; chars.len()];
-
-    let mut index = 0usize;
-    while index < chars.len() {
-        if !chars[index].is_ascii_digit() {
-            if is_cdxml_charge_marker(&chars, index) {
-                scripts[index] = "superscript";
-            }
-            index += 1;
-            continue;
-        }
-        let start = index;
-        while index < chars.len() && chars[index].is_ascii_digit() {
-            index += 1;
-        }
-        if index < chars.len() && is_cdxml_charge_marker(&chars, index) {
-            scripts[start..=index].fill("superscript");
-            index += 1;
-        } else if start > 0 && (chars[start - 1].is_ascii_alphabetic() || chars[start - 1] == ')') {
-            scripts[start..index].fill("subscript");
-        }
-    }
+    let scripts = crate::chemical_text_runs::infer_display_scripts(base_runs);
 
     let mut out = Vec::new();
     let mut char_index = 0;
@@ -172,21 +169,6 @@ fn expand_cdxml_mixed_runs(base_runs: &[LabelRun]) -> Vec<LabelRun> {
         }
     }
     out
-}
-
-fn is_cdxml_charge_marker(chars: &[char], index: usize) -> bool {
-    if !matches!(chars.get(index), Some('+' | '-')) {
-        return false;
-    }
-    let previous = index.checked_sub(1).and_then(|offset| chars.get(offset));
-    let next = chars.get(index + 1);
-    if !matches!(
-        previous,
-        Some(character) if character.is_alphanumeric() || matches!(character, ')' | ']' | '}')
-    ) {
-        return false;
-    }
-    next.is_none() || next.is_some_and(|character| character.is_whitespace())
 }
 
 #[cfg(test)]
@@ -325,6 +307,29 @@ mod tests {
     }
 
     #[test]
+    fn explicit_charge_run_does_not_promote_a_formula_count() {
+        let runs = label_display_runs_from_source_runs(&[
+            chemical_run("NH3"),
+            LabelRun {
+                text: "+".to_string(),
+                script: Some("superscript".to_string()),
+                ..LabelRun::default()
+            },
+        ]);
+
+        assert_eq!(
+            runs.iter()
+                .map(|run| (run.text.as_str(), run.script.as_deref()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("NH", Some("normal")),
+                ("3", Some("subscript")),
+                ("+", Some("superscript")),
+            ]
+        );
+    }
+
+    #[test]
     fn chemical_face_digit_uses_neighboring_regular_runs_as_formula_context() {
         let runs = label_display_runs_from_source_runs(&[
             LabelRun {
@@ -394,5 +399,15 @@ mod tests {
             split_cdxml_font_family_style("Times New Roman"),
             ("Times New Roman".to_string(), false, false)
         );
+    }
+
+    #[test]
+    fn font_runs_start_at_arial_and_retain_only_preceding_run_state() {
+        let mut state = CdxmlFontRunState::default();
+        assert_eq!(state.resolve(None), "");
+        assert_eq!(state.resolve(Some("3")), "3");
+        assert_eq!(state.resolve(None), "3");
+        assert_eq!(state.resolve(Some("4")), "4");
+        assert_eq!(state.resolve(None), "4");
     }
 }

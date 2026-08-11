@@ -39,6 +39,7 @@ pub(in crate::cdxml) fn append_shape_objects(
         let line_type = node.attr("LineType").unwrap_or("");
         let dashed = type_value.contains("Dashed") || line_type.contains("Dashed");
         let bold = type_value.contains("Bold") || line_type.contains("Bold");
+        let line_width = parse_f64(node.attr("LineWidth")).unwrap_or(defaults.line_width);
         let stroke_width = parse_f64(node.attr("LineWidth")).unwrap_or(if bold {
             defaults.bold_width
         } else {
@@ -52,7 +53,10 @@ pub(in crate::cdxml) fn append_shape_objects(
                 "kind": "shape",
                 "fill": if filled || shaded { json!(color) } else { Value::Null },
                 "stroke": if filled { Value::Null } else { json!(color) },
-                "strokeWidth": if filled { 0.0 } else { stroke_width },
+                // Keep the effective width even for filled shapes.  CDXML
+                // CornerRadius is based on LineWidth although Filled suppresses
+                // the visible outline, so the geometry still needs this value.
+                "strokeWidth": stroke_width,
                 "dashArray": if dashed { non_bond_dash_array(defaults) } else { json!([]) },
                 "shaded": if shaded { json!(true) } else { Value::Null },
                 "shadow": if shadow { json!(true) } else { Value::Null },
@@ -140,10 +144,21 @@ pub(in crate::cdxml) fn append_shape_objects(
                     "rect"
                 }),
             );
-            extra.insert(
-                "cornerRadius".to_string(),
-                json!(parse_scaled_100(node.attr("CornerRadius")).unwrap_or(0.0)),
-            );
+            if type_value.contains("RoundEdge") {
+                // ChemDraw treats CornerRadius as a hundredths-encoded
+                // multiplier of the graphic's normal LineWidth.  Missing and
+                // zero values both select the measured default of 600 (6x).
+                // BoldWidth changes only the outline; it is not the radius
+                // basis.  ChemSema stores the resulting geometry explicitly in
+                // document points.
+                let corner_ratio = parse_scaled_100(node.attr("CornerRadius"))
+                    .filter(|value| *value > 0.0)
+                    .unwrap_or(6.0);
+                extra.insert(
+                    "cornerRadius".to_string(),
+                    json!(round2(corner_ratio * line_width)),
+                );
+            }
             (
                 Transform {
                     translate: [round2(bbox[0]), round2(bbox[1])],

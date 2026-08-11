@@ -239,6 +239,7 @@ fn graph_from_fragment(
         semantics,
         atoms,
         bonds,
+        free_valences: Vec::new(),
         stereo,
         components,
         assumptions: vec![GraphAssumptionV2 {

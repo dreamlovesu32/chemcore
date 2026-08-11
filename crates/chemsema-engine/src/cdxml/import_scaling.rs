@@ -30,8 +30,11 @@ pub(super) fn scale_cdxml_document_for_editing(document: &mut ChemSemaDocument) 
         origin[0] = round2(origin[0] * factor);
         origin[1] = round2(origin[1] * factor);
     }
-    for position in &mut layout.splitter_positions {
-        *position = round2(*position * factor);
+    for splitter in &mut layout.splitters {
+        if let Some(position) = &mut splitter.position {
+            position[0] = round2(position[0] * factor);
+            position[1] = round2(position[1] * factor);
+        }
     }
     for point in [
         &mut layout.fix_in_place_extent,
@@ -211,7 +214,6 @@ pub(super) fn scale_json_key_as_length_scalar(key: &str) -> bool {
             | "pad"
             | "padding"
             | "cornerRadius"
-            | "shadowSize"
             | "dashSpacing"
     )
 }
@@ -223,9 +225,11 @@ pub(super) fn scale_json_key_as_length_array(key: &str) -> bool {
             | "box"
             | "boxField"
             | "boundingBox"
+            | "localBoundingBox"
             | "cdxmlBoundingBox"
             | "position"
             | "textPosition"
+            | "textOffsetFromNode"
             | "translate"
             | "points"
             | "center"

@@ -1,0 +1,30 @@
+{
+  "schema": "chemsema.gui.worker-profile.v1",
+  "id": "windows-gui-worker-current",
+  "kind": "hyper-v",
+  "vm": {
+    "id": "b5dccf28-86af-4827-9678-2ad252dde413",
+    "generation": 2,
+    "checkpoint": {
+      "id": "9f04c832-f79a-4297-96d8-77fed46b3645",
+      "name": "ChemSema GUI Baseline v1"
+    }
+  },
+  "resources": {
+    "cpuUnits": 8,
+    "memoryGiB": 20
+  },
+  "credential": {
+    "pathTemplate": "%LOCALAPPDATA%\\ChemSema\\gui-test\\credentials\\windows-gui-worker-current.credential.xml"
+  },
+  "guest": {
+    "account": "chemsema-test",
+    "testRoot": "C:\\ChemSemaGuiTest"
+  },
+  "isolation": {
+    "hostInput": false,
+    "hostClipboard": false,
+    "hostProjectMount": false,
+    "interactiveDesktopExclusive": true
+  }
+}

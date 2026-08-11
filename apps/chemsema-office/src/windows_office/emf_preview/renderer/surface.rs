@@ -203,6 +203,9 @@ pub(super) unsafe fn draw_preview_image(
     width: f64,
     height: f64,
     href: &str,
+    source_crop: Option<chemsema_engine::ImageCropRect>,
+    source_width: u32,
+    source_height: u32,
     opacity: f64,
     preserve_aspect_ratio: bool,
     rotate: f64,
@@ -262,11 +265,27 @@ pub(super) unsafe fn draw_preview_image(
     } else {
         "none"
     };
+    let image = if let Some(crop) = source_crop {
+        format!(
+            r#"<svg x="{x}" y="{y}" width="{width}" height="{height}" viewBox="{} {} {} {}" preserveAspectRatio="{preserve}" overflow="hidden" transform="rotate({rotate} {} {})"><image x="0" y="0" width="{source_width}" height="{source_height}" href="{href}" opacity="{}" preserveAspectRatio="none"/></svg>"#,
+            crop.x,
+            crop.y,
+            crop.width,
+            crop.height,
+            center.x,
+            center.y,
+            opacity.clamp(0.0, 1.0),
+        )
+    } else {
+        format!(
+            r#"<image x="{x}" y="{y}" width="{width}" height="{height}" href="{href}" opacity="{}" preserveAspectRatio="{preserve}" transform="rotate({rotate} {} {})"/>"#,
+            opacity.clamp(0.0, 1.0),
+            center.x,
+            center.y,
+        )
+    };
     let svg = format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{bounds_width}" height="{bounds_height}" viewBox="{min_x} {min_y} {bounds_width} {bounds_height}"><image x="{x}" y="{y}" width="{width}" height="{height}" href="{href}" opacity="{}" preserveAspectRatio="{preserve}" transform="rotate({rotate} {} {})"/></svg>"#,
-        opacity.clamp(0.0, 1.0),
-        center.x,
-        center.y,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{bounds_width}" height="{bounds_height}" viewBox="{min_x} {min_y} {bounds_width} {bounds_height}">{image}</svg>"#
     );
     let Some(bitmap) = render_svg_preview_bitmap(&svg) else {
         return false;
@@ -744,6 +763,9 @@ pub(super) unsafe fn draw_preview_primitive(
             width,
             height,
             href,
+            source_crop,
+            source_width,
+            source_height,
             opacity,
             preserve_aspect_ratio,
             rotate,
@@ -757,6 +779,9 @@ pub(super) unsafe fn draw_preview_primitive(
                 *width,
                 *height,
                 href,
+                *source_crop,
+                *source_width,
+                *source_height,
                 *opacity,
                 *preserve_aspect_ratio,
                 *rotate,

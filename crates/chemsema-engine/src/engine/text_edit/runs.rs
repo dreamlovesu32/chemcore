@@ -125,11 +125,7 @@ pub(super) fn display_runs_from_source_runs(
     default_font_size: f64,
     default_fill: &str,
 ) -> Vec<LabelRun> {
-    let chars: Vec<char> = source_runs
-        .iter()
-        .flat_map(|run| run.text.chars())
-        .collect();
-    let inferred_scripts = infer_chemical_scripts(&chars);
+    let inferred_scripts = crate::chemical_text_runs::infer_display_scripts(source_runs);
     let mut out = Vec::new();
     let mut char_index = 0;
     for run in source_runs {
@@ -226,8 +222,7 @@ pub(super) fn expand_chemical_run(base: &LabelRun, text: &str) -> Vec<LabelRun> 
 
 #[cfg(test)]
 fn expand_chemical_runs(base_runs: &[LabelRun]) -> Vec<LabelRun> {
-    let chars: Vec<char> = base_runs.iter().flat_map(|run| run.text.chars()).collect();
-    let scripts = infer_chemical_scripts(&chars);
+    let scripts = crate::chemical_text_runs::infer_display_scripts(base_runs);
 
     let mut out = Vec::new();
     let mut char_index = 0;
@@ -256,49 +251,6 @@ fn expand_chemical_runs(base_runs: &[LabelRun]) -> Vec<LabelRun> {
     out
 }
 
-fn infer_chemical_scripts(chars: &[char]) -> Vec<&'static str> {
-    let mut scripts = vec!["normal"; chars.len()];
-
-    let mut index = 0usize;
-    while index < chars.len() {
-        if !chars[index].is_ascii_digit() {
-            if is_charge_marker(chars, index) {
-                scripts[index] = "superscript";
-            }
-            index += 1;
-            continue;
-        }
-        let start = index;
-        while index < chars.len() && chars[index].is_ascii_digit() {
-            index += 1;
-        }
-        if index < chars.len() && is_charge_marker(chars, index) {
-            scripts[start..=index].fill("superscript");
-            index += 1;
-        } else if start > 0 && (chars[start - 1].is_ascii_alphabetic() || chars[start - 1] == ')') {
-            scripts[start..index].fill("subscript");
-        }
-    }
-
-    scripts
-}
-
-fn is_charge_marker(chars: &[char], index: usize) -> bool {
-    if !matches!(chars.get(index), Some('+' | '-')) {
-        return false;
-    }
-    let previous = index.checked_sub(1).and_then(|offset| chars.get(offset));
-    if !matches!(
-        previous,
-        Some(character) if character.is_alphanumeric() || matches!(character, ')' | ']' | '}')
-    ) {
-        return false;
-    }
-    chars
-        .get(index + 1)
-        .is_none_or(|character| character.is_whitespace())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,7 +263,10 @@ mod tests {
             font_weight: Some(400),
             font_style: Some("normal".to_string()),
             underline: Some(false),
-            script: Some("normal".to_string()),
+            // These tests exercise automatic chemical-script expansion.
+            // Explicit "normal" is authored formatting and must not be
+            // reinterpreted by the shared tokenizer.
+            script: Some("chemical".to_string()),
             ..LabelRun::default()
         }
     }
@@ -427,6 +382,35 @@ mod tests {
             vec![
                 ("OCF", Some("normal"), Some("#ff0000")),
                 ("3", Some("subscript"), Some("#ff0000"))
+            ]
+        );
+    }
+
+    #[test]
+    fn display_runs_keep_formula_count_below_an_explicit_charge() {
+        let source_runs = [
+            LabelRun {
+                text: "NH3".to_string(),
+                script: Some("chemical".to_string()),
+                ..LabelRun::default()
+            },
+            LabelRun {
+                text: "+".to_string(),
+                script: Some("superscript".to_string()),
+                ..LabelRun::default()
+            },
+        ];
+
+        let runs = display_runs_from_source_runs(&source_runs, "Arial", 10.0, "#000000");
+
+        assert_eq!(
+            runs.iter()
+                .map(|run| (run.text.as_str(), run.script.as_deref()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("NH", Some("normal")),
+                ("3", Some("subscript")),
+                ("+", Some("superscript")),
             ]
         );
     }

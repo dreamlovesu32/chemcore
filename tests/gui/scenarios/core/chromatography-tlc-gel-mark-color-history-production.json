@@ -1,0 +1,59 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.chromatography.tlc-gel-mark-color-history.production",
+  "title": "Draw TLC and gel plates, recolor every internal mark, move marks, verify history, and save exact data",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Public Color changed chromatography frames but left explicit TLC spot and gel band colors stale, and real GUI evidence did not cover native mark dragging or persistence.",
+  "capabilities": ["gui.public-input", "editor.chromatography.draw", "editor.chromatography.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 24,
+  "actions": [
+    { "id": "activate-chromatography-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "TLC plate", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"tlc-plate\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-tlc-plate", "type": "click", "target": { "strategy": "role", "value": "button", "name": "TLC plate", "scope": { "role": "toolbar", "name": "Secondary toolbar" } }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"chromatography-kind-tlc-plate\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-tlc-plate", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.18, "y": 0.20 }, "to": { "x": 0.42, "y": 0.65 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-gel-plate", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Gel electrophoresis plate", "scope": { "role": "toolbar", "name": "Secondary toolbar" } }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"chromatography-kind-gel-plate\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-gel-plate", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.58, "y": 0.20 }, "to": { "x": 0.82, "y": 0.65 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-both-plates", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-plate-color-menu", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "right", "at": { "x": 0.3092, "y": 0.5510 }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"]", "operator": "gte", "value": 8, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-plate-color", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Color", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "make-both-plates-blue", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Blue", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "verify-uniform-blue", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "right", "at": { "x": 0.3092, "y": 0.5510 }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"][data-canvas-context-value=\"#0000ff\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-blue-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "move-middle-tlc-spot-to-rf-half", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.3092, "y": 0.5510 }, "to": { "x": 0.3092, "y": 0.4250 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "undo-tlc-spot", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-tlc-spot", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "move-middle-gel-band-to-three-quarters", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.7092, "y": 0.4250 }, "to": { "x": 0.7092, "y": 0.3125 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "undo-gel-band", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-gel-band", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "both-native-plates-remain-visible", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2 },
+    { "id": "saved-chromatography-marks-and-colors", "kind": "document-chromatography-properties", "expected": [
+      { "id": "obj_shape_1", "kind": "tlcPlate", "laneCount": 12, "firstMarkValues": [0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.5, 0.15, 0.15, 0.15, 0.15, 0.15], "color": "#0000ff", "showOrigin": true, "showSolventFront": true, "showBorders": true, "showSideTicks": true },
+      { "id": "obj_shape_2", "kind": "gelPlate", "laneCount": 12, "firstMarkValues": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.75, 0.5, 0.5, 0.5, 0.5, 0.5], "color": "#0000ff" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.chromatography.draw", "editor.chromatography.properties", "editor.selection.select-all", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["tlc-plate", "gel-electrophoresis-plate", "tlc-spot", "gel-band"],
+    "cardinalities": ["1", "2", "many"],
+    "states": ["tlc", "gel", "selected", "blue", "rf-moved", "band-value-moved", "undone", "redone", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["chromatography.kind", "chromatography.color", "tlc.origin", "tlc.solvent-front", "tlc.borders", "tlc.side-ticks", "tlc.lanes", "tlc.spot.rf", "tlc.spot.color", "gel.lanes", "gel.band.value", "gel.band.color"],
+    "persistenceBoundaries": ["runtime", "history", "filesystem", "native-dialog"]
+  }
+}

@@ -97,7 +97,18 @@ pub fn electron_symbol_chemistry(kind: &str) -> Option<ElectronSymbolChemistry> 
 }
 
 pub fn refresh_attached_electron_symbols(document: &mut ChemSemaDocument) -> bool {
-    let mut changed = refresh_atom_symbol_links(document);
+    refresh_attached_electron_symbols_with_mode(document, true)
+}
+
+pub fn refresh_loaded_electron_symbols(document: &mut ChemSemaDocument) -> bool {
+    refresh_attached_electron_symbols_with_mode(document, false)
+}
+
+fn refresh_attached_electron_symbols_with_mode(
+    document: &mut ChemSemaDocument,
+    allow_new_spatial_auto_links: bool,
+) -> bool {
+    let mut changed = refresh_atom_symbol_links(document, allow_new_spatial_auto_links);
     let attachments = detect_symbol_attachments(document);
     changed |= refresh_symbol_object_attachment_payloads(document, &attachments);
     changed |= refresh_node_attached_electron_symbols(document, &attachments);
@@ -156,10 +167,9 @@ pub fn node_has_charge_symbol_invalid(node: &Node) -> bool {
 }
 
 fn detect_symbol_attachments(document: &ChemSemaDocument) -> Vec<SymbolAttachment> {
-    let Some(entry) = document.editable_fragment() else {
+    if document.editable_fragments().is_empty() {
         return Vec::new();
-    };
-    let object_translate = entry.object.transform.translate;
+    }
     let mut out = Vec::new();
     for object in &document.objects {
         if object.object_type != "symbol" || !object.visible {
@@ -196,35 +206,28 @@ fn detect_symbol_attachments(document: &ChemSemaDocument) -> Vec<SymbolAttachmen
                     .iter()
                     .any(|endpoint| endpoint.role == "symbol" && endpoint.entity_id == object.id)
             })
-            .and_then(|relation| {
-                relation
+            .map(|relation| {
+                let node_id = relation
                     .endpoints
                     .iter()
                     .find(|endpoint| endpoint.role == "atom")
-            })
-            .map(|endpoint| endpoint.entity_id.clone());
+                    .map(|endpoint| endpoint.entity_id.clone());
+                (node_id, relation.data.clone())
+            });
         let (node_id, attachment_source, attachment_distance) =
-            if let Some(node_id) = linked_node_id {
-                let distance = entry
-                    .fragment
-                    .nodes
-                    .iter()
-                    .find(|node| node.id == node_id)
-                    .map(|node| {
-                        center.distance(Point::new(
-                            node.position[0] + object_translate[0],
-                            node.position[1] + object_translate[1],
-                        ))
-                    });
-                (
-                    Some(node_id),
-                    Some(if object.link_policy == LinkPolicy::Linked {
-                        "explicit"
-                    } else {
-                        "auto"
-                    }),
-                    distance,
-                )
+            if let Some((Some(node_id), relation_data)) = linked_node_id {
+                let distance = attachment_candidate_for_node(document, &node_id, center)
+                    .map(|candidate| candidate.distance);
+                let source = if object.link_policy == LinkPolicy::Linked {
+                    "explicit"
+                } else if relation_data.get("source").and_then(Value::as_str)
+                    == Some("cdxml-represent")
+                {
+                    "source"
+                } else {
+                    "auto"
+                };
+                (Some(node_id), Some(source), distance)
             } else {
                 (None, None, None)
             };
@@ -241,11 +244,13 @@ fn detect_symbol_attachments(document: &ChemSemaDocument) -> Vec<SymbolAttachmen
     out
 }
 
-fn refresh_atom_symbol_links(document: &mut ChemSemaDocument) -> bool {
-    let Some(entry) = document.editable_fragment() else {
+fn refresh_atom_symbol_links(
+    document: &mut ChemSemaDocument,
+    allow_new_spatial_auto_links: bool,
+) -> bool {
+    if document.editable_fragments().is_empty() {
         return false;
-    };
-    let object_translate = entry.object.transform.translate;
+    }
     let candidates = document
         .objects
         .iter()
@@ -263,23 +268,40 @@ fn refresh_atom_symbol_links(document: &mut ChemSemaDocument) -> bool {
                 .is_some()
         })
         .map(|object| {
-            let candidate = scene_object_center(object)
-                .and_then(|center| {
-                    nearest_attachment_candidate(entry.fragment, object_translate, center)
-                })
-                .filter(|candidate| candidate.distance <= ELECTRON_SYMBOL_ATTACH_RADIUS);
-            (object.id.clone(), object.link_policy, candidate)
+            let explicit_target = object
+                .payload
+                .extra
+                .get("representObjectId")
+                .and_then(Value::as_str);
+            let candidate = scene_object_center(object).and_then(|center| {
+                if let Some(node_id) = explicit_target {
+                    attachment_candidate_for_node(document, node_id, center)
+                } else if allow_new_spatial_auto_links {
+                    nearest_attachment_candidate(document, center)
+                        .filter(|candidate| candidate.distance <= ELECTRON_SYMBOL_ATTACH_RADIUS)
+                } else {
+                    None
+                }
+            });
+            (
+                object.id.clone(),
+                object.link_policy,
+                candidate,
+                explicit_target.is_some(),
+            )
         })
         .collect::<Vec<_>>();
     let auto_symbols = candidates
         .iter()
-        .filter(|(_, policy, _)| *policy == LinkPolicy::Auto)
-        .map(|(id, _, _)| id.as_str())
+        .filter(|(_, policy, _, explicit_target)| {
+            *policy == LinkPolicy::Auto && (allow_new_spatial_auto_links || *explicit_target)
+        })
+        .map(|(id, _, _, _)| id.as_str())
         .collect::<std::collections::BTreeSet<_>>();
     let unlinked_symbols = candidates
         .iter()
-        .filter(|(_, policy, _)| *policy == LinkPolicy::Unlinked)
-        .map(|(id, _, _)| id.as_str())
+        .filter(|(_, policy, _, _)| *policy == LinkPolicy::Unlinked)
+        .map(|(id, _, _, _)| id.as_str())
         .collect::<std::collections::BTreeSet<_>>();
     let before = document.links.len();
     document.links.retain(|relation| {
@@ -294,7 +316,7 @@ fn refresh_atom_symbol_links(document: &mut ChemSemaDocument) -> bool {
         !symbol_id.is_some_and(|id| auto_symbols.contains(id) || unlinked_symbols.contains(id))
     });
     let mut changed = before != document.links.len();
-    for (symbol_id, policy, candidate) in candidates {
+    for (symbol_id, policy, candidate, explicit_target) in candidates {
         if policy != LinkPolicy::Auto {
             continue;
         }
@@ -314,7 +336,11 @@ fn refresh_atom_symbol_links(document: &mut ChemSemaDocument) -> bool {
                     role: "symbol".to_string(),
                 },
             ],
-            data: Value::Null,
+            data: if explicit_target {
+                json!({"source": "cdxml-represent"})
+            } else {
+                Value::Null
+            },
         });
         changed = true;
     }
@@ -377,9 +403,29 @@ fn refresh_node_attached_electron_symbols(
     document: &mut ChemSemaDocument,
     attachments: &[SymbolAttachment],
 ) -> bool {
-    let Some(entry) = document.editable_fragment_mut() else {
-        return false;
-    };
+    let resource_refs = document
+        .editable_fragments()
+        .iter()
+        .filter_map(|entry| entry.object.payload.resource_ref.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut changed = false;
+    for resource_ref in resource_refs {
+        let Some(fragment) = document
+            .resources
+            .get_mut(&resource_ref)
+            .and_then(|resource| resource.data.as_fragment_mut())
+        else {
+            continue;
+        };
+        changed |= refresh_fragment_attached_electron_symbols(fragment, attachments);
+    }
+    changed
+}
+
+fn refresh_fragment_attached_electron_symbols(
+    fragment: &mut crate::MoleculeFragment,
+    attachments: &[SymbolAttachment],
+) -> bool {
     let mut by_node: BTreeMap<&str, Vec<&SymbolAttachment>> = BTreeMap::new();
     for attachment in attachments {
         if let Some(node_id) = attachment.node_id.as_deref() {
@@ -387,14 +433,14 @@ fn refresh_node_attached_electron_symbols(
         }
     }
     let mut connection_orders: BTreeMap<&str, i32> = BTreeMap::new();
-    for bond in &entry.fragment.bonds {
+    for bond in &fragment.bonds {
         let order = i32::from(bond.order.max(1));
         *connection_orders.entry(bond.begin.as_str()).or_default() += order;
         *connection_orders.entry(bond.end.as_str()).or_default() += order;
     }
 
     let mut changed = false;
-    for node in &mut entry.fragment.nodes {
+    for node in &mut fragment.nodes {
         let old_symbol_charge = attached_symbol_charge_sum(node);
         let old_symbol_radical = attached_symbol_radical_sum(node);
         let had_symbol_state = old_symbol_charge != 0
@@ -523,6 +569,15 @@ fn effective_hydrogens_and_invalid(
     attachments: &[&SymbolAttachment],
 ) -> (Option<u8>, bool) {
     if node.is_placeholder {
+        return (None, false);
+    }
+    if attachments.iter().all(|attachment| {
+        attachment_charge_delta(attachment, base_charge) == 0
+            && attachment_radical_delta(attachment, base_radical) == 0
+    }) {
+        // A represent child can point at an attribute already carried by the
+        // node. Such a symbol visualizes that state; it does not create a
+        // second valence change or replace the node's ordinary hydrogen rule.
         return (None, false);
     }
     if node.atomic_number != 6 {
@@ -687,14 +742,17 @@ fn attached_symbol_radical_sum(node: &Node) -> i32 {
 }
 
 fn nearest_attachment_candidate(
-    fragment: &crate::MoleculeFragment,
-    object_translate: [f64; 2],
+    document: &ChemSemaDocument,
     point: Point,
 ) -> Option<AttachmentCandidate> {
-    let mut candidates = fragment
-        .nodes
-        .iter()
-        .map(|node| best_candidate_for_node(node, object_translate, point))
+    let mut candidates = document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| {
+            entry.fragment.nodes.iter().map(move |node| {
+                best_candidate_for_node(node, entry.object.transform.translate, point)
+            })
+        })
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| left.distance.total_cmp(&right.distance));
     let nearest = candidates.first()?.clone();
@@ -705,6 +763,27 @@ fn nearest_attachment_candidate(
         return None;
     }
     Some(nearest)
+}
+
+fn attachment_candidate_for_node(
+    document: &ChemSemaDocument,
+    node_id: &str,
+    point: Point,
+) -> Option<AttachmentCandidate> {
+    document
+        .editable_fragments()
+        .into_iter()
+        .flat_map(|entry| {
+            entry
+                .fragment
+                .nodes
+                .iter()
+                .filter(move |node| node.id == node_id)
+                .map(move |node| {
+                    best_candidate_for_node(node, entry.object.transform.translate, point)
+                })
+        })
+        .min_by(|left, right| left.distance.total_cmp(&right.distance))
 }
 
 fn best_candidate_for_node(

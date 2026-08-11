@@ -11,6 +11,14 @@ import {
 } from "node:fs";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  publicCdxmlCliCandidates,
+  repositoryState,
+  sha256File,
+} from "./public-cdxml-provenance.mjs";
+import { bracketWorldEndpoints } from "./public-cdxml-bracket-geometry.mjs";
+import { compareVisualGeometry } from "./public-cdxml-semantic-geometry.mjs";
+import { visibleInterchangeBondCount } from "./public-cdxml-source-topology.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(repoRoot, "benchmarks", "public-cdxml", "manifest.json");
@@ -35,15 +43,18 @@ const workRoot = join(outputRoot, "work");
 const limit = Number.parseInt(option("--limit", "0"), 10);
 const generations = Math.max(1, Number.parseInt(option("--generations", "3"), 10));
 const strictCounts = args.includes("--strict-counts");
+const selectedCaseIds = new Set(
+  (option("--case-ids", "") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => (/^\d+$/.test(value) ? value.padStart(4, "0") : value)),
+);
+const encounteredSelectedCaseIds = new Set();
 
 function discoverCli() {
   const explicit = option("--cli", process.env.CHEMSEMA_CLI);
-  const suffix = process.platform === "win32" ? ".exe" : "";
-  const candidates = [
-    explicit,
-    join(repoRoot, "target", "debug", `chemsema-cli${suffix}`),
-    join(repoRoot, "target", "release", `chemsema-cli${suffix}`),
-  ].filter(Boolean);
+  const candidates = publicCdxmlCliCandidates(repoRoot, explicit);
   const found = candidates.find((candidate) => existsSync(candidate));
   if (!found) {
     throw new Error(
@@ -54,6 +65,9 @@ function discoverCli() {
 }
 
 const cliPath = discoverCli();
+if (selectedCaseIds.size === 0 && limit <= 0) {
+  rmSync(workRoot, { recursive: true, force: true });
+}
 mkdirSync(workRoot, { recursive: true });
 
 function runCli(commandArgs) {
@@ -61,6 +75,10 @@ function runCli(commandArgs) {
     cwd: repoRoot,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
+    env: {
+      ...process.env,
+      CHEMSEMA_CLI_DISABLE_CACHE: "1",
+    },
   });
   return {
     ok: result.status === 0,
@@ -324,7 +342,7 @@ function textSignatures(objects) {
 
 function textGeometry(objects) {
   return objects
-    .filter((object) => object.type === "text")
+    .filter((object) => object.type === "text" && object.visible !== false)
     .map((object) => {
       const translate = object.transform?.translate ?? [0, 0];
       const box = payloadValue(object, "box");
@@ -375,12 +393,36 @@ function arrowSignatures(objects) {
 function bracketSignatures(objects) {
   return objects
     .filter((object) => object.type === "bracket")
-    .map((object) => ({
-      kind: payloadValue(object, "kind") ?? null,
-      side: payloadValue(object, "side") ?? null,
-      bbox: roundGeometry(payloadValue(object, "bbox") ?? null),
-      translate: roundGeometry(object.transform?.translate ?? null),
-    }))
+    .map((object) => {
+      const kind = payloadValue(object, "kind") ?? null;
+      const side = payloadValue(object, "side") ?? null;
+      const bbox = payloadValue(object, "bbox") ?? null;
+      const transform = object.transform ?? {};
+      const endpoints = bracketWorldEndpoints({
+        bbox,
+        translate: transform.translate,
+        rotate: transform.rotate,
+        kind,
+        side,
+      });
+      return {
+        kind,
+        side,
+        geometry: endpoints
+          ? {
+              top: roundGeometry(endpoints.top),
+              bottom: roundGeometry(endpoints.bottom),
+            }
+          : {
+              bbox: roundGeometry(bbox),
+              translate: roundGeometry(transform.translate ?? null),
+              rotate: roundNumber(transform.rotate ?? 0),
+            },
+        stroke: payloadValue(object, "stroke") ?? null,
+        strokeWidth: roundNumber(payloadValue(object, "strokeWidth") ?? 0),
+        lipSize: payloadValue(object, "lipSize") ?? null,
+      };
+    })
     .map((signature) => JSON.stringify(canonicalize(signature)))
     .sort();
 }
@@ -425,9 +467,18 @@ function semanticSnapshot(document) {
   };
 }
 
-function readGeneration(path) {
+function readGeneration(path, includeSourceTopology = false) {
   const document = JSON.parse(readFileSync(path, "utf8"));
-  return { counts: summarizeCounts(document), semantic: semanticSnapshot(document) };
+  const generation = {
+    counts: summarizeCounts(document),
+    semantic: semanticSnapshot(document),
+  };
+  if (includeSourceTopology) {
+    generation.sourceVisibleBondCount = visibleInterchangeBondCount(
+      document.interchange?.cdxml?.root,
+    );
+  }
+  return generation;
 }
 
 const countKeys = ["molecules", "nodes", "bonds", "objects", "resources", "styles"];
@@ -461,28 +512,29 @@ function compareSemantic(before, after) {
   return { exact: before.hash === after.hash && changed.length === 0, changed };
 }
 
-function compareVisualGeometry(before = [], after = [], tolerance = 0.5) {
-  if (before.length !== after.length) return false;
-  const close = (left, right) => {
-    if (left == null || right == null) return left === right;
-    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
-    return left.every((value, index) => Math.abs(value - right[index]) <= tolerance);
-  };
-  return before.every(
-    (item, index) =>
-      item.key === after[index]?.key &&
-      close(item.position, after[index].position) &&
-      close(item.box, after[index].box) &&
-      close(item.lineHeight, after[index].lineHeight),
-  );
-}
-
 function failureMessage(result) {
   return result.stderr || result.stdout || result.error;
 }
 
 const versionResult = runCli(["version"]);
-const cliVersion = versionResult.ok ? JSON.parse(versionResult.stdout).version : "unknown";
+if (!versionResult.ok) {
+  throw new Error(`Unable to read CLI version metadata: ${failureMessage(versionResult)}`);
+}
+const cliMetadata = JSON.parse(versionResult.stdout);
+const repository = repositoryState(repoRoot);
+if (cliMetadata.buildIdentity !== repository.identity) {
+  throw new Error(
+    `CLI build identity ${cliMetadata.buildIdentity ?? "(missing)"} does not match repository `
+    + `identity ${repository.identity}. Run node scripts/build-public-cdxml-cli.mjs first.`,
+  );
+}
+const cliIdentity = {
+  path: cliPath,
+  version: cliMetadata.version,
+  sha256: sha256File(cliPath),
+  buildIdentity: cliMetadata.buildIdentity,
+  importCache: "disabled",
+};
 const cases = [];
 let caseIndex = 0;
 
@@ -500,6 +552,8 @@ for (const source of manifest.sources) {
     const classification = special?.class || "valid";
     const format = extname(inputPath).toLowerCase().slice(1);
     const key = String(caseIndex).padStart(4, "0");
+    if (selectedCaseIds.size > 0 && !selectedCaseIds.has(key)) continue;
+    encounteredSelectedCaseIds.add(key);
     const record = {
       caseId: key,
       source: source.id,
@@ -539,12 +593,15 @@ for (const source of manifest.sources) {
       continue;
     }
 
-    record.generations = [readGeneration(modelPaths[0])];
-    const sourceDeclaresBonds = format === "cdxml"
-      && /<b\b/i.test(readFileSync(inputPath, "utf8"));
-    if (sourceDeclaresBonds && record.generations[0].counts.bonds === 0) {
+    const initialGeneration = readGeneration(modelPaths[0], format === "cdxml");
+    const sourceVisibleBondCount = initialGeneration.sourceVisibleBondCount ?? 0;
+    delete initialGeneration.sourceVisibleBondCount;
+    record.generations = [initialGeneration];
+    if (sourceVisibleBondCount > 0 && record.generations[0].counts.bonds === 0) {
       record.status = "topology-lost";
-      record.error = "Source CDXML declares bonds but the imported document contains none.";
+      record.error =
+        `Source CDXML declares ${sourceVisibleBondCount} visible-fragment bond(s) `
+        + "but the imported document contains none.";
       cases.push(record);
       continue;
     }
@@ -602,6 +659,12 @@ for (const source of manifest.sources) {
   }
   if (limit > 0 && cases.length >= limit) break;
 }
+const missingCaseIds = [...selectedCaseIds].filter(
+  (caseId) => !encounteredSelectedCaseIds.has(caseId),
+);
+if (missingCaseIds.length > 0) {
+  throw new Error(`Unknown public CDXML case IDs: ${missingCaseIds.join(", ")}`);
+}
 
 const statuses = {};
 const bySource = {};
@@ -624,9 +687,10 @@ const unexpectedStatuses = new Set([
 const unexpectedFailures = cases.filter((item) => unexpectedStatuses.has(item.status));
 const countDrift = cases.filter((item) => item.status === "count-drift");
 const report = {
-  schema: "chemsema.public-cdxml-roundtrip-report.v2",
+  schema: "chemsema.public-cdxml-roundtrip-report.v3",
   generatedAt: new Date().toISOString(),
-  cliVersion,
+  cli: cliIdentity,
+  repositoryIdentity: repository.identity,
   generations,
   manifest: normalizedRelative(repoRoot, manifestPath),
   corpusRoot,
@@ -644,9 +708,10 @@ writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
 if (summaryOutput) {
   const summaryPath = resolve(summaryOutput);
   const summaryReport = {
-    schema: "chemsema.public-cdxml-roundtrip-summary.v2",
+    schema: "chemsema.public-cdxml-roundtrip-summary.v3",
     generatedAt: report.generatedAt,
-    cliVersion,
+    cli: cliIdentity,
+    repositoryIdentity: repository.identity,
     generations,
     sources: manifest.sources.map((source) => ({
       id: source.id,

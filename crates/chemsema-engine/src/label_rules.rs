@@ -1,7 +1,192 @@
 use crate::direction_from_angle;
 use serde::{Deserialize, Serialize};
 
-const DIRECTION_EPSILON: f64 = 1.0e-6;
+const SINGLE_CONNECTION_HORIZONTAL_EPSILON: f64 = 1.0e-6;
+const MULTI_CONNECTION_GAP_TIE_EPSILON_DEG: f64 = 0.001;
+// ChemDraw keeps a nearly trigonal three-connection center in the degenerate
+// 120-degree branch until an angular gap departs from 120 degrees by about
+// 3 degrees. Silent SVG probes place the transition between 2.95 and 3.05
+// degrees for 8/10/14 pt labels and 10/14.35/24 pt bonds. Authored coordinate
+// quantization decides samples that land exactly on the boundary.
+const NEAR_TRIGONAL_GAP_DEVIATION_DEG: f64 = 3.0;
+const MULTI_CONNECTION_BISECTOR_RIGHT_END_DEG: f64 = 67.5;
+const MULTI_CONNECTION_BISECTOR_BELOW_END_DEG: f64 = 112.5;
+const MULTI_CONNECTION_BISECTOR_LEFT_END_DEG: f64 = 247.5;
+const MULTI_CONNECTION_BISECTOR_ABOVE_END_DEG: f64 = 292.5;
+const OPPOSITE_CONNECTION_HORIZONTAL_END_DEG: f64 = 22.5;
+const OPPOSITE_CONNECTION_FORWARD_END_DEG: f64 = 90.0;
+const OPPOSITE_CONNECTION_REVERSE_END_DEG: f64 = 157.5;
+
+fn normalize_degrees(angle: f64) -> f64 {
+    angle.rem_euclid(360.0)
+}
+
+fn normalized_sorted_connection_angles(connection_angles: &[f64]) -> Vec<f64> {
+    let mut angles: Vec<f64> = connection_angles
+        .iter()
+        .map(|angle| normalize_degrees(*angle))
+        .collect();
+    angles.sort_by(f64::total_cmp);
+    angles
+}
+
+fn circular_angular_gaps(angles: &[f64]) -> Vec<(usize, f64)> {
+    angles
+        .iter()
+        .enumerate()
+        .map(|(index, angle)| {
+            let next = if index + 1 == angles.len() {
+                angles[0] + 360.0
+            } else {
+                angles[index + 1]
+            };
+            (index, next - angle)
+        })
+        .collect()
+}
+
+fn gaps_are_near_trigonal(gaps: &[(usize, f64)]) -> bool {
+    gaps.len() == 3
+        && gaps.iter().all(|(_, gap)| {
+            (*gap - 120.0).abs()
+                <= NEAR_TRIGONAL_GAP_DEVIATION_DEG + MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+        })
+}
+
+fn decision_for_flow(flow: LabelFlow) -> LabelLayoutDecision {
+    let anchor = match flow {
+        LabelFlow::Reverse => LabelAnchorPolicy::OriginalFirstGroup,
+        LabelFlow::StackAbove | LabelFlow::StackBelow => LabelAnchorPolicy::FirstGroupLeadGlyph,
+        LabelFlow::Forward | LabelFlow::Preserve => LabelAnchorPolicy::FirstGlyph,
+    };
+    LabelLayoutDecision { flow, anchor }
+}
+
+fn classify_multi_connection_bisector(bisector: f64) -> LabelFlow {
+    if bisector <= MULTI_CONNECTION_BISECTOR_RIGHT_END_DEG
+        || bisector >= MULTI_CONNECTION_BISECTOR_ABOVE_END_DEG
+    {
+        LabelFlow::Reverse
+    } else if bisector < MULTI_CONNECTION_BISECTOR_BELOW_END_DEG {
+        LabelFlow::StackAbove
+    } else if bisector <= MULTI_CONNECTION_BISECTOR_LEFT_END_DEG {
+        LabelFlow::Forward
+    } else {
+        LabelFlow::StackBelow
+    }
+}
+
+fn multi_connection_layout(connection_angles: &[f64]) -> LabelLayoutDecision {
+    debug_assert!(connection_angles.len() >= 2);
+    let angles = normalized_sorted_connection_angles(connection_angles);
+    let gaps = circular_angular_gaps(&angles);
+    let largest_gap = gaps
+        .iter()
+        .map(|(_, gap)| *gap)
+        .max_by(f64::total_cmp)
+        .expect("multi-connection layout requires at least one angular gap");
+    let tied_gaps: Vec<(usize, f64)> = gaps
+        .iter()
+        .copied()
+        .filter(|(_, gap)| (largest_gap - gap).abs() <= MULTI_CONNECTION_GAP_TIE_EPSILON_DEG)
+        .collect();
+
+    if angles.len() == 2
+        && tied_gaps.len() == 2
+        && (largest_gap - 180.0).abs() <= MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+    {
+        let axis = angles[0].rem_euclid(180.0);
+        let flow = if axis
+            <= OPPOSITE_CONNECTION_HORIZONTAL_END_DEG + MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+            || axis >= OPPOSITE_CONNECTION_REVERSE_END_DEG - MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+        {
+            LabelFlow::StackAbove
+        } else if axis <= OPPOSITE_CONNECTION_FORWARD_END_DEG + MULTI_CONNECTION_GAP_TIE_EPSILON_DEG
+        {
+            LabelFlow::Forward
+        } else {
+            LabelFlow::Reverse
+        };
+        return decision_for_flow(flow);
+    }
+
+    // Three equal or nearly equal sectors have no stable unique opening.
+    // ChemDraw fits their common 120-degree phase before applying the phase
+    // sectors, and only switches to the largest-gap rule outside this window.
+    let near_trigonal = gaps_are_near_trigonal(&gaps);
+    if near_trigonal {
+        let phase = normalize_degrees(
+            angles
+                .iter()
+                .enumerate()
+                .map(|(index, angle)| angle - index as f64 * 120.0)
+                .sum::<f64>()
+                / 3.0,
+        )
+        .rem_euclid(120.0);
+        let flow = if phase <= 60.0 || phase >= 112.5 {
+            LabelFlow::Forward
+        } else if phase <= 67.5 {
+            LabelFlow::Reverse
+        } else {
+            LabelFlow::StackAbove
+        };
+        return decision_for_flow(flow);
+    }
+
+    let selected_gap = tied_gaps
+        .iter()
+        .copied()
+        .map(|(index, gap)| {
+            let midpoint = normalize_degrees(angles[index] + gap * 0.5);
+            let clockwise_from_up = normalize_degrees(midpoint - 270.0);
+            let distance_from_up = clockwise_from_up.min(360.0 - clockwise_from_up);
+            let right_axis_distance = midpoint.min(360.0 - midpoint);
+            (
+                index,
+                gap,
+                right_axis_distance > MULTI_CONNECTION_GAP_TIE_EPSILON_DEG,
+                distance_from_up,
+                clockwise_from_up,
+            )
+        })
+        .min_by(|left, right| {
+            left.2
+                .cmp(&right.2)
+                .then_with(|| left.3.total_cmp(&right.3))
+                .then_with(|| left.4.total_cmp(&right.4))
+        })
+        .expect("multi-connection layout requires a selected angular gap");
+    let occupied_start = if selected_gap.0 + 1 == angles.len() {
+        angles[0]
+    } else {
+        angles[selected_gap.0 + 1]
+    };
+    let occupied_span = 360.0 - selected_gap.1;
+    let bisector = normalize_degrees(occupied_start + occupied_span * 0.5);
+    decision_for_flow(classify_multi_connection_bisector(bisector))
+}
+
+/// ChemDraw gives a stereobond its own label-flow phase only at an approximately
+/// trigonal three-connection center. Silent CDXML/SVG probes show that two- and
+/// four-connection labels, and irregular three-connection labels, continue to
+/// use the ordinary connection-gap rule. Begin/end and solid/hashed/hollow
+/// presentation do not change this axis rule.
+pub fn decide_near_trigonal_stereobond_label_layout(
+    connection_angles: &[f64],
+    stereobond_angle: f64,
+) -> Option<LabelLayoutDecision> {
+    if connection_angles.len() != 3 || !stereobond_angle.is_finite() {
+        return None;
+    }
+    let angles = normalized_sorted_connection_angles(connection_angles);
+    let gaps = circular_angular_gaps(&angles);
+    gaps_are_near_trigonal(&gaps).then(|| {
+        decision_for_flow(classify_multi_connection_bisector(normalize_degrees(
+            stereobond_angle,
+        )))
+    })
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -19,6 +204,12 @@ pub enum LabelFlow {
 pub enum LabelAnchorPolicy {
     FirstGlyph,
     LastGlyph,
+    /// A fixed, authored left edge. Explicit subscripts may be the attachment
+    /// glyph, while superscripts remain decorations outside the bond axis.
+    AuthoredFirstGlyph,
+    /// A fixed, authored right edge. Explicit subscripts may be the attachment
+    /// glyph, while trailing superscripts remain decorations.
+    AuthoredLastGlyph,
     OriginalFirstGroup,
     FirstGroupLeadGlyph,
     WholeLabel,
@@ -85,7 +276,10 @@ fn split_compact_label_groups(compact: &str) -> Vec<String> {
         let Some(character) = rest.chars().next() else {
             break;
         };
-        if character.is_ascii_uppercase() && !current.is_empty() {
+        let leading_isotope_mass = groups.is_empty()
+            && !current.is_empty()
+            && current.chars().all(|value| value.is_ascii_digit());
+        if character.is_ascii_uppercase() && !current.is_empty() && !leading_isotope_mass {
             groups.push(std::mem::take(&mut current));
         }
         current.push(character);
@@ -213,6 +407,25 @@ pub fn terminal_letter_anchor_offset(group: &str) -> usize {
         .unwrap_or(0)
 }
 
+fn leading_isotope_element_anchor_offset(group: &str) -> usize {
+    // A leading superscript mass number is a decoration of the first element,
+    // not an independent attachment group. Stacked labels such as 13CH2 must
+    // therefore attach the bond to C while keeping 13 in the same visual row.
+    let leading_digits = group
+        .chars()
+        .take_while(|character| character.is_ascii_digit())
+        .count();
+    (leading_digits > 0)
+        .then_some(leading_digits)
+        .filter(|index| {
+            group
+                .chars()
+                .nth(*index)
+                .is_some_and(|character| character.is_ascii_alphabetic())
+        })
+        .unwrap_or(0)
+}
+
 pub fn is_prime_anchor_suffix(character: char) -> bool {
     matches!(
         character,
@@ -234,13 +447,17 @@ pub fn decide_label_layout(
 
     if connection_angles.len() == 1 {
         let direction = direction_from_angle(connection_angles[0]);
-        if direction.x > DIRECTION_EPSILON {
+        // A terminal label follows the complete left/right half-plane and
+        // only delegates an effectively vertical bond to the collision
+        // resolver. Multi-connection labels use the separate open-sector
+        // decision below.
+        if direction.x > SINGLE_CONNECTION_HORIZONTAL_EPSILON {
             return LabelLayoutDecision {
                 flow: LabelFlow::Reverse,
                 anchor: LabelAnchorPolicy::FirstGlyph,
             };
         }
-        if direction.x < -DIRECTION_EPSILON {
+        if direction.x < -SINGLE_CONNECTION_HORIZONTAL_EPSILON {
             return LabelLayoutDecision {
                 flow: LabelFlow::Forward,
                 anchor: LabelAnchorPolicy::FirstGlyph,
@@ -258,63 +475,7 @@ pub fn decide_label_layout(
         };
     }
 
-    let all_left = connection_angles
-        .iter()
-        .all(|angle| direction_from_angle(*angle).x < -DIRECTION_EPSILON);
-    if all_left {
-        return LabelLayoutDecision {
-            flow: LabelFlow::Forward,
-            anchor: LabelAnchorPolicy::FirstGlyph,
-        };
-    }
-
-    let all_right = connection_angles
-        .iter()
-        .all(|angle| direction_from_angle(*angle).x > DIRECTION_EPSILON);
-    if all_right {
-        return LabelLayoutDecision {
-            flow: LabelFlow::Reverse,
-            anchor: LabelAnchorPolicy::OriginalFirstGroup,
-        };
-    }
-
-    let all_below = connection_angles
-        .iter()
-        .all(|angle| direction_from_angle(*angle).y > DIRECTION_EPSILON);
-    if all_below {
-        return LabelLayoutDecision {
-            flow: LabelFlow::StackAbove,
-            anchor: LabelAnchorPolicy::FirstGroupLeadGlyph,
-        };
-    }
-
-    let all_above = connection_angles
-        .iter()
-        .all(|angle| direction_from_angle(*angle).y < -DIRECTION_EPSILON);
-    if all_above {
-        return LabelLayoutDecision {
-            flow: LabelFlow::StackBelow,
-            anchor: LabelAnchorPolicy::FirstGroupLeadGlyph,
-        };
-    }
-
-    let has_right = connection_angles
-        .iter()
-        .any(|angle| direction_from_angle(*angle).x > DIRECTION_EPSILON);
-    let all_right_or_vertical = connection_angles
-        .iter()
-        .all(|angle| direction_from_angle(*angle).x >= -DIRECTION_EPSILON);
-    if has_right && all_right_or_vertical {
-        return LabelLayoutDecision {
-            flow: LabelFlow::Reverse,
-            anchor: LabelAnchorPolicy::OriginalFirstGroup,
-        };
-    }
-
-    LabelLayoutDecision {
-        flow: LabelFlow::Forward,
-        anchor: LabelAnchorPolicy::FirstGlyph,
-    }
+    multi_connection_layout(connection_angles)
 }
 
 pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLayout {
@@ -342,7 +503,10 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
     match decision.flow {
         LabelFlow::Forward => {
             let rendered_text = groups.concat();
-            let anchor_char = if decision.anchor == LabelAnchorPolicy::LastGlyph {
+            let anchor_char = if matches!(
+                decision.anchor,
+                LabelAnchorPolicy::LastGlyph | LabelAnchorPolicy::AuthoredLastGlyph
+            ) {
                 rendered_text.chars().count().saturating_sub(1)
             } else {
                 0
@@ -391,11 +555,13 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
                 .map(ToString::to_string)
                 .collect::<Vec<_>>();
             let anchor_line = match decision.anchor {
-                LabelAnchorPolicy::LastGlyph => lines.len().saturating_sub(1),
+                LabelAnchorPolicy::LastGlyph | LabelAnchorPolicy::AuthoredLastGlyph => {
+                    lines.len().saturating_sub(1)
+                }
                 _ => 0,
             };
             let anchor_char = match decision.anchor {
-                LabelAnchorPolicy::LastGlyph => lines
+                LabelAnchorPolicy::LastGlyph | LabelAnchorPolicy::AuthoredLastGlyph => lines
                     .get(anchor_line)
                     .map(|line| line.chars().count().saturating_sub(1))
                     .unwrap_or(0),
@@ -418,6 +584,7 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
                 vec![groups[0].clone()]
             },
             if groups.len() > 1 { 1 } else { 0 },
+            leading_isotope_element_anchor_offset(&groups[0]),
         ),
         LabelFlow::StackBelow => stacked_layout(
             decision,
@@ -427,6 +594,7 @@ pub fn layout_label_text(text: &str, decision: &LabelLayoutDecision) -> LabelLay
                 vec![groups[0].clone()]
             },
             0,
+            leading_isotope_element_anchor_offset(&groups[0]),
         ),
     }
 }
@@ -435,9 +603,9 @@ fn stacked_layout(
     decision: &LabelLayoutDecision,
     lines: Vec<String>,
     anchor_line: usize,
+    anchor_char: usize,
 ) -> LabelLayout {
     let rendered_text = lines.join("\n");
-    let anchor_char = 0;
     LabelLayout {
         flow: decision.flow.clone(),
         anchor: decision.anchor.clone(),
@@ -451,6 +619,16 @@ fn stacked_layout(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn flow_marker(flow: LabelFlow) -> u8 {
+        match flow {
+            LabelFlow::Reverse => b'R',
+            LabelFlow::Forward => b'F',
+            LabelFlow::StackAbove => b'A',
+            LabelFlow::StackBelow => b'B',
+            LabelFlow::Preserve => b'P',
+        }
+    }
 
     #[test]
     fn splits_formula_text_into_uppercase_led_groups() {
@@ -468,6 +646,8 @@ mod tests {
         assert_eq!(split_label_groups("N(PhSO2)2"), vec!["N", "(PhSO2)2"]);
         assert_eq!(split_label_groups("C10H21"), vec!["C10H21"]);
         assert_eq!(split_label_groups("C10H21O3"), vec!["C10H21", "O3"]);
+        assert_eq!(split_label_groups("13CH2"), vec!["13C", "H2"]);
+        assert_eq!(split_label_groups("100C"), vec!["100C"]);
     }
 
     #[test]
@@ -594,10 +774,233 @@ mod tests {
     }
 
     #[test]
+    fn stacked_isotope_formula_keeps_mass_with_element_and_anchors_element() {
+        let below = LabelLayoutDecision {
+            flow: LabelFlow::StackBelow,
+            anchor: LabelAnchorPolicy::FirstGroupLeadGlyph,
+        };
+        let below_layout = layout_label_text("13CH2", &below);
+        assert_eq!(below_layout.lines, vec!["13C", "H2"]);
+        assert_eq!(below_layout.anchor_line, 0);
+        assert_eq!(below_layout.anchor_char, 2);
+
+        let above = LabelLayoutDecision {
+            flow: LabelFlow::StackAbove,
+            anchor: LabelAnchorPolicy::FirstGroupLeadGlyph,
+        };
+        let above_layout = layout_label_text("13CH2", &above);
+        assert_eq!(above_layout.lines, vec!["H2", "13C"]);
+        assert_eq!(above_layout.anchor_line, 1);
+        assert_eq!(above_layout.anchor_char, 2);
+
+        let query_layout = layout_label_text("[C,N,P]", &above);
+        assert_eq!(query_layout.anchor_char, 0);
+    }
+
+    #[test]
     fn reverses_multi_bond_right_labels_with_vertical_connection() {
         let decision = decide_label_layout(&[0.0, 270.0], false, false);
         assert_eq!(decision.flow, LabelFlow::Reverse);
         assert_eq!(decision.anchor, LabelAnchorPolicy::OriginalFirstGroup);
+    }
+
+    #[test]
+    fn chemdraw_two_connection_flow_switches_at_bisector_sector_boundaries() {
+        let horizontal = decide_label_layout(&[120.0, 14.9], false, false);
+        assert_eq!(horizontal.flow, LabelFlow::Reverse);
+        assert_eq!(horizontal.anchor, LabelAnchorPolicy::OriginalFirstGroup);
+
+        let below = decide_label_layout(&[120.0, 15.1], false, false);
+        assert_eq!(below.flow, LabelFlow::StackAbove);
+        assert_eq!(below.anchor, LabelAnchorPolicy::FirstGroupLeadGlyph);
+
+        let opposite_horizontal = decide_label_layout(&[300.0, 194.9], false, false);
+        assert_eq!(opposite_horizontal.flow, LabelFlow::Forward);
+
+        let above = decide_label_layout(&[300.0, 195.1], false, false);
+        assert_eq!(above.flow, LabelFlow::StackBelow);
+    }
+
+    #[test]
+    fn chemdraw_two_connection_flow_matches_the_full_thirty_degree_grid() {
+        let angles = [
+            0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0,
+        ];
+        let expected = [
+            "RRRRRAABRRRR",
+            "RRRRAAAFRRRR",
+            "RRRAAAFFFRRR",
+            "RRAAAFFFFFRR",
+            "RAAAFFFFFFRR",
+            "AAAFFFFFFFFR",
+            "AAFFFFFFFFFB",
+            "BFFFFFFFFFBB",
+            "RRFFFFFFFBBB",
+            "RRRFFFFFBBBR",
+            "RRRRRFFBBBRR",
+            "RRRRRRBBBRRR",
+        ];
+
+        for (fixed_index, fixed_angle) in angles.iter().enumerate() {
+            for (angle_index, angle) in angles.iter().enumerate() {
+                let actual = decide_label_layout(&[*fixed_angle, *angle], false, false).flow;
+                let expected_flow = match expected[fixed_index].as_bytes()[angle_index] {
+                    b'R' => LabelFlow::Reverse,
+                    b'F' => LabelFlow::Forward,
+                    b'A' => LabelFlow::StackAbove,
+                    b'B' => LabelFlow::StackBelow,
+                    other => panic!("unexpected matrix marker {other}"),
+                };
+                assert_eq!(
+                    actual, expected_flow,
+                    "fixed angle {fixed_angle}, variable angle {angle}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn chemdraw_three_connection_flow_matches_the_full_thirty_degree_grid() {
+        let angles = [
+            0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0,
+        ];
+        let expected = concat!(
+            "RRRAARRRRRRRAAARRRRRAAARRRRAAAFRRRAABBRRBBBBBBBBBRRRRRRRAAAFRRRRAAAFFRRRAAFFRRRAFFFRRFFBBARRRRRRRRRR",
+            "AAFFFRRRAFFFFRRFFFFRRFFFFAFFRRRRRRRRFFFFFRRFFFFRRFFFFAFFFAFFRRRRFFFFFRFFFFAFFFFFFFFRRFFFFFFFFFFFFFFF",
+            "FFFBFFBFBBFBBBBBBBBR",
+        )
+        .as_bytes();
+        let mut result_index = 0;
+        for first in 0..angles.len() {
+            for second in first + 1..angles.len() {
+                for third in second + 1..angles.len() {
+                    let connection_angles = [angles[first], angles[second], angles[third]];
+                    let actual = decide_label_layout(&connection_angles, false, false).flow;
+                    assert_eq!(
+                        flow_marker(actual),
+                        expected[result_index],
+                        "angles {connection_angles:?}"
+                    );
+                    result_index += 1;
+                }
+            }
+        }
+        assert_eq!(result_index, expected.len());
+    }
+
+    #[test]
+    fn nearly_trigonal_connections_use_the_fitted_phase_until_three_degrees() {
+        // Selecting the microscopically largest gap would reverse this label;
+        // ChemDraw instead keeps the fitted trigonal phase.
+        let corpus_geometry = decide_label_layout(&[59.3, 179.25, 299.3], false, false);
+        assert_eq!(corpus_geometry.flow, LabelFlow::Forward);
+
+        // A different phase verifies that this is a geometric rule rather
+        // than a special case for the public-corpus boron center.
+        let inside_window = decide_label_layout(&[30.0, 147.05, 270.0], false, false);
+        assert_eq!(inside_window.flow, LabelFlow::Forward);
+
+        // Once a gap is more than three degrees away from 120 degrees, the
+        // unique largest open sector becomes authoritative.
+        let outside_window = decide_label_layout(&[30.0, 146.9, 270.0], false, false);
+        assert_eq!(outside_window.flow, LabelFlow::Reverse);
+    }
+
+    #[test]
+    fn chemdraw_four_connection_flow_matches_the_full_thirty_degree_grid() {
+        let angles = [
+            0.0, 30.0, 60.0, 90.0, 120.0, 150.0, 180.0, 210.0, 240.0, 270.0, 300.0, 330.0,
+        ];
+        let expected = concat!(
+            "RRAAARRRRRAAARRRRAAAFRRRAAFRRRABBBARRRRRRRRRRRAAARRRRAAAFRRRAAFRRRAFRRARRRRRRRRRRAAAFRRRAAFRRRAFFRAF",
+            "RRARRRRRRAAFRRRAFFRAFFFARRRRRRABBBABBBBBBBBBRBBBBBBBBBBBBBBBBRRRRAAAFFRRRAAFFRRRAFFFRRFFFRAFRRRRRRRR",
+            "RAAFFRRRAFFFRRFFFRAFFRARRRRRRAFFFRRFFFRAFFAAFRRRRRFFFRAFFBAFBBRRRFBBBBBBBBBRRRRRRRRRRAFFFFRRFFFFRRFF",
+            "FFAFFFAFRRRRRFFFFRRFFFFAFFFAFFRRRRFFFFAFFFAFFAFRRFFFAFFRFRRFRRRRRRRRRFFFFRRFFFFAFFFAFFRRRRFFFFAFFFAF",
+            "FFFRRFFFAFFFFFRFFFFFFFRRRFFFFAFFFFFFFFFRFFFFFFFFFFFFFFFFFFFRFFFFFFFFFFFFFFFFFFFFFFBFBBFBBBBBBBB",
+        )
+        .as_bytes();
+        let mut result_index = 0;
+        for first in 0..angles.len() {
+            for second in first + 1..angles.len() {
+                for third in second + 1..angles.len() {
+                    for fourth in third + 1..angles.len() {
+                        let connection_angles =
+                            [angles[first], angles[second], angles[third], angles[fourth]];
+                        let actual = decide_label_layout(&connection_angles, false, false).flow;
+                        assert_eq!(
+                            flow_marker(actual),
+                            expected[result_index],
+                            "angles {connection_angles:?}"
+                        );
+                        result_index += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(result_index, expected.len());
+    }
+
+    #[test]
+    fn chemdraw_opposite_connection_axis_uses_its_own_sector_boundaries() {
+        for (angles, expected) in [
+            ([22.5, 202.5], LabelFlow::StackAbove),
+            ([22.6, 202.6], LabelFlow::Forward),
+            ([90.0, 270.0], LabelFlow::Forward),
+            ([90.1, 270.1], LabelFlow::Reverse),
+            ([157.4, 337.4], LabelFlow::Reverse),
+            ([157.5, 337.5], LabelFlow::StackAbove),
+        ] {
+            assert_eq!(
+                decide_label_layout(&angles, false, false).flow,
+                expected,
+                "angles {angles:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn near_trigonal_stereobond_axis_selects_the_measured_label_flow_sectors() {
+        let connections = [30.0, 150.0, 270.0];
+        for (axis, expected) in [
+            (0.0, LabelFlow::Reverse),
+            (90.0, LabelFlow::StackAbove),
+            (180.0, LabelFlow::Forward),
+            (270.0, LabelFlow::StackBelow),
+        ] {
+            let decision = decide_near_trigonal_stereobond_label_layout(&connections, axis)
+                .expect("near-trigonal stereobond layout");
+            assert_eq!(decision.flow, expected, "stereobond axis {axis}");
+        }
+    }
+
+    #[test]
+    fn stereobond_axis_override_is_limited_to_the_measured_near_trigonal_branch() {
+        assert!(
+            decide_near_trigonal_stereobond_label_layout(&[30.0, 147.0, 270.0], 270.0,).is_some()
+        );
+        assert!(
+            decide_near_trigonal_stereobond_label_layout(&[30.0, 146.9, 270.0], 270.0,).is_none()
+        );
+        assert!(
+            decide_near_trigonal_stereobond_label_layout(&[20.0, 170.0, 270.0], 270.0,).is_none()
+        );
+        assert!(decide_near_trigonal_stereobond_label_layout(&[150.0, 270.0], 270.0).is_none());
+        assert!(
+            decide_near_trigonal_stereobond_label_layout(&[30.0, 120.0, 210.0, 300.0], 300.0,)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn single_connection_uses_the_complete_left_and_right_half_planes() {
+        assert_eq!(
+            decide_label_layout(&[30.0], false, false).flow,
+            LabelFlow::Reverse,
+        );
+        assert_eq!(
+            decide_label_layout(&[150.0], false, false).flow,
+            LabelFlow::Forward,
+        );
     }
 
     #[test]

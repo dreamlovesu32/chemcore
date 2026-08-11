@@ -125,7 +125,7 @@
             </div>
           </div>
         </div>
-        <div id="secondary-toolbar" class="toolbar-row toolbar-row-secondary" aria-label="Secondary toolbar"></div>
+        <div id="secondary-toolbar" class="toolbar-row toolbar-row-secondary" role="toolbar" aria-label="Secondary toolbar"></div>
       </header>
 
       <aside class="tool-rail" aria-label="Main Drawing Rail" data-tool-rail-mode="main">
@@ -186,7 +186,7 @@
       </aside>
 
       <main class="canvas-panel">
-        <div id="viewer-container" class="viewer-container">
+        <div id="viewer-container" class="viewer-container" role="application" aria-label="Drawing canvas">
           <svg id="viewer-svg" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
       </main>
@@ -207,6 +207,6 @@
       <pre id="doc-meta" class="visually-hidden"></pre>
     </div>
 
-    <script type="module" src="./app.js?v=20260727-runtime-gate"></script>
+    <script type="module" src="./app.js?v=20260808-history-sync-1"></script>
   </body>
 </html>

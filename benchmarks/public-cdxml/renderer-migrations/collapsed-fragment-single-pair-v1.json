@@ -1,0 +1,30 @@
+{
+  "schema": "chemsema.public-cdxml-reviewed-renderer-migration.v1",
+  "rule": "chemdraw-collapsed-fragment-single-pair-layout-v1",
+  "summary": "ChemDraw cleans a page whose sole affected component is a positioned nickname plus an unpositioned collapsed wrapper from direct node order, independent of the nested definition coordinates and bond direction. This moves the MCD-M component from the nested-definition location to ChemDraw's page-origin result and restores the visible MCD ordering. In both listed documents the maximum missing and extra defects shrink substantially, but the visual gate correctly treats the small residual font and line mismatch at the newly correct location as new spatial pixels. This audit replaces only the two exact historical candidate artifacts; it adds no runtime case branch and future gates protect the corrected locations normally.",
+  "fromRepository": {
+    "head": "a80a424bc7a3f15df0a715764d48171d97421dd1",
+    "identity": "9f403d6b5e96a61f76c80b7f54eb75e66696cdd9451e6cb6223966437f30083b"
+  },
+  "toRepository": {
+    "head": "9e1e7f832e9df2cf5a65cb1f71c831a15538d8a6",
+    "identity": "1cc707fc534bffa442a0a8fb24579f53d4919e875ef3dfd467a0b9308ed3c107"
+  },
+  "evidence": {
+    "rendererCommit": "9cda6254e38f9d1e875420ba9fe266ac49fa9a0d",
+    "probe": "scripts/chemdraw-collapsed-fragment-layout-probe.mjs",
+    "rules": "docs/chemdraw-collapsed-fragment-auto-layout-rules.md"
+  },
+  "cases": [
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/AlcoholOxidation_Rxn2.cdxml",
+      "previousCandidateSha256": "30dde06750c14a72335a4c50c88eb082666de670ed88556f102cf6c11607a864",
+      "currentCandidateSha256": "3ec07d82c5084208effb3da68d4336be9a5c7b1ba0969b3c72f82de3e0bbadfd"
+    },
+    {
+      "relativeCdxml": "indigo/api/tests/integration/tests/formats/ref/Esterification_Rxn1.cdxml",
+      "previousCandidateSha256": "b78a4edcb5b3cb538b0b7adc76fb602af480a40f1d9a79b1e17f2a1b4fcc5b2a",
+      "currentCandidateSha256": "6907b6f153cffd935e16522277d6cb80759efb08aa77afe98a80bbc619c8f0d5"
+    }
+  ]
+}

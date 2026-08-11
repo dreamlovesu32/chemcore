@@ -3,6 +3,7 @@ import { availableParallelism } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { writeDesktopCandidateManifest } from "./candidate-source-identity.mjs";
 
 const rootDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const appDir = join(rootDir, "apps", "chemsema-desktop");
@@ -93,5 +94,9 @@ const result = spawnSync(
 
 if (result.error) {
   throw result.error;
+}
+if ((result.status ?? 0) === 0) {
+  const manifest = writeDesktopCandidateManifest({ candidatePath: targetExe });
+  console.log(`Desktop candidate manifest: ${manifest.sourceSha256} -> ${manifest.candidateSha256}`);
 }
 process.exit(result.status ?? 0);

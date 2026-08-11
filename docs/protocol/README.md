@@ -1,7 +1,8 @@
 # ChemSema Protocol Contracts
 
-These documents define the machine-facing CLI contracts. They are intentionally
-shorter and stricter than the user guides.
+These documents define machine-facing CLI, document-storage, incremental-update,
+and recovery contracts. They are intentionally shorter and stricter than the
+user guides.
 
 - [ChemSema CLI Protocol v1](./chemsema-cli-protocol-v1.md)
 - [Selectors v1](./selector-v1.md)
@@ -11,6 +12,9 @@ shorter and stricter than the user guides.
 - [Capture Manifest v1](./capture-manifest-v1.md)
 - [Agent Bundle v1](./agent-bundle-v1.md)
 - [Document Diff v1](./document-diff-v1.md)
+- [Document Patch v1](./document-patch-v1.md)
+- [CCJZ Container v1](./ccjz-container-v1.md)
+- [Recovery Journal v1](./journal-v1.md)
 - [Error Model v1](./error-model-v1.md)
 - [Entrypoints v1](./entrypoints-v1.md)
 

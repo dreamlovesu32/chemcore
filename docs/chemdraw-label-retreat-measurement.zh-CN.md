@@ -162,6 +162,36 @@ Times New Roman、Calibri、Arial 粗体和 Arial 斜体的方向分布均与 Ar
 (0, ymin - margin)
 ```
 
+多字符标签按横排文字的书写轴和基线分支。左右连接取完整文字段的 X 包络。上下连接
+先按 X 区间确定连接列，但朝向大写字母顶端的一侧仍取该列字形的局部顶边；朝向基线
+下方的一侧则取该字形所在同一排版基线的 run 下降部包络。化学下标或上标使用偏移后
+的另一条基线，不能把它们并入普通 run 的下降部。区间筛选和最终纵向极值都包含
+`MarginWidth`。
+
+公开的 `3060_iso_butane.cdxml` 给出跨基线实证：`CH3` 右侧下标 `3` 比 `C`
+更低，但位于 `C` 下方的竖键仍在 `191.09pt` 结束；若错误使用整段标签的 `ymax`，
+端点会退到约 `193.19pt`。公开样例 `0137` 则给出互补的横向实证：固定显示方向且
+具有多个连接点的 `(CH2CHO)m` 等标签必须在完整 X 包络内遮住水平键；错误地按单一
+字形列筛选会把可见键延长 `1.60–4.22pt`。
+
+`scripts/chemdraw-multiglyph-axis-contact-probe.mjs` 的 85 组静默 ChemDraw 探针覆盖
+Arial、Times New Roman、Calibri，8/10/14pt，`MarginWidth=0/1.6/3pt`、
+`LineWidth=0.6/1.5pt`、四个轴向、同基线 `T/Tyr` 和偏移基线的远处下标/上标。
+27 组顶侧 `T/Tyr` 配对端点完全相同；18 组正 margin 的底侧配对全部由 `Tyr`
+中的 `y` 下降部继续缩短 `1.4–3.0pt`，而偏移基线的远处脚本不改变连接列。
+`scripts/chemdraw-flat-baseline-axis-contact-probe.mjs` 另以 270 组单字形探针覆盖
+5 个代表字形、3 种字体、3 个字号、3 个 margin 和上下两向，确认轴向端点由实际
+ink 极值加 `MarginWidth` 构成，不存在按字符名、固定圆半径或文件版本切换的分支。
+
+同一脚本的 `--profile horizontal-attachment` 以 432 组多字符探针覆盖
+Times New Roman、Arial、Calibri，7/10/14pt，`MarginWidth=0.5/1.25/2.5pt`，
+`Tyr/Lys/Arg/Gly`，左右两向以及有无 `BeginAttach`。同参数配对中
+`BeginAttach` 对 ChemDraw 退让量的影响全部严格为零；未应用字体 kerning 时，
+右侧 `Ty`、`Ly` 等组合会稳定过度退让。将真实字体 face 的横向 kerning 与横轴
+统一 run 包络同时纳入后，432 组 MAE 从 `0.258pt` 降至 `0.015pt`，最大误差从
+`1.378pt` 降至 `0.049pt`。因此 kerning 属于共享排版输入，不是按标签文本补偿，
+附件索引也不能被误作退让参数。
+
 扇区内退让是接触点在键方向上的投影。把该分支加到连续 Arial 轮廓模型后，独立
 1° 档位的 MAE 从 `0.287pt` 降到 `0.204pt`，P95 从 `1.213pt` 降到
 `0.812pt`。因此轴向接触必须作为独立几何层保留，不能靠扩大整个字形模拟。

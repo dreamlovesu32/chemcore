@@ -5,6 +5,28 @@ import {
 
 const DOCUMENT_PREVIEW_BATCH_ELEMENT_THRESHOLD = 96;
 
+export function selectedUnlockedDocumentPreviewObjectIds(document, selection) {
+  if (!selection) {
+    return [];
+  }
+  const effectiveLocks = new Map();
+  const visit = (objects, ancestorLocked = false) => {
+    for (const object of objects || []) {
+      const objectId = object?.id;
+      const effectivelyLocked = ancestorLocked || object?.locked === true;
+      if (objectId) {
+        effectiveLocks.set(objectId, effectivelyLocked);
+      }
+      visit(object?.children, effectivelyLocked);
+    }
+  };
+  visit(document?.objects);
+  return [...new Set([
+    ...(selection.textObjects || selection.text_objects || []),
+    ...(selection.arrowObjects || selection.arrow_objects || []),
+  ])].filter((objectId) => effectiveLocks.get(objectId) !== true);
+}
+
 export function createEditorDocumentRenderer(options) {
   const {
     state,
@@ -353,6 +375,117 @@ export function createEditorDocumentRenderer(options) {
     }
     return group.childNodes.length ? group : null;
   }
+
+  function renderDocumentHierarchyPatchNode(object, objectMap) {
+    if (!object?.id) {
+      return null;
+    }
+    if (sceneObjectType(object) !== "group") {
+      return renderDocumentObjectPatchNode(object.id, objectMap);
+    }
+    const group = makeSvgNode("g", {
+      "data-object-id": object.id,
+      "data-object-type": "group",
+      "data-renderer": "hierarchy-patch",
+    });
+    for (const child of object.children || []) {
+      const childNode = renderDocumentHierarchyPatchNode(child, objectMap);
+      if (childNode) {
+        group.appendChild(childNode);
+      }
+    }
+    return group.childNodes.length ? group : null;
+  }
+
+  function hierarchyPatchRootsForCommandResult(result, documentLayer, objectMap) {
+    const targetObjectIds = targetIdsFromCommandResult(result, "objects");
+    const candidates = new Set();
+    let hierarchyChanged = false;
+    for (const objectId of targetObjectIds) {
+      const object = objectMap.get(objectId);
+      if (sceneObjectType(object) === "group") {
+        hierarchyChanged = true;
+        candidates.add(objectId);
+      }
+    }
+    for (const objectId of result?.deleted?.objects || []) {
+      const deletedGroups = [...documentLayer.querySelectorAll(
+        `[data-object-id="${cssEscape(objectId)}"][data-object-type="group"]`,
+      )];
+      if (!deletedGroups.length) {
+        continue;
+      }
+      hierarchyChanged = true;
+      for (const deletedGroup of deletedGroups) {
+        const parentObject = deletedGroup.parentElement?.closest?.(
+          "[data-object-id][data-object-type]",
+        );
+        if (parentObject?.dataset?.objectId && objectMap.has(parentObject.dataset.objectId)) {
+          candidates.add(parentObject.dataset.objectId);
+        }
+        for (const descendant of deletedGroup.querySelectorAll(
+          "[data-object-id][data-object-type]",
+        )) {
+          if (descendant.dataset.objectId && objectMap.has(descendant.dataset.objectId)) {
+            candidates.add(descendant.dataset.objectId);
+          }
+        }
+      }
+    }
+    if (!hierarchyChanged) {
+      return [];
+    }
+    for (const objectId of targetObjectIds) {
+      if (objectMap.has(objectId)) {
+        candidates.add(objectId);
+      }
+    }
+    return topmostObjectIds(expandObjectIdsWithRenderableAncestors(candidates, objectMap));
+  }
+
+  function renderDocumentHierarchyChange(result = null) {
+    const documentLayer = viewerSvg.querySelector('[data-layer="document-content"]');
+    if (!documentLayer) {
+      return false;
+    }
+    const objectMap = currentDocumentSceneObjectMap();
+    const patchRoots = hierarchyPatchRootsForCommandResult(result, documentLayer, objectMap);
+    if (!patchRoots.length) {
+      return false;
+    }
+    clearDocumentObjectPreviewTransform();
+    for (const objectId of result?.deleted?.objects || []) {
+      removeDocumentObjectDom(documentLayer, objectId);
+    }
+    for (const objectId of patchRoots) {
+      removeDocumentObjectDomTree(documentLayer, objectId, objectMap);
+    }
+    const patchSet = new Set(patchRoots);
+    const paintOrder = currentDocumentObjectIdsInPaintOrder();
+    const orderedRoots = [...patchRoots].sort((a, b) => {
+      const ai = paintOrder.indexOf(a);
+      const bi = paintOrder.indexOf(b);
+      return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi);
+    });
+    for (const objectId of orderedRoots) {
+      const node = renderDocumentHierarchyPatchNode(objectMap.get(objectId), objectMap);
+      if (!node) {
+        continue;
+      }
+      const anchor = findDocumentPatchAnchor(documentLayer, objectId, patchSet, paintOrder);
+      documentLayer.insertBefore(node, anchor);
+    }
+    rebuildDocumentPrimitiveIndex(documentLayer);
+    syncViewerStats();
+    positionActiveTextEditor();
+    if (window.__chemsemaDebug) {
+      window.__chemsemaDebug.hierarchyPatchStats = {
+        commandType: result?.commandType || result?.command?.type || null,
+        patchRoots: orderedRoots,
+      };
+    }
+    return true;
+  }
   
   function findDocumentPatchAnchor(documentLayer, objectId, patchedObjectIds, paintOrder) {
     const startIndex = paintOrder.indexOf(objectId);
@@ -381,9 +514,13 @@ export function createEditorDocumentRenderer(options) {
       renderDocument();
       return true;
     }
-    if (result.deferDocumentSync) {
-      const patchPrimitiveTargetsFirst = targetIdsFromCommandResult(result, "nodes").size > 0
-        || targetIdsFromCommandResult(result, "bonds").size > 0;
+    if (renderDocumentHierarchyChange(result)) {
+      renderEditorOverlay();
+      return true;
+    }
+    const patchPrimitiveTargetsFirst = targetIdsFromCommandResult(result, "nodes").size > 0
+      || targetIdsFromCommandResult(result, "bonds").size > 0;
+    if (result.deferDocumentSync || patchPrimitiveTargetsFirst) {
       const patched = patchPrimitiveTargetsFirst
         ? (renderDocumentPrimitiveChange(result) || renderDocumentObjectPrimitiveChange(result))
         : (renderDocumentObjectPrimitiveChange(result) || renderDocumentPrimitiveChange(result));
@@ -472,6 +609,10 @@ export function createEditorDocumentRenderer(options) {
       const entry = { objectId, primitiveCount: primitives.length, appended: false, removed: 0 };
       debugSample.entries.push(entry);
       if (!primitives.length) {
+        // A surviving object can legitimately become render-empty (for example,
+        // undoing the first bond). Remove its previous primitive tree before the
+        // general object patch path decides whether a scene fallback is needed.
+        entry.removed = removeDocumentObjectDom(documentLayer, objectId);
         continue;
       }
       removeDocumentObjectDom(documentLayer, objectId);
@@ -574,18 +715,30 @@ export function createEditorDocumentRenderer(options) {
     indexDocumentPrimitiveTree(documentLayer);
   }
   
-  function documentPrimitiveElementsForId(attribute, id) {
+  function documentPrimitiveElementsForId(attribute, id, documentLayer = null) {
     const index = primitiveDomIndexForAttribute(attribute);
-    return index ? [...(index.get(id) || [])].filter((element) => element.isConnected) : [];
+    if (!index) {
+      return [];
+    }
+    const indexed = [...(index.get(id) || [])].filter((element) => element.isConnected);
+    if (indexed.length || !documentLayer) {
+      return indexed;
+    }
+    // The index is an acceleration structure, not the source of truth. A
+    // precise DOM fallback makes incremental deletion self-healing if an
+    // earlier full render did not populate the index or a node was replaced.
+    const recovered = [...documentLayer.querySelectorAll(`[${attribute}="${cssEscape(id)}"]`)];
+    recovered.forEach((element) => addDocumentPrimitiveIndexEntry(index, id, element));
+    return recovered;
   }
   
   function collectDocumentPrimitiveTargetElements(documentLayer, nodeIds, bondIds) {
     const elements = new Set();
     for (const nodeId of nodeIds) {
-      documentPrimitiveElementsForId("data-node-id", nodeId).forEach((element) => elements.add(element));
+      documentPrimitiveElementsForId("data-node-id", nodeId, documentLayer).forEach((element) => elements.add(element));
     }
     for (const bondId of bondIds) {
-      documentPrimitiveElementsForId("data-bond-id", bondId).forEach((element) => elements.add(element));
+      documentPrimitiveElementsForId("data-bond-id", bondId, documentLayer).forEach((element) => elements.add(element));
     }
     return elements;
   }
@@ -1092,10 +1245,7 @@ export function createEditorDocumentRenderer(options) {
     if (!selection || editorSelectionHasItems(selection) === false) {
       return [];
     }
-    return [
-      ...(selection.textObjects || selection.text_objects || []),
-      ...(selection.arrowObjects || selection.arrow_objects || []),
-    ];
+    return selectedUnlockedDocumentPreviewObjectIds(state.currentDocument, selection);
   }
   
   function previewSelectionDebugSummary(selection) {

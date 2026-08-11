@@ -19,6 +19,23 @@ const ZOOM_STEP_LEVELS = [12, 25, 50, 75, 100, 150, 200, 400, 600, 800];
 const ZOOM_MIN_PERCENT = ZOOM_STEP_LEVELS[0];
 const ZOOM_MAX_PERCENT = ZOOM_STEP_LEVELS[ZOOM_STEP_LEVELS.length - 1];
 
+export function hasUsableEditorContentBounds(bounds) {
+  if (!bounds || ![bounds.minX, bounds.minY, bounds.maxX, bounds.maxY].every(Number.isFinite)) {
+    return false;
+  }
+  return bounds.maxX > bounds.minX || bounds.maxY > bounds.minY;
+}
+
+export function visibleWorldSizeForDimensions(width, height, scale) {
+  if (![width, height, scale].every(Number.isFinite) || width <= 0 || height <= 0 || scale <= 0) {
+    return { width: DEFAULT_WORKSPACE_WIDTH, height: DEFAULT_WORKSPACE_HEIGHT };
+  }
+  return {
+    width: Math.max(1, width / scale),
+    height: Math.max(1, height / scale),
+  };
+}
+
 export function createEditorViewportHost(options) {
   const {
     state,
@@ -50,16 +67,11 @@ export function createEditorViewportHost(options) {
   }
 
   function visibleWorldSize(scale = viewportScale()) {
-    if (!viewerContainer || scale <= 0) {
-      return {
-        width: DEFAULT_WORKSPACE_WIDTH,
-        height: DEFAULT_WORKSPACE_HEIGHT,
-      };
-    }
-    return {
-      width: Math.max(1, viewerContainer.clientWidth / scale),
-      height: Math.max(1, viewerContainer.clientHeight / scale),
-    };
+    return visibleWorldSizeForDimensions(
+      Number(viewerContainer?.clientWidth || 0),
+      Number(viewerContainer?.clientHeight || 0),
+      scale,
+    );
   }
 
   function viewportScaleForZoom(percent) {
@@ -669,7 +681,7 @@ export function createEditorViewportHost(options) {
     let fitTargetBox = null;
     if (isEditingRustDocument()) {
       const bounds = currentRenderBounds("document");
-      if (!bounds) {
+      if (!hasUsableEditorContentBounds(bounds)) {
         nextViewBox = defaultEditorViewBox();
         state.runtimeViewBox = nextViewBox;
         zoomPercent = 100;

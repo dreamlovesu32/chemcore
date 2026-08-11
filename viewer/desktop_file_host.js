@@ -192,6 +192,25 @@ export class DesktopFileHost {
     return this.invoke("desktop_file_write_path", { path: requireDesktopPath(path, "save"), content, format });
   }
 
+  async readRecoveryJournal(path) {
+    return this.invoke("desktop_file_read_recovery_journal", {
+      path: requireDesktopPath(path, "read recovery journal"),
+    });
+  }
+
+  async writeRecoveryJournal(path, content) {
+    return this.invoke("desktop_file_write_recovery_journal", {
+      path: requireDesktopPath(path, "write recovery journal"),
+      content,
+    });
+  }
+
+  async deleteRecoveryJournal(path) {
+    return this.invoke("desktop_file_delete_recovery_journal", {
+      path: requireDesktopPath(path, "delete recovery journal"),
+    });
+  }
+
   async writeTransientPath(path, content) {
     return this.invoke("desktop_file_write_transient_path", { path: requireDesktopPath(path, "save"), content });
   }

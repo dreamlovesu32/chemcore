@@ -63,6 +63,19 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} head_style
+     * @param {string} tail_style
+     * @returns {boolean}
+     */
+    applyArrowEndpointPatchToSelection(head_style, tail_style) {
+        const ptr0 = passStringToWasm0(head_style, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(tail_style, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyArrowEndpointPatchToSelection(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        return ret !== 0;
+    }
+    /**
      * @param {string} variant
      * @param {string} head_size
      * @param {boolean} head
@@ -76,6 +89,16 @@ export class WasmEngine {
         const ptr1 = passStringToWasm0(head_size, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
         const ret = wasm.wasmengine_applyArrowOptionsToSelection(this.__wbg_ptr, ptr0, len0, ptr1, len1, head, tail, bold);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} patch_json
+     * @returns {boolean}
+     */
+    applyArrowStylePatchToSelection(patch_json) {
+        const ptr0 = passStringToWasm0(patch_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_applyArrowStylePatchToSelection(this.__wbg_ptr, ptr0, len0);
         return ret !== 0;
     }
     /**
@@ -732,6 +755,22 @@ export class WasmEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} kind
+     * @param {string} id
+     * @returns {boolean}
+     */
+    deleteLogicalObject(kind, id) {
+        const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_deleteLogicalObject(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
+    }
+    /**
      * @returns {boolean}
      */
     deleteSelectedChemicalProperty() {
@@ -827,6 +866,27 @@ export class WasmEngine {
             return getStringFromWasm0(ret[0], ret[1]);
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    documentPatchJson() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmengine_documentPatchJson(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
     }
     /**
@@ -1062,6 +1122,19 @@ export class WasmEngine {
         }
     }
     /**
+     * @param {string} json
+     * @returns {number}
+     */
+    hydrateDocumentJson(json) {
+        const ptr0 = passStringToWasm0(json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_hydrateDocumentJson(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] >>> 0;
+    }
+    /**
      * @param {string} template_id
      * @param {string} json
      * @param {number} x
@@ -1177,6 +1250,48 @@ export class WasmEngine {
         const ret = wasm.wasmengine_loadDocumentSdf(this.__wbg_ptr, ptr0, len0);
         if (ret[1]) {
             throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    logicalObjectsDialogJson() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmengine_logicalObjectsDialogJson(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    logicalObjectsJson() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmengine_logicalObjectsJson(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
         }
     }
     constructor() {
@@ -1539,6 +1654,23 @@ export class WasmEngine {
         }
     }
     /**
+     * @param {string} kind
+     * @param {string} id
+     * @param {number} index
+     * @returns {boolean}
+     */
+    reorderLogicalObject(kind, id, index) {
+        const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_reorderLogicalObject(this.__wbg_ptr, ptr0, len0, ptr1, len1, index);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
+    }
+    /**
      * @param {string} label
      * @returns {boolean}
      */
@@ -1811,6 +1943,22 @@ export class WasmEngine {
         return ret[0] !== 0;
     }
     /**
+     * @param {string} kind
+     * @param {string} value_json
+     * @returns {boolean}
+     */
+    setLogicalObjectJson(kind, value_json) {
+        const ptr0 = passStringToWasm0(kind, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(value_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmengine_setLogicalObjectJson(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return ret[0] !== 0;
+    }
+    /**
      * @param {string} template
      * @param {string} style
      * @param {string} phase
@@ -1887,6 +2035,25 @@ export class WasmEngine {
             return getStringFromWasm0(ret[0], ret[1]);
         } finally {
             wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+        }
+    }
+    /**
+     * @param {number} min_x
+     * @param {number} min_y
+     * @param {number} max_x
+     * @param {number} max_y
+     * @returns {string}
+     */
+    spatialQueryJson(min_x, min_y, max_x, max_y) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.wasmengine_spatialQueryJson(this.__wbg_ptr, min_x, min_y, max_x, max_y);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
     }
     /**

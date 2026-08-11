@@ -214,6 +214,16 @@ impl SelectionArrangeItem {
 pub(super) fn apply_arrange_items_to_document(engine: &mut Engine, items: &[SelectionArrangeItem]) {
     for item in items {
         for object_id in &item.text_object_ids {
+            let Some(current_bounds) = engine
+                .state
+                .document
+                .objects
+                .iter()
+                .find(|object| object.id == *object_id)
+                .and_then(|object| text_object_arrange_bounds(&engine.state.document, object))
+            else {
+                continue;
+            };
             let Some(object) = engine
                 .state
                 .document
@@ -221,9 +231,6 @@ pub(super) fn apply_arrange_items_to_document(engine: &mut Engine, items: &[Sele
                 .iter_mut()
                 .find(|object| object.id == *object_id)
             else {
-                continue;
-            };
-            let Some(current_bounds) = text_object_world_bounds(object) else {
                 continue;
             };
             object.transform.translate = [

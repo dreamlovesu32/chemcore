@@ -905,6 +905,8 @@ impl Engine {
         let step_id = self.next_id("reaction_step");
         let step = crate::ReactionStepData {
             id: step_id.clone(),
+            link_policy: crate::LinkPolicy::Linked,
+            binding_origin: crate::LogicalBindingOrigin::Authored,
             reactant_entity_ids: reactants,
             product_entity_ids: products,
             arrow_object_ids: vec![arrow_id],

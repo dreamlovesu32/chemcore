@@ -295,6 +295,7 @@ fn push_spectrum_text(
         Some(object.id.clone()),
         rotate,
         rotate_center,
+        false,
     );
 }
 
