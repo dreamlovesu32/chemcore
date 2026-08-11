@@ -96,6 +96,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-period-six-transition-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
+    "scenario.core.atom.query-reaction-value-history-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-value-matrix.production",
@@ -192,6 +193,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-period-six-transition-free-placement.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
+      "scenario.core.atom.query-reaction-value-history-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-value-matrix.production",
@@ -288,6 +290,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-period-six-transition-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
+    "scenario.core.atom.query-reaction-value-history-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-value-matrix.production",
@@ -372,6 +375,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-period-six-transition-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
+    "scenario.core.atom.query-reaction-value-history-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-value-matrix.production",
@@ -451,6 +455,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-period-six-transition-free-placement.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
+      "scenario.core.atom.query-reaction-value-history-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-value-matrix.production",
@@ -544,6 +549,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-radical-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-number-visibility-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-stereo-value-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-reaction-value-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
@@ -592,8 +598,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 50);
-  assert.equal(result.summary.scenarios, 80);
+  assert.equal(result.summary.entries, 51);
+  assert.equal(result.summary.scenarios, 81);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -1021,6 +1027,30 @@ test("the atom-stereo matrix kills missing values, wrong case, accidental cancel
     [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomStereo: "R", showAtomStereo: true, labelText: "CH4", labelSourceText: "CH4" }],
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-stereo-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query reaction matrix kills missing values, swapped enums, broken history, inverted visibility, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-reaction-value-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-reaction"));
+  for (const value of ["false", "true"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`reaction-change:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated reaction-change checked state for ${value}`);
+  }
+  for (const value of ["unspecified", "inversion", "retention"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`reaction-stereo:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated reaction-stereo checked state for ${value}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "set-reaction-changed").completion.text, "C");
+  assert.equal(scenario.actions.find((action) => action.id === "set-reaction-stereo-inversion").completion.text, "CT");
+  assert.equal(scenario.actions.find((action) => action.id === "set-reaction-stereo-unspecified").completion.text, "C");
+  assert.equal(scenario.actions.find((action) => action.id === "set-reaction-no-change").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "undo-no-change").completion.text, "C");
+  assert.equal(scenario.actions.find((action) => action.id === "redo-no-change").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "hide-query-indicator").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "show-query-indicator").completion.text, "CT");
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-query-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, reactionChange: true, reactionStereo: "retention", showAtomQuery: true, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
 });
 
 test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {

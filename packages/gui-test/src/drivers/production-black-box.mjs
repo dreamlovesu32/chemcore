@@ -60,6 +60,7 @@ export const productionBlackBoxCapabilities = Object.freeze([
   "editor.atom.radical",
   "editor.atom.number",
   "editor.atom.stereochemistry",
+  "editor.atom.query-reaction",
   "document.save-as",
   "document.open",
   "document.close-discard",

@@ -143,6 +143,9 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       showAtomNumber: node?.atomProperties?.showAtomNumber ?? node?.atom_properties?.show_atom_number ?? null,
       atomStereo: node?.atomProperties?.cipStereo ?? node?.atom_properties?.cip_stereo ?? null,
       showAtomStereo: node?.atomProperties?.showAtomStereo ?? node?.atom_properties?.show_atom_stereo ?? null,
+      reactionChange: node?.atomProperties?.reactionChange ?? node?.atom_properties?.reaction_change ?? false,
+      reactionStereo: node?.atomProperties?.reactionStereo ?? node?.atom_properties?.reaction_stereo ?? "unspecified",
+      showAtomQuery: node?.atomProperties?.showAtomQuery ?? node?.atom_properties?.show_atom_query ?? null,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };
