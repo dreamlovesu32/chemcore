@@ -313,6 +313,19 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   assert.match(guestSource, /rootMatrix\.inverse\(\)\.multiply\(elementMatrix\)/);
   assert.match(guestSource, /worldRect/);
   assert.match(guestSource, /'data-object-id', 'data-node-id', 'data-bond-id'/);
+  const selectorGeometryContract = (candidate) => (
+    /const renderedRect = semanticPointerElement\.getBoundingClientRect\(\);/.test(candidate)
+    && /const selectorGeometryRect = target\.strategy === 'selector'\s+&& \(renderedRect\.width === 0 \|\| renderedRect\.height === 0\)\s+\? geometryPointerRect\(element\)\s+: null;/.test(candidate)
+    && /: selectorGeometryRect \|\| renderedRect;/.test(candidate)
+  );
+  assert.equal(selectorGeometryContract(guestSource), true);
+  for (const mutant of [
+    guestSource.replace("const selectorGeometryRect = target.strategy === 'selector'", "const selectorGeometryRect = target.strategy === 'entity-id'"),
+    guestSource.replace("&& (renderedRect.width === 0 || renderedRect.height === 0)", "&& false"),
+    guestSource.replace(": selectorGeometryRect || renderedRect;", ": renderedRect;"),
+  ]) {
+    assert.equal(selectorGeometryContract(mutant), false);
+  }
   assert.match(guestSource, /'artifact-export'/);
   assert.match(guestSource, /'trace-start'/);
   assert.match(guestSource, /'trace-mark'/);
@@ -463,7 +476,7 @@ test("production entity targets use a real SVG geometry midpoint and retain boun
   assert.match(source, /candidate\.getScreenCTM\(\)/);
   assert.match(source, /new DOMPoint\(midpoint\.x, midpoint\.y\)\.matrixTransform\(matrix\)/);
   assert.match(source, /length > best\.length/);
-  assert.match(source, /geometryPointerRect\(element\) \|\| semanticPointerElement\.getBoundingClientRect\(\)/);
+  assert.match(source, /geometryPointerRect\(element\) \|\| renderedRect/);
   assert.match(source, /screenRects\.flatMap/);
   assert.match(source, /worldPoints\.push/);
 });

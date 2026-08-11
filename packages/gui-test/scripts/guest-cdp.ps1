@@ -584,9 +584,14 @@ try {
       ? [...element.querySelectorAll('[data-role^="document-"], [data-bond-id], [data-node-id]')]
         .find(visibleElement) || element
       : element;
+    const renderedRect = semanticPointerElement.getBoundingClientRect();
+    const selectorGeometryRect = target.strategy === 'selector'
+      && (renderedRect.width === 0 || renderedRect.height === 0)
+      ? geometryPointerRect(element)
+      : null;
     const rect = target.strategy === 'entity-id'
-      ? geometryPointerRect(element) || semanticPointerElement.getBoundingClientRect()
-      : semanticPointerElement.getBoundingClientRect();
+      ? geometryPointerRect(element) || renderedRect
+      : selectorGeometryRect || renderedRect;
     const style = getComputedStyle(element);
     return {
       tag: element.tagName.toLowerCase(),
