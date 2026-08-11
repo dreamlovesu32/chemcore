@@ -1999,7 +1999,7 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
 }
 
 #[test]
-fn atom_query_enum_menus_report_selected_values_and_kill_hard_coded_false_mutants() {
+fn atom_query_value_menus_report_selected_values_and_kill_hard_coded_false_mutants() {
     fn checked_values(menu: &Value, submenu_label: &str) -> Vec<String> {
         menu.as_array()
             .and_then(|items| {
@@ -2032,6 +2032,25 @@ fn atom_query_enum_menus_report_selected_values_and_kill_hard_coded_false_mutant
             .expect("atom context menu JSON")
     }
 
+    fn checked_atom_query_values(menu: &Value, command: &str) -> Vec<String> {
+        menu.as_array()
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("label").and_then(Value::as_str) == Some("Atom Query"))
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(Value::as_array)
+            .expect("Atom Query submenu")
+            .iter()
+            .filter(|item| item.get("command").and_then(Value::as_str) == Some("atom-property"))
+            .filter(|item| item.get("checked").and_then(Value::as_bool) == Some(true))
+            .filter_map(|item| item.get("value").and_then(Value::as_str))
+            .filter(|value| value.starts_with(command))
+            .map(str::to_string)
+            .collect()
+    }
+
     let mut engine = Engine::new();
     let add = execute(
         &mut engine,
@@ -2062,11 +2081,16 @@ fn atom_query_enum_menus_report_selected_values_and_kill_hard_coded_false_mutant
         checked_values(&defaults, "Translation"),
         ["translation:equal"]
     );
+    assert_eq!(
+        checked_atom_query_values(&defaults, "abnormal-valence:"),
+        ["abnormal-valence:false"]
+    );
 
     for (property, value) in [
         ("ring-bond-count", "simple-ring"),
         ("unsaturated-bonds", "must-be-present"),
         ("translation", "narrow"),
+        ("abnormal-valence", "true"),
     ] {
         assert_eq!(
             execute(
@@ -2093,6 +2117,10 @@ fn atom_query_enum_menus_report_selected_values_and_kill_hard_coded_false_mutant
     assert_eq!(
         checked_values(&updated, "Translation"),
         ["translation:narrow"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&updated, "abnormal-valence:"),
+        ["abnormal-valence:true"]
     );
 }
 

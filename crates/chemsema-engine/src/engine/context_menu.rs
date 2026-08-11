@@ -1406,6 +1406,9 @@ impl Engine {
         let translation = uniform_node_value(self.selected_label_nodes(), |node| {
             node.atom_properties.translation
         });
+        let abnormal_valence = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties.abnormal_valence
+        });
         let reaction_change = uniform_node_value(self.selected_label_nodes(), |node| {
             node.atom_properties.reaction_change
         });
@@ -1453,8 +1456,8 @@ impl Engine {
                     ]
                 },
                 separator(),
-                atom_property_item("Allow Abnormal Valence", "abnormal-valence", "true", false),
-                atom_property_item("Use Normal Valence", "abnormal-valence", "false", false),
+                atom_property_item("Allow Abnormal Valence", "abnormal-valence", "true", abnormal_valence == Some(true)),
+                atom_property_item("Use Normal Valence", "abnormal-valence", "false", abnormal_valence == Some(false)),
                 separator(),
                 {
                     "label": "Reaction Change",
