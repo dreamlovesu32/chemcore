@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
-import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentBondProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
 import { evaluateUiState, uiStateRequest } from "../oracles/ui-state.mjs";
 import { createWorkerCoordinator } from "../workers/create.mjs";
 
@@ -476,6 +476,10 @@ export class ProductionBlackBoxDriver {
     if (oracle.kind === "document-counts") {
       const document = await this.ensureSavedDocument();
       return evaluateDocumentReports(document.reports, oracle.expected);
+    }
+    if (oracle.kind === "document-bond-properties") {
+      const document = await this.ensureSavedDocument();
+      return evaluateDocumentBondProperties(document.transfer.bytes, oracle.expected);
     }
     if (oracle.kind === "document-arrow-properties") {
       const document = await this.ensureSavedDocument();

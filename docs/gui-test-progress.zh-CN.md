@@ -2,11 +2,11 @@
 
 最后更新：2026-08-11  
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**27**
+登记场景：**28**
 
 当前产品候选：`7714f687f6e74bd1df479c4bd1db61cf45b5a808755e6979eb3a4a25b957a03a`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**26/27 passed，0 failed，1 pending，0 diagnostics**；26 个 production 物理场景已闭合，浏览器单键基线正在等待独立后台批次，完整 GUI 功能矩阵仍未完成，本文总体状态不变
+当前源码闭包已登记场景资格：**27/28 passed，0 failed，1 pending，0 diagnostics**。扩展前的 27 场景 registry 已取得不可变的 27/27 qualification；新增的十种非单键工具 production 语义持久化矩阵正在等待独立后台批次。完整 GUI 功能矩阵仍未完成，本文总体状态不变
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -42,12 +42,12 @@
 | ✅ | 资源上限 | Hyper-V 保留原聚合门禁；物理机由本地 profile 和心跳动态记录资源，低于安全内存余量时暂停，不以固定 10 CPU/30 GiB 限制替代机器健康 |
 | ✅ | 内容寻址候选 | 可执行文件与源码闭包哈希绑定，源码或二进制漂移时拒绝运行 |
 | ✅ | 原生 Windows 对话框 | 保存/打开使用真实 UIA 与键盘输入，保存文件经 SHA-256 回传 |
-| ✅ | 独立文件 oracle | 已支持化学计数及 Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 精确属性 |
+| ✅ | 独立文件 oracle | 已支持化学计数及 Bond、Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 精确属性；Bond oracle 会杀死错误阶数、线型、粗细和楔键立体语义 |
 | 🟡 | 独立前端状态 oracle | 已用当前候选实机通过焦点归属、上下文菜单结束后的画布焦点恢复、键盘焦点环、`:hover`、禁用态、受限计算样式、字体变化后文本紧边界、键选择框 12 CSS px 最小可操作尺寸、双选择框 16 个 6×6 CSS px 控制点、实际 viewport 与 `devicePixelRatio`；尚缺完整键盘 `:focus-visible` 顺序、全部光标/主题/DPI/窗口尺寸矩阵 |
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；当前候选 26 场景物理批次已通过，终态事件已连续驱动失败修复和完成续接；尚需完成浏览器基线后台续接、supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；当前候选 26 场景物理批次和浏览器基线均已通过，终态事件已连续驱动失败修复和完成续接；新增十键 production 矩阵待后台续接，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -56,7 +56,7 @@
 
 | 状态 | 功能族 | 已有真实覆盖 | 明确剩余 |
 |---|---|---|---|
-| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板 | 11 种键工具、元素/标签/电荷/氢、环、链、模板、立体化学、反应语义、全部属性与格式 |
+| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具语义矩阵已登记待跑 | 十键 production 证据、元素/标签/电荷/氢、环、链、模板、附着与端点反转、双键位置循环、立体化学、反应语义、全部属性与格式 |
 | 🟡 | Arrow | 多对象属性、锁定混合、属性持久化 | 全部直接绘制预设、所有 head/curve/no-go/color 值、组合/大文档 |
 | 🟡 | Text | 新建、既有编辑、多行、主要样式、行距、取消、历史、持久化 | 局部选区、全部字体/字号/对齐/行距边界、IME/composition、Formula、端点标签、锁定/组合/大文档 |
 | 🟡 | Shape | 四种 kind、五种代表样式、批量样式、历史、持久化 | 全颜色/Faded、控制点、缩放/旋转、锁定/组合/剪贴板、格式与大文档 |
@@ -89,14 +89,15 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 27 个场景
+## 4. 已登记的 28 个场景
 
-所有 27 个场景均已实现并进入 registry。当前不可变候选已取得 26 个 production 物理场景的完整证据；浏览器单键基线仍待本轮独立后台结果，因此当前不得声明单候选 27/27 资格。这一 registry 闭包即使最终全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 28 个场景均已实现并进入 registry。当前不可变候选已取得前 27 个场景的完整 qualification；随后按影响与功能缺口新增十种非单键工具 production 语义持久化场景，因此当前 28 场景 registry 为 27/28，新增场景待独立后台证据。这一 registry 闭包即使最终全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
-| 🟡 | `core.bond.draw-single` | 浏览器公开输入绘制单键基线；当前候选后台批次待完成 |
+| ✅ | `core.bond.draw-single` | 浏览器公开输入绘制单键基线 |
 | ✅ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
+| 🟡 | `core.bond.ten-variant-persistence.production` | 十种非单键工具的真实 OS 输入、精确 CCJS 阶数/线型/粗细/楔键语义；后台批次待完成 |
 | ✅ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
 | ✅ | `core.selection.clipboard-delete-multi-bond.production` | 多键选择、复制粘贴、删除、历史 |
 | ✅ | `core.selection.clipboard-delete-mixed-bond-arrow.production` | 分子/Arrow 混合剪贴板、删除、历史 |
@@ -123,25 +124,27 @@
 | ✅ | `core.frontend.focus-hover-disabled.production` | 真实点击后的焦点归属、焦点环、hover、disabled 样式与 150% DPI |
 | ✅ | `core.frontend.selection-geometry.production` | 真实绘制/框选后的选择框、控制点、画布焦点/hover 与缩放几何 |
 
-当前候选的 production 物理批次 `impact-11c5030-production-1786444842194` 已无人值守连续通过 26/26；26 份报告、26 个 manifest 和 204 个证据对象（209,052,037 bytes）已独立复算一致，完成状态、checkpoint、queue 顺序、提交、候选、profile 与全部 SHA-256 绑定均一致。完成审计 SHA-256 为 `f9ff74b12ce68716bbb7cfcc7df8126286db7762ade36113bd75aa4e6c0f81a2`。浏览器基线尚未并入当前候选资格，因此当前没有新的 27/27 qualification。
+当前候选的 production 物理批次 `impact-11c5030-production-1786444842194` 已无人值守连续通过 26/26；26 份报告、26 个 manifest 和 204 个证据对象（209,052,037 bytes）已独立复算一致，完成审计 SHA-256 为 `f9ff74b12ce68716bbb7cfcc7df8126286db7762ade36113bd75aa4e6c0f81a2`。浏览器批次 `impact-af6ed1f-browser-1786445716424` 也已通过，7 个证据对象（9,841,659 bytes）及状态、heartbeat、checkpoint、提交、候选、profile、queue 和全部 SHA-256 均复算一致；完成审计 SHA-256 为 `20b42ace3898e03cd8f9bd80347326d2f7042f88bc753ce78b6efab1ca1e20c4`。
+
+上述 27 份报告和 27 个 manifest 已合并为不可变 qualification `9810802f-541d-4a5f-9871-5fca59b2676c`：27/27 passed、0 failed、0 missing、0 diagnostics，211 个证据对象共 218,893,696 bytes 全部复算通过；qualification SHA-256 为 `ea597b18a6a2c219019edc73b441ebdd6527fa89e2d709cd5254eb70fd9a0742`。随后扩展 registry 的第 28 个场景不追溯改写这份 qualification。
 
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前为 95/95、audit 27 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前新增 Bond 语义 mutation 回归，audit 28 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 当前 registry 的 27 场景已有单候选完整资格；这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 27 场景已有单候选完整资格；当前 28 场景 registry 的新增十键 production 场景待跑。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
 
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
-1. 🟡 **当前缺陷族与 oracle 收口**：完成当前候选浏览器单键基线与 27/27 qualification；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
-2. **化学绘制主干**：11 种键、原子/标签/电荷、环、Chain、Template Library、反应连接与属性。
+1. 🟡 **当前缺陷族与 oracle 收口**：27/27 qualification 已完成；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
+2. 🟡 **化学绘制主干**：先完成已登记的十种非单键工具精确语义批次，再推进原子/标签/电荷、环、Chain、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
 5. **文档与外部边界**：多标签、所有格式、恢复、系统剪贴板、Office、文件关联。
@@ -153,7 +156,7 @@
 
 本清单不是一次性说明：
 
-- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 27 个场景 ID，漏项直接失败。
+- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 28 个场景 ID，漏项直接失败。
 - 每完成一个对象族或发现新的公开缺口，必须同时更新第 3 节状态和“明确剩余”，不能只在长架构文档末尾追加段落。
 - 每产生新候选或 qualification，必须更新页首候选哈希、通过/缺失/失败数和最新证据。
 - 每个本地测试提交必须让本文反映该提交后的真实状态；不得把“场景通过”写成“功能族完成”。

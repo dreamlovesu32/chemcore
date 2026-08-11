@@ -65,6 +65,36 @@ export function evaluateDocumentReports({ inspect, validation }, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentBondProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const resources = document?.resources && typeof document.resources === "object"
+    ? Object.values(document.resources)
+    : [];
+  const bonds = resources.flatMap((resource) => Array.isArray(resource?.data?.bonds) ? resource.data.bonds : []);
+  const observed = expected.map((entry) => {
+    const bond = bonds.find((candidate) => candidate?.id === entry.id);
+    return {
+      id: entry.id,
+      found: !!bond,
+      order: bond?.order ?? null,
+      mainLineStyle: bond?.lineStyles?.main ?? null,
+      leftLineStyle: bond?.lineStyles?.left ?? null,
+      rightLineStyle: bond?.lineStyles?.right ?? null,
+      mainLineWeight: bond?.lineWeights?.main ?? null,
+      stereoKind: bond?.stereo?.kind ?? null,
+      wideEnd: bond?.stereo?.wideEnd ?? bond?.stereo?.wide_end ?? null,
+    };
+  });
+  const passed = observed.every((actual, index) => actual.found
+    && Object.entries(expected[index]).every(([name, value]) => name === "id" || actual[name] === value));
+  return { passed, observed };
+}
+
 export function evaluateDocumentArrowProperties(bytes, expected) {
   let document;
   try {

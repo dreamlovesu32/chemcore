@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentBondProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
 
 const validReports = {
   inspect: {
@@ -18,6 +18,33 @@ test("independent document oracle requires valid CCJS and exact chemical counts"
   assert.equal(evaluateDocumentReports(validReports, { ...expected, bonds: 2 }).passed, false);
   assert.equal(evaluateDocumentReports({ ...validReports, validation: { ...validReports.validation, issues: [{}] } }, expected).passed, false);
   assert.equal(evaluateDocumentReports({ ...validReports, inspect: { summary: { ...validReports.inspect.summary, format: { name: "chemsema", version: "0.1" } } } }, expected).passed, false);
+});
+
+test("saved-document bond oracle kills order, line-style, weight, and stereo mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({
+    resources: {
+      mol: {
+        type: "molecule_fragment2d",
+        data: {
+          bonds: [
+            { id: "b_double", order: 2, lineStyles: { main: "solid", left: "solid", right: "solid" }, lineWeights: { main: "normal" } },
+            { id: "b_hash", order: 1, lineStyles: { main: "hash", left: "solid", right: "solid" }, lineWeights: { main: "normal" } },
+            { id: "b_wedge", order: 1, lineStyles: { main: "solid", left: "solid", right: "solid" }, lineWeights: { main: "normal" }, stereo: { kind: "solid-wedge", wideEnd: "end" } },
+          ],
+        },
+      },
+    },
+  }));
+  const expected = [
+    { id: "b_double", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
+    { id: "b_hash", order: 1, mainLineStyle: "hash", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
+    { id: "b_wedge", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "solid-wedge", wideEnd: "end" },
+  ];
+  assert.equal(evaluateDocumentBondProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[0], order: 1 }]).passed, false);
+  assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[1], mainLineStyle: "dashed" }]).passed, false);
+  assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[2], stereoKind: "hashed-wedge" }]).passed, false);
+  assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[2], wideEnd: "begin" }]).passed, false);
 });
 
 test("saved-document arrow oracle checks exact public CCJS properties", () => {

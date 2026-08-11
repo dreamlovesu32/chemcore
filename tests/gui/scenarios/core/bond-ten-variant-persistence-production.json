@@ -1,0 +1,71 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.bond.ten-variant-persistence.production",
+  "title": "Draw and persist the ten non-single public bond variants through guarded production input",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "The single-bond baseline could not detect wrong order, line pattern, weight, or wedge stereochemistry in the other public bond tools.",
+  "capabilities": ["gui.public-input", "editor.bond.draw", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 28,
+  "actions": [
+    { "id": "activate-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-double", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Double bond" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-double\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-double", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.16, "y": 0.30 }, "to": { "x": 0.23, "y": 0.30 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-triple", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Triple bond" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-triple\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-triple", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.31, "y": 0.30 }, "to": { "x": 0.38, "y": 0.30 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-dashed", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Dashed bond" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-dashed\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-dashed", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.46, "y": 0.30 }, "to": { "x": 0.53, "y": 0.30 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-dashed-double", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Dashed-solid double bond" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-dashed-double\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-dashed-double", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.61, "y": 0.30 }, "to": { "x": 0.68, "y": 0.30 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-bold", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Bold bond" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-bold\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-bold", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.76, "y": 0.30 }, "to": { "x": 0.83, "y": 0.30 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 5, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "choose-hash", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Hash bond" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-bold-dashed\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-hash", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.16, "y": 0.58 }, "to": { "x": 0.23, "y": 0.58 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 6, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-solid-wedge", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Solid wedge" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-wedge\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-solid-wedge", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.31, "y": 0.58 }, "to": { "x": 0.38, "y": 0.58 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 7, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-hash-wedge", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Hash wedge" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-hashed-wedge\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-hash-wedge", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.46, "y": 0.58 }, "to": { "x": 0.53, "y": 0.58 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 8, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-hollow-wedge", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Hollow wedge" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-hollow-wedge\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-hollow-wedge", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.61, "y": 0.58 }, "to": { "x": 0.68, "y": 0.58 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 9, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-wavy", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Wavy bond" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-wavy\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-wavy", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.76, "y": 0.58 }, "to": { "x": 0.83, "y": 0.58 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 10, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "ten-distinct-bonds-rendered", "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 10 },
+    { "id": "saved-document-has-ten-bonds", "kind": "document-counts", "expected": { "nodes": 20, "bonds": 10, "molecules": 1, "objects": 1 } },
+    { "id": "saved-bond-variant-semantics", "kind": "document-bond-properties", "expected": [
+      { "id": "b_3", "order": 2, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_6", "order": 3, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_9", "order": 1, "mainLineStyle": "dashed", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_12", "order": 2, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "dashed", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_15", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "bold", "stereoKind": null, "wideEnd": null },
+      { "id": "b_18", "order": 1, "mainLineStyle": "hash", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_21", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": "solid-wedge", "wideEnd": "end" },
+      { "id": "b_24", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": "hashed-wedge", "wideEnd": "end" },
+      { "id": "b_27", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": "hollow-wedge", "wideEnd": "end" },
+      { "id": "b_30", "order": 1, "mainLineStyle": "wavy", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "molecule"],
+    "cardinalities": ["1", "many"],
+    "states": ["blank-document", "double", "triple", "dashed", "dashed-double", "bold", "hash", "solid-wedge", "hash-wedge", "hollow-wedge", "wavy", "saved-document"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["bond.order", "bond.line-style", "bond.line-weight", "bond.stereo-kind", "bond.stereo-wide-end"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

@@ -71,6 +71,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
@@ -114,6 +115,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.property-matrix-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
@@ -156,6 +158,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
@@ -185,6 +188,7 @@ test("impact selection follows the transitive source to scenario closure", async
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/document-file.mjs"]), [
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.document.save-open-roundtrip.production",
@@ -213,6 +217,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.property-matrix-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
@@ -244,6 +249,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarioPaths = [
     join(guiTestsDir, "scenarios", "core", "draw-single-bond.json"),
     join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "undo-redo-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json"),
     join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json"),
@@ -273,8 +279,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 37);
-  assert.equal(result.summary.scenarios, 27);
+  assert.equal(result.summary.entries, 38);
+  assert.equal(result.summary.scenarios, 28);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
