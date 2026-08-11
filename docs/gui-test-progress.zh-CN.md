@@ -6,7 +6,7 @@
 
 当前产品候选：`cea5f3522ac36743fb15e32e922a59d616efd91ebcc7c99d0e9e9736ba8f9b9b`（源码闭包 `2cd1a01b55b773db8bd2d16d032f4dac36a241646a3d53452859d2a74cf6326a`）
 
-当前源码闭包完整资格：**2/27 有同一候选的当前通过证据，尚缺 25 个场景；整体继续为失败**
+当前源码闭包已登记场景资格：**27/27 passed，0 failed，0 missing，0 diagnostics**；完整 GUI 功能矩阵仍未完成，本文总体状态不变
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -91,39 +91,39 @@
 
 ## 4. 已登记的 27 个场景
 
-所有 27 个场景均已实现并进入 registry；这只表示场景存在，不表示对应功能族已完整覆盖。旧的 25 场景矩阵已经分批获得过物理证据，但输入代理、产品前端和测试设施随后发生变化；新增两个前端场景已在当前候选通过，仍必须为其余 25 个场景生成或按影响图登记可复用证据，不能用较早绿色结果冒充当前完整资格。
+所有 27 个场景均已实现并进入 registry，并已由当前不可变 production 候选取得单候选 27/27 资格。这只证明当前 registry 闭包，不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖；后续新增场景仍必须产生新证据，不能把本次绿色资格冒充最终产品资格。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
-| ⬜ | `core.bond.draw-single` | 浏览器公开输入绘制单键基线 |
-| ⬜ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
-| ⬜ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
-| ⬜ | `core.selection.clipboard-delete-multi-bond.production` | 多键选择、复制粘贴、删除、历史 |
-| ⬜ | `core.selection.clipboard-delete-mixed-bond-arrow.production` | 分子/Arrow 混合剪贴板、删除、历史 |
-| ⬜ | `core.selection.region-additive-mixed-cardinalities.production` | `0/1/2/many` 区域与 Shift 追加选择 |
-| ⬜ | `core.group.nested-mixed-clipboard.production` | 混合嵌套组、复制、批量解组、历史 |
-| ⬜ | `core.clipboard.cross-document-mixed.production` | 跨文档标签页混合粘贴 |
-| ⬜ | `core.selection.locked-partial-delete.production` | 锁定对象在混合删除中的部分适用 |
-| ⬜ | `core.selection.locked-transform.production` | 锁定/可编辑对象混合移动与解锁 |
-| ⬜ | `core.selection.locked-molecule-arrow-transform.production` | 锁定分子与可编辑 Arrow 混合移动 |
-| ⬜ | `core.group.locked-ancestor-transform.production` | 锁定组祖先、后代静止、解锁恢复 |
-| ⬜ | `core.arrow.multi-property-history.production` | 多 Arrow 公共属性与事务历史 |
-| ⬜ | `core.arrow.locked-mixed-properties.production` | 锁定/可编辑 Arrow 混合属性 |
-| ⬜ | `core.arrow.property-matrix-persistence.production` | Arrow 属性矩阵与精确 CCJS |
-| ⬜ | `core.text.multi-property-persistence.production` | 双 Text 批量公开样式与精确持久化 |
-| ⬜ | `core.text.line-spacing-validation.production` | 多行、行距、非法值、取消、历史 |
-| ⬜ | `core.text.existing-edit-history.production` | 既有 Text 替换、取消、历史与持久化 |
-| ⬜ | `core.shape.multi-kind-style-history.production` | 四种 Shape、批量样式、历史与持久化 |
-| ⬜ | `core.symbol.eight-kind-color-history.production` | 八种 Symbol、颜色、历史与持久化 |
-| ⬜ | `core.bracket.three-kind-properties-history.production` | 三种 Bracket、可见侧、层级与持久化 |
-| ⬜ | `core.table.structure-border-history.production` | Table 结构、对齐、边框、历史与持久化 |
-| ⬜ | `core.orbital.seven-template-properties-history.production` | 七种 Orbital、几何迁移、属性与持久化 |
-| ⬜ | `core.chromatography.tlc-gel-mark-color-history.production` | TLC/Gel、内部颜色、标记拖动、历史与持久化 |
-| ⬜ | `core.document.save-open-roundtrip.production` | 原生保存、独立校验、重开与继续编辑 |
+| ✅ | `core.bond.draw-single` | 浏览器公开输入绘制单键基线 |
+| ✅ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
+| ✅ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
+| ✅ | `core.selection.clipboard-delete-multi-bond.production` | 多键选择、复制粘贴、删除、历史 |
+| ✅ | `core.selection.clipboard-delete-mixed-bond-arrow.production` | 分子/Arrow 混合剪贴板、删除、历史 |
+| ✅ | `core.selection.region-additive-mixed-cardinalities.production` | `0/1/2/many` 区域与 Shift 追加选择 |
+| ✅ | `core.group.nested-mixed-clipboard.production` | 混合嵌套组、复制、批量解组、历史 |
+| ✅ | `core.clipboard.cross-document-mixed.production` | 跨文档标签页混合粘贴 |
+| ✅ | `core.selection.locked-partial-delete.production` | 锁定对象在混合删除中的部分适用 |
+| ✅ | `core.selection.locked-transform.production` | 锁定/可编辑对象混合移动与解锁 |
+| ✅ | `core.selection.locked-molecule-arrow-transform.production` | 锁定分子与可编辑 Arrow 混合移动 |
+| ✅ | `core.group.locked-ancestor-transform.production` | 锁定组祖先、后代静止、解锁恢复 |
+| ✅ | `core.arrow.multi-property-history.production` | 多 Arrow 公共属性与事务历史 |
+| ✅ | `core.arrow.locked-mixed-properties.production` | 锁定/可编辑 Arrow 混合属性 |
+| ✅ | `core.arrow.property-matrix-persistence.production` | Arrow 属性矩阵与精确 CCJS |
+| ✅ | `core.text.multi-property-persistence.production` | 双 Text 批量公开样式与精确持久化 |
+| ✅ | `core.text.line-spacing-validation.production` | 多行、行距、非法值、取消、历史 |
+| ✅ | `core.text.existing-edit-history.production` | 既有 Text 替换、取消、历史与持久化 |
+| ✅ | `core.shape.multi-kind-style-history.production` | 四种 Shape、批量样式、历史与持久化 |
+| ✅ | `core.symbol.eight-kind-color-history.production` | 八种 Symbol、颜色、历史与持久化 |
+| ✅ | `core.bracket.three-kind-properties-history.production` | 三种 Bracket、可见侧、层级与持久化 |
+| ✅ | `core.table.structure-border-history.production` | Table 结构、对齐、边框、历史与持久化 |
+| ✅ | `core.orbital.seven-template-properties-history.production` | 七种 Orbital、几何迁移、属性与持久化 |
+| ✅ | `core.chromatography.tlc-gel-mark-color-history.production` | TLC/Gel、内部颜色、标记拖动、历史与持久化 |
+| ✅ | `core.document.save-open-roundtrip.production` | 原生保存、独立校验、重开与继续编辑 |
 | ✅ | `core.frontend.focus-hover-disabled.production` | 真实点击后的焦点归属、焦点环、hover、disabled 样式与 150% DPI |
 | ✅ | `core.frontend.selection-geometry.production` | 真实绘制/框选后的选择框、控制点、画布焦点/hover 与缩放几何 |
 
-旧 25 场景已分批执行；最近旧批次 `physical-production-after-navigation-fix-20260811-1786430051466` 在后台连续通过 7/7，7 份报告与 49 个证据对象的大小和 SHA-256 已独立复算一致。过程中保留并修复了 action budget、Delete/方向键 SendInput、Windows 原子状态替换竞争等首次失败。当前候选尚无覆盖 27 场景的单候选 qualification，整体继续保持失败。
+当前候选的剩余 production 批次 `physical-current-impact-remaining-production-20260811-1786432745932` 已无人值守连续通过 24/24；24 份报告、24 个 manifest 和 190 个证据对象（192,057,841 bytes）已独立复算一致。与前端 2 场景及浏览器基线合并后，正式 qualification 为 27/27 passed，211 个 artifact hashes 全部验证，qualification SHA-256 为 `7b322d35950d85357975f7f1d8f6ef62e45fdbb7353c9972381440be96199607`。资格文件位于仓库外 `%LOCALAPPDATA%\ChemSema\gui-test\qualification-current-9d4adab-r2\qualification.json`。过程中保留并修复了 action budget、Delete/方向键 SendInput、Windows 原子状态替换竞争等首次失败。
 
 当前候选的前端批次 `physical-frontend-150-percent-20260811-1786432325957` 已通过 2/2。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；Zoom in hover 背景为 `rgb(238, 243, 248)`；Tab 后 Zoom out 为唯一焦点，outline 为 `auto/0.666667px`；Save 为 disabled，cursor `default`、opacity `0.35`。真实绘制和框选后有 1 个选择框、8 个 6×6 CSS px resize handle，画布同时满足 focused、focus-within 和 hover，active element 为 `viewer-container`。2 份报告、2 份 manifest 和 14 个证据对象已独立复算；报告 SHA-256 分别为 `60b814ece8c734ac5ea3a7c85caec4124c1a2dab64a72ee37293a29361413f11`、`a0c9632ccd1d6eaefceb0b29e10d420d1582cbfac8d929b7b1a1dd54cb46dddc`，manifest SHA-256 分别为 `a4683637e0be1a0f2379c9d5b2963f4753ce30c6651289b1d3c61d875d3129e1`、`859240a2dd85fea032cd63420be58c96d49cb86c67dc956207dcced93991d842`。此前发现的画布焦点滞留和 1.5 CSS px 手柄问题已修复并由当前候选回归关闭；PowerShell 空样式、单元素数组和 CDP 大小写键设施失败的原始证据仍保留。
 
@@ -133,14 +133,14 @@
 - 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前为 86/86、audit 27 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 旧 25 场景已有分批物理证据；当前候选的前端两场景已通过并完成证据复算，当前提交其余影响闭包尚待运行或登记严格复用理由。
-- 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、事件触发器 active-writer 退避验收、重启续跑、PR CI 收口。
+- 当前 registry 的 27 场景已有单候选完整资格；这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、事件触发器 active-writer 无空档续接、重启续跑、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
 
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
-1. 🟡 **物理节点第一阶段收口**：完成当前其余影响闭包、NSIS 安装/文件关联、事件触发唤醒验收、干净提交与 PR/CI、重启 checkpoint 续跑。
+1. 🟡 **物理节点第一阶段收口**：完成 NSIS 安装/文件关联、事件触发无空档续接验收、干净提交与 PR/CI、重启 checkpoint 续跑；保持已登记 27/27 资格。
 2. **化学绘制主干**：11 种键、原子/标签/电荷、环、Chain、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
