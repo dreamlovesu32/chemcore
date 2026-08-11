@@ -40,6 +40,7 @@
     { "id": "source.scenario.core.ring.vertex-bond-continuation-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-vertex-bond-continuation-persistence-production.json"] },
     { "id": "source.scenario.core.atom.element-label-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-element-label-persistence-production.json"] },
     { "id": "source.scenario.core.atom.periodic-representative-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-representative-value-matrix-production.json"] },
+    { "id": "source.scenario.core.atom.periodic-common-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-common-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-implicit-hydrogen-visibility-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-charge-symbol-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.atom.negative-charge-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-negative-charge-symbol-attachment-persistence-production.json"] },
@@ -136,6 +137,7 @@
     { "id": "scenario.core.bond.draw-single", "kind": "scenario" },
     { "id": "scenario.core.atom.element-label-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-representative-value-matrix.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.periodic-common-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.negative-charge-symbol-attachment-persistence.production", "kind": "scenario" },
@@ -208,6 +210,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single", "reason": "Runner changes invalidate scenario execution evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.element-label-persistence.production", "reason": "Runner, guarded palette targeting, native save, and exact document-node oracle changes invalidate element-label evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the representative periodic matrix." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the common-value periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "Runner, nested context-menu targeting, guarded history input, native save, and exact hydrogen-override oracle changes invalidate hydrogen-visibility evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom-link oracle changes invalidate charge-attachment evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.negative-charge-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom-link oracle changes invalidate negative charge-attachment evidence." },
@@ -720,5 +723,11 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "The physical driver opens the public periodic palette eight times, applies each value to its measured endpoint, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "Eight exact target-node identities and eight logical bonds kill wrong-target, dropped-gesture, and duplicate-object mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "Exact H/1, F/9, Si/14, S/16, Fe/26, Br/35, U/92, and Og/118 persistence kills swapped atomic-number, truncated-row, display-only, and wrong-value mutants." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "The production cell maps eight previously untested common periodic buttons to exact atom and atomic-number pairs." }
+    ,{ "from": "capability.editor.bond.draw", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "All eight common-value targets originate from guarded public Single bond gestures." }
+    ,{ "from": "source.scenario.core.atom.periodic-common-value-matrix.production", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Changing the common periodic-table matrix invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "The physical driver opens the public periodic palette eight times, applies each new value to its measured endpoint, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Eight exact target-node identities and eight logical bonds kill wrong-target, dropped-gesture, and duplicate-object mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Exact B/5, P/15, Cl/17, I/53, Na/11, Mg/12, Cu/29, and Au/79 persistence kills common-value swaps, display-only changes, and wrong-button mutants." }
   ]
 }

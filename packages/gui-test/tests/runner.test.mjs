@@ -76,6 +76,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.periodic-common-value-matrix.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
@@ -152,6 +153,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.periodic-common-value-matrix.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
@@ -228,6 +230,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.periodic-common-value-matrix.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
@@ -292,6 +295,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.periodic-common-value-matrix.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
@@ -351,6 +355,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.periodic-common-value-matrix.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
@@ -439,6 +444,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-radical-cation-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-radical-anion-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-element-label-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-common-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-representative-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-implicit-hydrogen-visibility-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-drag-count-persistence-production.json"),
@@ -473,7 +479,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 60);
+  assert.equal(result.summary.scenarios, 61);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -676,6 +682,42 @@ test("the representative periodic matrix kills swapped-number, truncated-row, wr
     expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0 })),
   );
   assert.equal(scenario.oracles.find((oracle) => oracle.id === "saved-representative-element-counts").expected.nodes, 16);
+});
+
+test("the common periodic matrix kills untested-value swaps, wrong endpoints, and label-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-common-value-matrix-production.json"));
+  const expectedValues = [
+    ["boron", "B", 5, "n_2", 0.15257, 0.34, "BH2"],
+    ["phosphorus", "P", 15, "n_5", 0.37257, 0.34, "PH2"],
+    ["chlorine", "Cl", 17, "n_8", 0.59257, 0.34, "Cl"],
+    ["iodine", "I", 53, "n_11", 0.81257, 0.34, "I"],
+    ["sodium", "Na", 11, "n_14", 0.15257, 0.64, "Na"],
+    ["magnesium", "Mg", 12, "n_17", 0.37257, 0.64, "Mg"],
+    ["copper", "Cu", 29, "n_20", 0.59257, 0.64, "Cu"],
+    ["gold", "Au", 79, "n_23", 0.81257, 0.64, "Au"],
+  ];
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `apply-${name}`).completion.selector),
+    expectedValues.map(([, , , nodeId]) => `[data-node-id="${nodeId}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `apply-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-common-element-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id, , , labelText]) => ({ id, element, atomicNumber, charge: 0, labelText, labelSourceText: labelText })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-common-element-counts").expected, {
+    nodes: 16,
+    bonds: 8,
+    molecules: 8,
+    objects: 8,
+  });
 });
 
 test("the implicit-hydrogen matrix kills wrong-menu-value, missing-history, and automatic-zero mutants", async () => {
