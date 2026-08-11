@@ -386,7 +386,7 @@ export class PhysicalWindowsCoordinator {
 
   async terminateRecordedProcess(state, label) {
     const details = await this.processDetails(state.processId);
-    if (!details.exists) return;
+    if (!details.exists) return { status: "already-exited", processId: state.processId };
     const expectedExecutable = resolve(state.executable || state.guestPath || "").toLowerCase();
     const actualExecutable = resolve(details.executable || "").toLowerCase();
     const executableMatches = expectedExecutable === resolve("powershell.exe").toLowerCase()
@@ -394,10 +394,15 @@ export class PhysicalWindowsCoordinator {
       : actualExecutable === expectedExecutable;
     const identityArguments = (state.args || []).filter((value) => typeof value === "string" && value.includes("\\") && value.length >= 8);
     if (!executableMatches || identityArguments.some((value) => !String(details.commandLine).toLowerCase().includes(value.toLowerCase()))) {
-      throw new Error(`Refusing to terminate ${label}; recorded PID ${state.processId} no longer has the authorized process identity.`);
+      // Windows can reuse a PID after a detached worker process exits. The
+      // mismatched process is not authorized for termination, but it also is
+      // not the recorded worker anymore, so cleanup must leave it untouched
+      // and treat the receipt as stale instead of blocking the next reset.
+      return { status: "stale-identity", processId: state.processId };
     }
     const killed = await runProcess("taskkill.exe", ["/PID", String(state.processId), "/T", "/F"], { timeoutMs: 15000 });
     if (killed.status !== 0 && (await this.processDetails(state.processId)).exists) throw new Error(`Failed to terminate authorized ${label} PID ${state.processId}.`);
+    return { status: "terminated", processId: state.processId };
   }
 
   async sendChannel(channel, requestSchema, responseSchema, fields, timeoutMs) {

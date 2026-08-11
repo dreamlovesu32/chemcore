@@ -67,6 +67,25 @@ test("physical worker uses persistent file channels and detached OS processes", 
   assert.doesNotMatch(source, /SHA256\]::HashData/);
 });
 
+test("physical worker treats a reused PID as stale without terminating the unrelated process", async () => {
+  const coordinator = new PhysicalWindowsCoordinator(physicalProfile, {
+    environment: { LOCALAPPDATA: "C:\\Users\\tester\\AppData\\Local" },
+    candidateVerifier: () => null,
+  });
+  coordinator.processDetails = async () => ({
+    exists: true,
+    processId: 19328,
+    executable: "C:\\Windows\\System32\\notepad.exe",
+    commandLine: "notepad.exe unrelated.txt",
+  });
+
+  assert.deepEqual(await coordinator.terminateRecordedProcess({
+    processId: 19328,
+    executable: "C:\\worker\\candidate\\chemsema-desktop.exe",
+    args: ["C:\\worker\\candidate\\chemsema-desktop.exe"],
+  }, "candidate"), { status: "stale-identity", processId: 19328 });
+});
+
 test("persistent CDP evidence hashing does not depend on PowerShell module auto-loading", async () => {
   const source = await readFile(new URL("../scripts/guest-cdp.ps1", import.meta.url), "utf8");
   assert.match(source, /SHA256\]::Create/);
