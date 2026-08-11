@@ -119,6 +119,19 @@ test("saved-document node oracle distinguishes persisted hydrogen overrides from
   assert.equal(evaluateDocumentNodeProperties(hidden, [{ ...expected[0], numHydrogensOverride: 1 }]).passed, false);
 });
 
+test("saved-document node oracle kills missing, cleared, and wrong isotope-mass mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: { isotopeMass: 13 }, label: { text: "CH4", sourceText: "CH4" } },
+  ] } } } }));
+  const expected = [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, isotopeMass: 13, labelText: "CH4", labelSourceText: "CH4" }];
+  assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], isotopeMass: 14 }]).passed, false);
+  const cleared = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: {}, label: { text: "CH4", sourceText: "CH4" } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(cleared, expected).passed, false);
+});
+
 test("saved-document arrow oracle checks exact public CCJS properties", () => {
   const bytes = Buffer.from(JSON.stringify({
     styles: { style_red: { stroke: "#ff0000" } },

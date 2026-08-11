@@ -136,6 +136,7 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
         : Object.prototype.hasOwnProperty.call(node.meta ?? {}, "radicalCount")
           ? node.meta.radicalCount
           : 0,
+      isotopeMass: node?.atomProperties?.isotopeMass ?? node?.atom_properties?.isotope_mass ?? null,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };

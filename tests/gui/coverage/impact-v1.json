@@ -39,6 +39,7 @@
     { "id": "source.scenario.core.ring.endpoint-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-endpoint-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.ring.vertex-bond-continuation-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-vertex-bond-continuation-persistence-production.json"] },
     { "id": "source.scenario.core.atom.element-label-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-element-label-persistence-production.json"] },
+    { "id": "source.scenario.core.atom.isotope-preset-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-isotope-preset-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-representative-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-representative-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-common-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-common-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-noble-lanthanide-free-placement-production.json"] },
@@ -103,6 +104,7 @@
     { "id": "capability.editor.bond.endpoint-reversal", "kind": "capability" },
     { "id": "capability.editor.bond.query-reaction-properties", "kind": "capability" },
     { "id": "capability.editor.atom.element-label", "kind": "capability" },
+    { "id": "capability.editor.atom.isotope", "kind": "capability" },
     { "id": "capability.editor.atom.implicit-hydrogen-visibility", "kind": "capability" },
     { "id": "capability.editor.atom.charge-symbol-attachment", "kind": "capability" },
     { "id": "capability.editor.ring.insert", "kind": "capability" },
@@ -150,6 +152,7 @@
     { "id": "oracle.ui-state", "kind": "oracle" },
     { "id": "scenario.core.bond.draw-single", "kind": "scenario" },
     { "id": "scenario.core.atom.element-label-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.isotope-preset-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-representative-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-common-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "scenario" },
@@ -237,6 +240,7 @@
     { "from": "source.runtime-dependencies", "to": "component.gui-runner", "reason": "Dependency lockfile and runtime package changes can affect platform execution." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single", "reason": "Runner changes invalidate scenario execution evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.element-label-persistence.production", "reason": "Runner, guarded palette targeting, native save, and exact document-node oracle changes invalidate element-label evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.isotope-preset-value-matrix.production", "reason": "Runner, nested atom-property menus, custom dialog input, native save, and exact isotope oracle changes invalidate isotope evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the representative periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the common-value periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the noble/lanthanide matrix." },
@@ -841,5 +845,12 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-carbon-free-placement.production", "reason": "The physical driver selects Carbon, places it on blank canvas, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-carbon-free-placement.production", "reason": "The exact standalone identity kills hidden-node, dropped-placement, duplicate-object, and bonded-only mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-carbon-free-placement.production", "reason": "One normalized molecule object, zero bonds, atomic number 6, and exact CH4 persistence kill default-tool shortcut, selector-mapping, zero-hydrogen, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.atom.isotope", "reason": "Atom context menus, preset selection, the custom isotope dialog, checked-state regeneration, and isotope rendering form one public editor capability." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.isotope-preset-value-matrix.production", "reason": "The isotope target is explicit standalone Carbon created through the public periodic palette." }
+    ,{ "from": "capability.editor.atom.isotope", "to": "scenario.core.atom.isotope-preset-value-matrix.production", "reason": "The production cell traverses Natural, every preset mass, custom mass input, clearing, and final 13C persistence." }
+    ,{ "from": "source.scenario.core.atom.isotope-preset-value-matrix.production", "to": "scenario.core.atom.isotope-preset-value-matrix.production", "reason": "Changing the isotope value matrix invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.isotope-preset-value-matrix.production", "reason": "The physical driver uses real right-click menus, nested menu items, custom dialog typing, and native Save As." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.isotope-preset-value-matrix.production", "reason": "Regenerated checked states for every preset and Natural kill missing, swapped, stale-menu, and uncleared isotope mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.isotope-preset-value-matrix.production", "reason": "Exact atomic number 6, isotope mass 13, CH4 label, zero bonds, and one molecule object kill lost metadata, wrong-mass, label-rewrite, collapsed-object, and accidental-bond mutants." }
   ]
 }
