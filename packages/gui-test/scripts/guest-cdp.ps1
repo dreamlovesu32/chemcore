@@ -143,7 +143,7 @@ try {
     if ($null -ne $request.referenceSelector -and ([string]::IsNullOrWhiteSpace([string]$request.referenceSelector) -or ([string]$request.referenceSelector).Length -gt 2048)) {
       throw 'UI state reference requires a selector of 1 to 2048 characters.'
     }
-    $styleProperties = @($request.styleProperties)
+    $styleProperties = if ($null -eq $request.styleProperties) { @() } else { @($request.styleProperties) }
     if ($styleProperties.Count -gt $allowedStyleProperties.Count -or @($styleProperties | Select-Object -Unique).Count -ne $styleProperties.Count -or @($styleProperties | Where-Object { $_ -notin $allowedStyleProperties }).Count -gt 0) {
       throw 'UI state styles must be unique allowlisted properties.'
     }
@@ -365,7 +365,7 @@ try {
       $uiRequest = [ordered]@{
         selector = [string]$request.selector
         referenceSelector = if ($null -ne $request.referenceSelector) { [string]$request.referenceSelector } else { $null }
-        styleProperties = @($request.styleProperties)
+        styleProperties = $styleProperties
       }
       $uiRequestBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($uiRequest | ConvertTo-Json -Depth 4 -Compress)))
       $expression = @"

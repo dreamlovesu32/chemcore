@@ -84,6 +84,7 @@ test("physical CDP UI observations are bounded and style-allowlisted", async () 
   assert.match(source, /hoverCount/);
   assert.match(source, /focusWithinCount/);
   assert.match(source, /devicePixelRatio/);
+  assert.match(source, /if \(\$null -eq \$request\.styleProperties\) \{ @\(\) \}/);
 });
 
 test("native input agent opts into physical pixel coordinates for mixed-DPI dialogs", async () => {
