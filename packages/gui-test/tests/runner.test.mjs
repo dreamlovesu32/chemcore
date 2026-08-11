@@ -72,6 +72,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
@@ -127,6 +128,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.charge-symbol-attachment-persistence.production",
       "scenario.core.atom.element-label-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
@@ -182,6 +184,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.draw-single.production",
     "scenario.core.bond.ten-variant-persistence.production",
@@ -225,6 +228,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
@@ -263,6 +267,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.charge-symbol-attachment-persistence.production",
       "scenario.core.atom.element-label-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
@@ -314,6 +319,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-charge-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-negative-charge-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-radical-cation-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-radical-anion-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-element-label-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-drag-count-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-endpoint-attachment-continuation-production.json"),
@@ -347,7 +353,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 42);
-  assert.equal(result.summary.scenarios, 39);
+  assert.equal(result.summary.scenarios, 40);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -530,6 +536,21 @@ test("the radical-cation matrix kills partial-delta, stale-radical, and detached
   ]);
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-cation-symbol-attachment-semantics").expected, [
     { id: "obj_symbol_4", kind: "radical-cation", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "radical-cation", chargeDelta: 1, radicalDelta: 1, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the radical-anion matrix kills ordinary-minus aliases, partial-delta, stale-radical, and detached-symbol mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-radical-anion-symbol-attachment-persistence-production.json"));
+  const choice = scenario.actions.find((action) => action.id === "choose-radical-anion");
+  const attachment = scenario.actions.find((action) => action.id === "attach-radical-anion-to-nitrogen");
+  assert.deepEqual(choice.target.scope, { role: "toolbar", name: "Secondary toolbar" });
+  assert.equal(choice.completion.selector, 'button[data-secondary-value="symbol-kind-radical-anion"].is-selected');
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-anion-node-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: -1, numHydrogens: 0, radicalCount: 1, labelText: "N", labelSourceText: "N" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-anion-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "radical-anion", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "radical-anion", chargeDelta: -1, radicalDelta: 1, attachedAtomId: "n_2", attachmentSource: "auto" },
   ]);
 });
 
