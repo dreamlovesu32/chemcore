@@ -4,9 +4,9 @@
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
 登记场景：**55**
 
-当前产品候选：`351f7faef8aeb3c463f81a7492b286680194e744838444ac94a7db043597d1be`（源码闭包 `a8c745ccb2bb94fe92f864ff5673569afa15aa305a51962f682812ab8183f215`）
+当前产品候选：`f5ed7f23b07d0d1b9e67bcbb8119b5de9838bdae983acdc4051d1c2caba80320`（源码闭包 `e9ddd5b915320ccf434aeb186106f38c1816314e38cc0ed1d92492e2052e1c1e`）
 
-当前源码闭包已登记场景资格：**54/55 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen 与 Bond Reaction Participation 的首次失败证据永久保留。Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、Double Bond Left/Right/Center、Solid wedge 端点反转及 Single 工具中心点击循环现已取得独立实机证据；当前影响图选择 Dashed-solid double 工具的 Right→Center→Left 中心点击循环与精确线型/位置持久化闭包。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**54/55 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen 与 Bond Reaction Participation 的首次失败证据永久保留。Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、Double Bond Left/Right/Center、Solid wedge 端点反转及 Single 工具中心点击循环现已取得独立实机证据；当前影响图选择直接绘制 Dashed-solid double 的 Center（右线 dashed）→Left→Center（左线 dashed）→Right 中心点击循环与精确线型/位置持久化闭包。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -91,7 +91,7 @@
 
 ## 4. 已登记的 55 个场景
 
-所有 55 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 54/55 reusable passed；Single bond 工具在同一逻辑键上的 single→Left double→Center→Right double 中心点击循环已通过，影响图接着选择 Dashed-solid double 的 Right→Center→Left 循环及最终线型/位置语义持久化分支。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 55 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 54/55 reusable passed；Single bond 工具在同一逻辑键上的 single→Left double→Center→Right double 中心点击循环已通过，影响图接着选择直接绘制 Dashed-solid double 的 Center（右线 dashed）→Left→Center（左线 dashed）→Right 完整循环及最终线型/位置语义持久化分支。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -105,7 +105,7 @@
 | ✅ | `core.bond.double-placement-value-matrix.production` | 真实绘制 Double bond，经公开 `Bond Type > Double` 菜单遍历 Left、Right、Center 并检查每次重新生成的 checked 状态，最终精确保存 `double.placement=left`；修复逻辑 bond locator 后的独立后台证据已通过 |
 | ✅ | `core.bond.wedge-endpoint-reversal.production` | 真实绘制 Solid wedge，保持公开楔键工具激活并点击逻辑键中心，要求单一 bond identity 不变且最终精确保存 `stereo.kind=solid-wedge`、`wideEnd=begin`；独立后台证据已通过 |
 | ✅ | `core.bond.center-click-cycle.production` | 真实绘制 Single bond，保持公开 Single 工具激活并在同一逻辑键中心连续点击三次，遍历 Left double、Center、Right double，要求 identity 不变且最终精确保存 `order=2`、`double.placement=right`；独立后台证据 `5655c226c7b36b266b8181b195befdafa68a5c4f5fd4a241836378bcac5ffd46` 已通过，9 个证据对象全部重哈希一致 |
-| 🟡 | `core.bond.dashed-double-center-click-cycle.production` | 真实绘制 Right Dashed-solid double，保持该公开工具激活并在同一逻辑键中心连续点击两次，遍历 Center 与 Left，要求 identity 不变且最终精确保存 `order=2`、`double.placement=left`、左线 dashed、主线/右线 solid；首次运行证据 `276fd4e70ff6756a95840e9b87f05985691504b2a0c3b7893c199f7ab63e63b5` 保留了 7 个重哈希一致的失败对象，根因为测试将 1 个逻辑虚线双键的 7 个 SVG primitive 误写为固定 raw count 2，现改用 distinct `data-bond-id` 并待独立重跑 |
+| 🟡 | `core.bond.dashed-double-center-click-cycle.production` | 直接真实绘制 Dashed-solid double 的公开默认 Center（右线 dashed）状态，保持工具激活并在同一逻辑键中心连续点击三次，遍历 Left、Center（左线 dashed）与 Right，要求 distinct identity 始终为 1 且最终精确保存 `order=2`、`double.placement=right`、右线 dashed、主线/左线 solid；首次运行证据 `276fd4e70ff6756a95840e9b87f05985691504b2a0c3b7893c199f7ab63e63b5` 保留了 raw SVG primitive count oracle 缺陷，第二次运行证据 `0c09f0010cae6430b1a8f081eec6f9bd70fabd625a762ef7d94ace159de76b2d` 证明 distinct identity/count 均正确，并暴露原场景把直接绘制默认 Center 错标为 Right、在第二次点击后过早断言 Left 的 oracle 缺陷；现以引擎回归锁定完整四态序列并待独立重跑 |
 | ✅ | `core.bond.reaction-participation-history-persistence.production` | 真实绘制单键，经公开 `Bond Query & Reaction > Reaction Participation` 菜单选择 Make and Change，检查选中态与 `Rxn` 注释、撤销/重做，并精确保存 `reactionParticipation=make-and-change`；产品增量 identity 修复后的独立后台闭包已通过 |
 | ✅ | `core.bond.reaction-participation-value-matrix.production` | 从真实单键逐一显式选择 Reaction Center、Unspecified、Make or Break、Change Type、Not Reaction Center、No Change 与 Unmapped，检查每个 checked 状态及 `Rxn` 显隐，最终精确保存 `reactionParticipation=unmapped`；独立后台实机证据已通过 |
 | ✅ | `core.ring.six-planar-persistence.production` | 六种公开平面环的真实 OS 点击、累计拓扑、原生保存与精确节点/键/分子计数 |

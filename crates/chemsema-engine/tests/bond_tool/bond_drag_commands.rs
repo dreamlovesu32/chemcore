@@ -174,7 +174,7 @@ fn click_on_blank_canvas_creates_up_right_dashed_single_bond() {
 }
 
 #[test]
-fn click_on_blank_canvas_creates_up_right_dashed_double_bond() {
+fn directly_drawn_dashed_double_starts_centered_with_right_line_dashed() {
     let mut engine = Engine::new();
     engine.set_tool_state(dashed_double_bond_tool());
 
@@ -184,16 +184,60 @@ fn click_on_blank_canvas_creates_up_right_dashed_double_bond() {
     assert_eq!(entry.fragment.nodes[1].position, [FIRST_END_X, FIRST_END_Y]);
     let bond = &entry.fragment.bonds[0];
     assert_eq!(bond.order, 2);
-    assert!(matches!(
+    assert_eq!(
         bond.double.as_ref().map(|double| double.placement),
-        Some(DoubleBondPlacement::Left | DoubleBondPlacement::Right | DoubleBondPlacement::Center)
-    ));
+        Some(DoubleBondPlacement::Center)
+    );
     assert_eq!(
         bond.double.as_ref().map(|double| double.frozen),
         Some(false)
     );
     assert_eq!(bond.line_styles.main, BondLinePattern::Solid);
+    assert_eq!(bond.line_styles.left, BondLinePattern::Solid);
     assert_eq!(bond.line_styles.right, BondLinePattern::Dashed);
+}
+
+#[test]
+fn directly_drawn_dashed_double_cycles_center_right_dashed_left_center_left_dashed_right() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(dashed_double_bond_tool());
+    click(&mut engine, px(300.0), px(260.0));
+
+    let expected = [
+        (
+            DoubleBondPlacement::Left,
+            BondLinePattern::Dashed,
+            BondLinePattern::Solid,
+        ),
+        (
+            DoubleBondPlacement::Center,
+            BondLinePattern::Dashed,
+            BondLinePattern::Solid,
+        ),
+        (
+            DoubleBondPlacement::Right,
+            BondLinePattern::Solid,
+            BondLinePattern::Dashed,
+        ),
+    ];
+    for (placement, left_style, right_style) in expected {
+        engine.pointer_down(PointerEvent {
+            x: FIRST_CENTER_X,
+            y: FIRST_CENTER_Y,
+            button: Some(0),
+            alt_key: false,
+        });
+        let entry = engine.state().document.editable_fragment().unwrap();
+        let bond = &entry.fragment.bonds[0];
+        assert_eq!(bond.order, 2);
+        assert_eq!(
+            bond.double.as_ref().map(|double| double.placement),
+            Some(placement)
+        );
+        assert_eq!(bond.line_styles.main, BondLinePattern::Solid);
+        assert_eq!(bond.line_styles.left, left_style);
+        assert_eq!(bond.line_styles.right, right_style);
+    }
 }
 
 #[test]

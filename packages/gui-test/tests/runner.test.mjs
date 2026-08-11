@@ -847,21 +847,22 @@ test("the Single-tool center-click cycle kills skipped-state, duplicate-bond, an
   ]);
 });
 
-test("the Dashed-solid-double center-click cycle kills wrong-side, skipped-Center, and stale-line-style mutants", async () => {
+test("the directly drawn Dashed-solid-double cycle kills wrong-default, premature-stop, wrong-side, and stale-line-style mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-dashed-double-center-click-cycle-production.json"));
   assert.ok(scenario.coverage.features.includes("editor.bond.center-click-cycle"));
-  const logicalBondActions = scenario.actions.filter((action) => action.id === "draw-right-dashed-double-cycle-target" || action.id.startsWith("cycle-"));
+  const logicalBondActions = scenario.actions.filter((action) => action.id === "draw-centered-right-dashed-cycle-target" || action.id.startsWith("cycle-"));
   assert.deepEqual(logicalBondActions.filter((action) => action.id.startsWith("cycle-")).map((action) => action.id), [
-    "cycle-right-dashed-double-to-center",
-    "cycle-center-to-left-dashed-double",
+    "cycle-centered-right-dashed-to-left",
+    "cycle-left-to-centered-left-dashed",
+    "cycle-centered-left-dashed-to-right",
   ]);
   assert.ok(logicalBondActions.filter((action) => action.id.startsWith("cycle-")).every((action) => action.target.value === '[data-bond-id="b_3"]'));
   assert.ok(logicalBondActions.every((action) => action.completion.kind === "dom-distinct-count"));
   assert.ok(logicalBondActions.every((action) => action.completion.selector === "[data-bond-id]"));
   assert.ok(logicalBondActions.every((action) => action.completion.attribute === "data-bond-id"));
   assert.ok(logicalBondActions.every((action) => action.completion.value === 1));
-  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-left-dashed-double-after-center-cycle").expected, [
-    { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "dashed", rightLineStyle: "solid", mainLineWeight: "normal", doublePlacement: "left", stereoKind: null, wideEnd: null },
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-right-dashed-double-after-full-cycle").expected, [
+    { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "dashed", mainLineWeight: "normal", doublePlacement: "right", stereoKind: null, wideEnd: null },
   ]);
 });
 
