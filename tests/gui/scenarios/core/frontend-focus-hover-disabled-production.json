@@ -62,9 +62,9 @@
       }
     },
     {
-      "id": "delete-control-remains-visibly-disabled",
+      "id": "save-control-remains-visibly-disabled",
       "kind": "ui-state",
-      "selector": "button[data-tool=\"delete\"]",
+      "selector": "button[data-command=\"save\"]",
       "uiExpected": {
         "count": 1,
         "visibleCount": 1,
