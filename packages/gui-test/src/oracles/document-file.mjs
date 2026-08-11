@@ -149,6 +149,7 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       ringBondCount: node?.atomProperties?.ringBondCount ?? node?.atom_properties?.ring_bond_count ?? "unspecified",
       unsaturatedBonds: node?.atomProperties?.unsaturatedBonds ?? node?.atom_properties?.unsaturated_bonds ?? "unspecified",
       queryTranslation: node?.atomProperties?.translation ?? "equal",
+      abnormalValence: node?.atomProperties?.abnormalValence ?? node?.atom_properties?.abnormal_valence ?? false,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };

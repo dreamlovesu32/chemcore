@@ -96,6 +96,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-period-six-transition-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
+    "scenario.core.atom.query-abnormal-valence-history-persistence.production",
     "scenario.core.atom.query-reaction-value-history-persistence.production",
     "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
     "scenario.core.atom.query-translation-value-history-persistence.production",
@@ -196,6 +197,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-period-six-transition-free-placement.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
+      "scenario.core.atom.query-abnormal-valence-history-persistence.production",
       "scenario.core.atom.query-reaction-value-history-persistence.production",
       "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
       "scenario.core.atom.query-translation-value-history-persistence.production",
@@ -296,6 +298,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-period-six-transition-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
+    "scenario.core.atom.query-abnormal-valence-history-persistence.production",
     "scenario.core.atom.query-reaction-value-history-persistence.production",
     "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
     "scenario.core.atom.query-translation-value-history-persistence.production",
@@ -384,6 +387,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-period-six-transition-free-placement.production",
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
+    "scenario.core.atom.query-abnormal-valence-history-persistence.production",
     "scenario.core.atom.query-reaction-value-history-persistence.production",
     "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
     "scenario.core.atom.query-translation-value-history-persistence.production",
@@ -467,6 +471,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-period-six-transition-free-placement.production",
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
+      "scenario.core.atom.query-abnormal-valence-history-persistence.production",
       "scenario.core.atom.query-reaction-value-history-persistence.production",
       "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
       "scenario.core.atom.query-translation-value-history-persistence.production",
@@ -568,6 +573,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-query-ring-bond-count-value-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-query-unsaturated-bonds-value-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-query-translation-value-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-abnormal-valence-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
@@ -616,8 +622,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 54);
-  assert.equal(result.summary.scenarios, 84);
+  assert.equal(result.summary.entries, 55);
+  assert.equal(result.summary.scenarios, 85);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -1126,6 +1132,22 @@ test("the atom-query translation matrix kills skipped values, swapped enums, bro
     [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, queryTranslation: "any", labelText: "CH4", labelSourceText: "CH4" }],
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-translation-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query abnormal-valence matrix kills skipped states, swapped booleans, broken history, stale menus, spurious indicators, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-abnormal-valence-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-abnormal-valence"));
+  for (const value of ["false", "true"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`abnormal-valence:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated abnormal-valence checked state for ${value}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "open-after-undo").completion.selector.includes('abnormal-valence:true'), true);
+  assert.equal(scenario.actions.find((action) => action.id === "open-after-redo").completion.selector.includes('abnormal-valence:false'), true);
+  assert.equal(scenario.oracles.find((oracle) => oracle.id === "no-spurious-abnormal-valence-indicator").value, 1);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-abnormal-valence-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, abnormalValence: true, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-abnormal-valence-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
 });
 
 test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {

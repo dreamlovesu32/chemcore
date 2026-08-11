@@ -64,6 +64,7 @@ export const productionBlackBoxCapabilities = Object.freeze([
   "editor.atom.query-ring-bond-count",
   "editor.atom.query-unsaturated-bonds",
   "editor.atom.query-translation",
+  "editor.atom.query-abnormal-valence",
   "document.save-as",
   "document.open",
   "document.close-discard",

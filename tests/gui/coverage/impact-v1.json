@@ -48,6 +48,7 @@
     { "id": "source.scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-query-ring-bond-count-value-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.query-unsaturated-bonds-value-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-query-unsaturated-bonds-value-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.query-translation-value-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-query-translation-value-history-persistence-production.json"] },
+    { "id": "source.scenario.core.atom.query-abnormal-valence-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-query-abnormal-valence-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.periodic-representative-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-representative-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-common-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-common-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-noble-lanthanide-free-placement-production.json"] },
@@ -121,6 +122,7 @@
     { "id": "capability.editor.atom.query-ring-bond-count", "kind": "capability" },
     { "id": "capability.editor.atom.query-unsaturated-bonds", "kind": "capability" },
     { "id": "capability.editor.atom.query-translation", "kind": "capability" },
+    { "id": "capability.editor.atom.query-abnormal-valence", "kind": "capability" },
     { "id": "capability.editor.atom.implicit-hydrogen-visibility", "kind": "capability" },
     { "id": "capability.editor.atom.charge-symbol-attachment", "kind": "capability" },
     { "id": "capability.editor.ring.insert", "kind": "capability" },
@@ -177,6 +179,7 @@
     { "id": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.query-unsaturated-bonds-value-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.query-translation-value-history-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-representative-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-common-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "scenario" },
@@ -273,6 +276,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "reason": "Runner, nested Atom Query menus, history, query-indicator rendering, native save, and exact ring-bond-count oracle changes invalidate atom-query ring-count evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.query-unsaturated-bonds-value-history-persistence.production", "reason": "Runner, nested Atom Query menus, history, query-indicator rendering, native save, and exact unsaturated-bonds oracle changes invalidate atom-query unsaturation evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.query-translation-value-history-persistence.production", "reason": "Runner, nested Atom Query menus, history, query-indicator rendering, native save, and exact translation oracle changes invalidate atom-query translation evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "reason": "Runner, nested Atom Query menus, history, query-indicator absence, native save, and exact abnormal-valence oracle changes invalidate atom-query abnormal-valence evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the representative periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the common-value periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the noble/lanthanide matrix." },
@@ -940,5 +944,12 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.query-translation-value-history-persistence.production", "reason": "The physical driver uses real right-click menus, every nested translation choice, guarded history keys, and native Save As." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.query-translation-value-history-persistence.production", "reason": "Regenerated checked states plus exact L appearance, removal, undo, and redo kill skipped-value, swapped-enum, stale-menu, stale-render, and broken-history mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.query-translation-value-history-persistence.production", "reason": "Exact translation=any plus Carbon CH4 and one-object counts kill lost-value, wrong-enum, display-only, label-rewrite, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.atom.query-abnormal-valence", "reason": "Atom Query abnormal-valence choices, history, query-indicator absence, and persistence form one public editor capability." }
+    ,{ "from": "capability.editor.atom.query-translation", "to": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "reason": "The adjacent completed Translation closure supplies the trusted standalone Carbon, nested Atom Query, history, and native-save checkpoint without repeating translation values." }
+    ,{ "from": "capability.editor.atom.query-abnormal-valence", "to": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "reason": "The production cell traverses both public abnormal-valence states, proves regenerated checked state and history, rejects a spurious indicator, and persists final Allow semantics." }
+    ,{ "from": "source.scenario.core.atom.query-abnormal-valence-history-persistence.production", "to": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "reason": "Changing the atom-query abnormal-valence state, history, indicator-absence, and persistence cell invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "reason": "The physical driver uses real right-click menus, both abnormal-valence choices, guarded history keys, and native Save As." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "reason": "Regenerated checked states plus no spurious indicator through changes, undo, and redo kill skipped-state, swapped-boolean, stale-menu, stale-render, and broken-history mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "reason": "Exact abnormalValence=true plus Carbon CH4 and one-object counts kill lost-value, wrong-boolean, display-only, label-rewrite, collapsed-object, and accidental-bond mutants." }
   ]
 }
