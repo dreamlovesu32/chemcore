@@ -22,6 +22,7 @@
     { "id": "source.scenario.core.ring.six-planar-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-six-planar-persistence-production.json"] },
     { "id": "source.scenario.core.ring.chair-benzene-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-chair-benzene-persistence-production.json"] },
     { "id": "source.scenario.core.ring.bond-fusion-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-bond-fusion-persistence-production.json"] },
+    { "id": "source.scenario.core.ring.endpoint-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-endpoint-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.chain.drag-count-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-drag-count-persistence-production.json"] },
     { "id": "source.scenario.core.chain.endpoint-attachment-continuation.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-endpoint-attachment-continuation-production.json"] },
     { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
@@ -105,6 +106,7 @@
     { "id": "scenario.core.ring.six-planar-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.chair-benzene-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.bond-fusion-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.ring.endpoint-attachment-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.chain.drag-count-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.chain.endpoint-attachment-continuation.production", "kind": "scenario" },
     { "id": "scenario.core.history.undo-redo-bond.production", "kind": "scenario" },
@@ -446,6 +448,11 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.ring.bond-fusion-persistence.production", "reason": "The physical driver draws the target bond, selects Ring 6, clicks its midpoint, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.ring.bond-fusion-persistence.production", "reason": "Exactly six distinct rendered bonds kill duplicate-shared-bond and dropped-ring-member mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.ring.bond-fusion-persistence.production", "reason": "Six nodes, six bonds, one molecule, and one object kill disconnected-paste and incomplete-fusion mutants." }
+    ,{ "from": "capability.editor.ring.insert", "to": "scenario.core.ring.endpoint-attachment-persistence.production", "reason": "The production cell covers public ring attachment at an existing bond endpoint and exact connected persistence." }
+    ,{ "from": "source.scenario.core.ring.endpoint-attachment-persistence.production", "to": "scenario.core.ring.endpoint-attachment-persistence.production", "reason": "Changing the ring endpoint-attachment scenario invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.ring.endpoint-attachment-persistence.production", "reason": "The physical driver draws the target bond, selects Ring 6, clicks the measured endpoint, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.ring.endpoint-attachment-persistence.production", "reason": "Exactly seven distinct rendered bonds kill missed-endpoint, accidental-bond-fusion, and dropped-ring-member mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.ring.endpoint-attachment-persistence.production", "reason": "Seven nodes, seven bonds, one molecule, and one object kill disconnected-paste, bond-fusion, and incomplete-attachment mutants." }
     ,{ "from": "component.editor-interaction", "to": "capability.editor.chain.draw", "reason": "The shared editor interaction path owns public variable-length chain dragging and preview commitment." }
     ,{ "from": "capability.editor.chain.draw", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The production cell covers drag-derived chain length, zigzag commitment, and exact persistence." }
     ,{ "from": "source.scenario.core.chain.drag-count-persistence.production", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "Changing the chain production scenario invalidates its evidence." }

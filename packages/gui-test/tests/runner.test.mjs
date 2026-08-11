@@ -86,6 +86,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.orbital.seven-template-properties-history.production",
     "scenario.core.ring.bond-fusion-persistence.production",
     "scenario.core.ring.chair-benzene-persistence.production",
+    "scenario.core.ring.endpoint-attachment-persistence.production",
     "scenario.core.ring.six-planar-persistence.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
@@ -135,6 +136,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.orbital.seven-template-properties-history.production",
       "scenario.core.ring.bond-fusion-persistence.production",
       "scenario.core.ring.chair-benzene-persistence.production",
+      "scenario.core.ring.endpoint-attachment-persistence.production",
       "scenario.core.ring.six-planar-persistence.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
@@ -183,6 +185,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.orbital.seven-template-properties-history.production",
     "scenario.core.ring.bond-fusion-persistence.production",
     "scenario.core.ring.chair-benzene-persistence.production",
+    "scenario.core.ring.endpoint-attachment-persistence.production",
     "scenario.core.ring.six-planar-persistence.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
@@ -213,6 +216,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.orbital.seven-template-properties-history.production",
     "scenario.core.ring.bond-fusion-persistence.production",
     "scenario.core.ring.chair-benzene-persistence.production",
+    "scenario.core.ring.endpoint-attachment-persistence.production",
     "scenario.core.ring.six-planar-persistence.production",
     "scenario.core.shape.multi-kind-style-history.production",
     "scenario.core.symbol.eight-kind-color-history.production",
@@ -253,6 +257,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.orbital.seven-template-properties-history.production",
       "scenario.core.ring.bond-fusion-persistence.production",
       "scenario.core.ring.chair-benzene-persistence.production",
+      "scenario.core.ring.endpoint-attachment-persistence.production",
       "scenario.core.ring.six-planar-persistence.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
@@ -279,6 +284,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-chair-benzene-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-bond-fusion-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "ring-endpoint-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-drag-count-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-endpoint-attachment-continuation-production.json"),
     join(guiTestsDir, "scenarios", "core", "undo-redo-bond-production.json"),
@@ -311,7 +317,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 40);
-  assert.equal(result.summary.scenarios, 33);
+  assert.equal(result.summary.scenarios, 34);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -386,6 +392,21 @@ test("the ring fusion matrix kills disconnected-paste and duplicate-shared-bond 
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
     nodes: 6,
     bonds: 6,
+    molecules: 1,
+    objects: 1,
+  });
+});
+
+test("the ring endpoint matrix kills missed-endpoint and accidental-bond-fusion mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "ring-endpoint-attachment-persistence-production.json"));
+  const draw = scenario.actions.find((action) => action.id === "draw-ring-attachment-target-bond");
+  const attachment = scenario.actions.find((action) => action.id === "attach-ring-6-at-target-endpoint");
+  assert.equal(draw.completion.value, 1);
+  assert.equal(attachment.completion.value, 7);
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
+    nodes: 7,
+    bonds: 7,
     molecules: 1,
     objects: 1,
   });
