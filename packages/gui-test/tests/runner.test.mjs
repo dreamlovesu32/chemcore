@@ -81,6 +81,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.query-order-value-matrix.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
@@ -144,6 +145,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.query-order-value-matrix.production",
       "scenario.core.bond.reaction-participation-history-persistence.production",
       "scenario.core.bond.reaction-participation-value-matrix.production",
       "scenario.core.bond.ten-variant-persistence.production",
@@ -206,6 +208,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.query-order-value-matrix.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
@@ -256,6 +259,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+    "scenario.core.bond.query-order-value-matrix.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
@@ -304,6 +308,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.query-order-value-matrix.production",
       "scenario.core.bond.reaction-participation-history-persistence.production",
       "scenario.core.bond.reaction-participation-value-matrix.production",
       "scenario.core.bond.ten-variant-persistence.production",
@@ -346,6 +351,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "draw-single-bond.json"),
     join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-query-order-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"),
@@ -395,7 +401,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 47);
+  assert.equal(result.summary.scenarios, 48);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -613,6 +619,50 @@ test("the bond reaction matrix kills wrong-enum, missing-annotation, and missing
   assert.equal(redo.completion.text, "Rxn");
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-make-and-change-bond-semantics").expected, [
     { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, reactionParticipation: "make-and-change" },
+  ]);
+});
+
+test("the bond query-order matrix kills skipped-value, stale-annotation, wrong-order, and stale-persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-query-order-value-matrix-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.bond.query-order"));
+  const appliedValues = scenario.actions
+    .filter((action) => action.id.startsWith("set-"))
+    .map((action) => action.target.name);
+  assert.deepEqual(appliedValues, [
+    "Single or Double (S/D)",
+    "Single or Aromatic (S/A)",
+    "Double or Aromatic (D/A)",
+    "None",
+    "Double or Aromatic (D/A)",
+  ]);
+
+  const verifiedValues = scenario.actions
+    .filter((action) => action.id.startsWith("open-") && action.id.endsWith("-menu"))
+    .map((action) => action.completion.selector.match(/query-orders:([a-z-]+)/)?.[1]);
+  assert.deepEqual(verifiedValues, [
+    "none",
+    "single-double",
+    "single-aromatic",
+    "double-aromatic",
+    "none",
+    "double-aromatic",
+  ]);
+
+  for (const [id, text] of [
+    ["set-single-double", "S/D"],
+    ["set-single-aromatic", "S/A"],
+    ["set-double-aromatic", "D/A"],
+    ["set-final-double-aromatic", "D/A"],
+  ]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.completion.selector, 'text[data-bond-id="b_3"]');
+    assert.equal(action.completion.text, text);
+  }
+  const clear = scenario.actions.find((action) => action.id === "set-cleared-none");
+  assert.equal(clear.completion.selector, 'text[data-bond-id="b_3"]');
+  assert.equal(clear.completion.value, 0);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-double-aromatic-query-order-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, queryOrders: ["double", "aromatic"] },
   ]);
 });
 

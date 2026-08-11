@@ -88,11 +88,15 @@ export function evaluateDocumentBondProperties(bytes, expected) {
       mainLineWeight: bond?.lineWeights?.main ?? null,
       stereoKind: bond?.stereo?.kind ?? null,
       wideEnd: bond?.stereo?.wideEnd ?? bond?.stereo?.wide_end ?? null,
+      queryOrders: bond?.properties?.queryOrders ?? bond?.properties?.query_orders ?? [],
       reactionParticipation: bond?.properties?.reactionParticipation ?? bond?.properties?.reaction_participation ?? null,
     };
   });
   const passed = observed.every((actual, index) => actual.found
-    && Object.entries(expected[index]).every(([name, value]) => name === "id" || actual[name] === value));
+    && Object.entries(expected[index]).every(([name, value]) => name === "id"
+      || (Array.isArray(value)
+        ? Array.isArray(actual[name]) && value.length === actual[name].length && value.every((entry, entryIndex) => entry === actual[name][entryIndex])
+        : actual[name] === value)));
   return { passed, observed };
 }
 

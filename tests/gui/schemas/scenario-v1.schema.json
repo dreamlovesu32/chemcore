@@ -348,6 +348,13 @@
                   "mainLineWeight": { "enum": ["normal", "bold"] },
                   "stereoKind": { "type": ["string", "null"], "enum": [null, "solid-wedge", "hashed-wedge", "hollow-wedge"] },
                   "wideEnd": { "type": ["string", "null"], "enum": [null, "begin", "end"] },
+                  "queryOrders": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 4,
+                    "uniqueItems": true,
+                    "items": { "enum": ["single", "aromatic", "double", "triple"] }
+                  },
                   "reactionParticipation": { "enum": ["unspecified", "reaction-center", "make-or-break", "change-type", "make-and-change", "not-reaction-center", "no-change", "unmapped"] }
                 }
               }

@@ -12,6 +12,7 @@ const defaultProfilePath = join(guiTestsDir, "environments", "windows-gui-worker
 export const productionBlackBoxCapabilities = Object.freeze([
   "gui.public-input",
   "editor.bond.draw",
+  "editor.bond.query-order",
   "editor.bond.reaction-participation",
   "editor.ring.insert",
   "editor.chain.draw",
