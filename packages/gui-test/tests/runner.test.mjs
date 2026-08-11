@@ -856,7 +856,7 @@ test("the directly drawn Dashed-solid-double cycle kills wrong-default, prematur
     "cycle-left-to-centered-left-dashed",
     "cycle-centered-left-dashed-to-right",
   ]);
-  assert.ok(logicalBondActions.filter((action) => action.id.startsWith("cycle-")).every((action) => action.target.value === '[data-bond-id="b_3"]'));
+  assert.ok(logicalBondActions.filter((action) => action.id.startsWith("cycle-")).every((action) => action.target.value === '[data-role="document-bond"][data-bond-id="b_3"]'));
   assert.ok(logicalBondActions.every((action) => action.completion.kind === "dom-distinct-count"));
   assert.ok(logicalBondActions.every((action) => action.completion.selector === "[data-bond-id]"));
   assert.ok(logicalBondActions.every((action) => action.completion.attribute === "data-bond-id"));

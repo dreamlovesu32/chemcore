@@ -60,19 +60,23 @@ test("production driver advertises every capability required by registered produ
   }
 });
 
-test("an exact bond identity selector resolves one logical target across multiple rendered primitives", async () => {
+test("an exact bond identity selector resolves the collective logical center across reordered rendered primitives", async () => {
   const primitives = [
-    { tag: "line", visible: true, disabled: false, rect: [100, 200, 140, 201] },
-    { tag: "line", visible: true, disabled: false, rect: [100, 204, 140, 205] },
+    { tag: "line", visible: true, disabled: false, rect: [100, 200, 101, 201] },
+    { tag: "line", visible: true, disabled: false, rect: [139, 204, 140, 205] },
+    { tag: "polygon", visible: true, disabled: false, rect: [100, 204, 140, 205] },
   ];
   const driver = new ProductionBlackBoxDriver({ coordinator: {
     async cdpBridge() { return { scopeCount: null, matches: primitives }; },
   } });
-  const exact = { strategy: "selector", value: 'line[data-bond-id="b_3"]' };
-  assert.deepEqual((await driver.resolve(exact)).match, primitives[0]);
+  const exact = { strategy: "selector", value: '[data-role="document-bond"][data-bond-id="b_3"]' };
+  assert.deepEqual((await driver.resolve(exact)).match, {
+    ...primitives[0],
+    rect: [100, 200, 140, 205],
+  });
   await assert.rejects(
     driver.resolve({ strategy: "selector", value: "line.mol-bond-stroked" }),
-    /resolved to 2 visible actionable elements/,
+    /resolved to 3 visible actionable elements/,
   );
 });
 

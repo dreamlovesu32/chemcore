@@ -74,11 +74,21 @@ export const productionBlackBoxCapabilities = Object.freeze([
 
 const exactBondIdentitySelector = /\[\s*data-bond-id\s*=\s*(?:"[^"]+"|'[^']+'|[A-Za-z0-9_.:-]+)\s*\]/;
 
+function collectiveLogicalBondMatch(matches) {
+  const left = Math.min(...matches.map((match) => match.rect[0]));
+  const top = Math.min(...matches.map((match) => match.rect[1]));
+  const right = Math.max(...matches.map((match) => match.rect[2]));
+  const bottom = Math.max(...matches.map((match) => match.rect[3]));
+  return { ...matches[0], rect: [left, top, right, bottom] };
+}
+
 function canonicalActionableMatches(target, matches) {
   if (target.strategy === "selector" && exactBondIdentitySelector.test(target.value) && matches.length > 1) {
     // A logical bond can render as multiple SVG lines or polygons. An exact
-    // bond identity still names one semantic target; other locators stay strict.
-    return [matches[0]];
+    // bond identity still names one semantic target. Use the collective bounds
+    // so renderer reordering or a leading dash cannot move the physical click
+    // away from the logical center; other locators stay strict.
+    return [collectiveLogicalBondMatch(matches)];
   }
   return matches;
 }
