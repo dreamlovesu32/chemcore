@@ -299,7 +299,7 @@ fn send_mouse(flags: u32) -> Result<(), String> {
 }
 
 fn uses_virtual_key_input(virtual_key: u16) -> bool {
-    virtual_key == VK_DELETE
+    matches!(virtual_key, VK_DELETE | VK_LEFT | VK_RIGHT | VK_UP | VK_DOWN)
 }
 
 fn send_key_event(virtual_key: u16, flags: u32) -> Result<(), String> {
@@ -761,7 +761,8 @@ pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
 mod tests {
     use super::{
         parse_pointer_modifiers, parse_shortcut, retryable_window_snapshot_error,
-        uses_virtual_key_input, validate_text_input, VK_CONTROL, VK_DELETE, VK_MENU, VK_SHIFT,
+        uses_virtual_key_input, validate_text_input, VK_CONTROL, VK_DELETE, VK_DOWN, VK_LEFT,
+        VK_MENU, VK_RIGHT, VK_SHIFT, VK_UP,
     };
 
     #[test]
@@ -781,7 +782,9 @@ mod tests {
         assert!(parse_shortcut("Alt+F4").is_err());
         assert!(parse_shortcut("Control+Alt+Delete").is_err());
         assert!(parse_shortcut("Meta+R").is_err());
-        assert!(uses_virtual_key_input(VK_DELETE));
+        for key in [VK_DELETE, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN] {
+            assert!(uses_virtual_key_input(key));
+        }
         assert!(!uses_virtual_key_input(b'A' as u16));
     }
 
