@@ -1999,6 +1999,104 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
 }
 
 #[test]
+fn atom_query_enum_menus_report_selected_values_and_kill_hard_coded_false_mutants() {
+    fn checked_values(menu: &Value, submenu_label: &str) -> Vec<String> {
+        menu.as_array()
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("label").and_then(Value::as_str) == Some("Atom Query"))
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(Value::as_array)
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("label").and_then(Value::as_str) == Some(submenu_label))
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(Value::as_array)
+            .expect("Atom Query enum submenu")
+            .iter()
+            .filter(|item| item.get("checked").and_then(Value::as_bool) == Some(true))
+            .filter_map(|item| {
+                item.get("value")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            })
+            .collect()
+    }
+
+    fn atom_menu(engine: &Engine) -> Value {
+        serde_json::from_str(&engine.context_menu_json(r#"{"kind":"atom"}"#, false))
+            .expect("atom context menu JSON")
+    }
+
+    let mut engine = Engine::new();
+    let add = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 100.0, "y": 100.0 },
+            "end": { "x": 148.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    let first = created_node_id(&add, 0);
+    execute(
+        &mut engine,
+        json!({ "type": "select-targets", "targets": { "nodes": [first] } }),
+    );
+
+    let defaults = atom_menu(&engine);
+    assert_eq!(
+        checked_values(&defaults, "Ring Bond Count"),
+        ["ring-bond-count:unspecified"]
+    );
+    assert_eq!(
+        checked_values(&defaults, "Unsaturated Bonds"),
+        ["unsaturated-bonds:unspecified"]
+    );
+    assert_eq!(
+        checked_values(&defaults, "Translation"),
+        ["translation:equal"]
+    );
+
+    for (property, value) in [
+        ("ring-bond-count", "simple-ring"),
+        ("unsaturated-bonds", "must-be-present"),
+        ("translation", "narrow"),
+    ] {
+        assert_eq!(
+            execute(
+                &mut engine,
+                json!({
+                    "type": "set-atom-property-for-selection",
+                    "property": property,
+                    "value": value
+                }),
+            )["changed"],
+            true,
+            "{property} should change"
+        );
+    }
+    let updated = atom_menu(&engine);
+    assert_eq!(
+        checked_values(&updated, "Ring Bond Count"),
+        ["ring-bond-count:simple-ring"]
+    );
+    assert_eq!(
+        checked_values(&updated, "Unsaturated Bonds"),
+        ["unsaturated-bonds:must-be-present"]
+    );
+    assert_eq!(
+        checked_values(&updated, "Translation"),
+        ["translation:narrow"]
+    );
+}
+
+#[test]
 fn bond_query_reaction_command_round_trips_through_ccjs_cdxml_and_cdx() {
     let mut engine = Engine::new();
     let add = execute(

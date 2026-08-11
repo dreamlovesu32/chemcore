@@ -1397,6 +1397,15 @@ impl Engine {
     }
 
     fn atom_query_menu(&self) -> JsonValue {
+        let ring_bond_count = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties.ring_bond_count
+        });
+        let unsaturated_bonds = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties.unsaturated_bonds
+        });
+        let translation = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties.translation
+        });
         let reaction_change = uniform_node_value(self.selected_label_nodes(), |node| {
             node.atom_properties.reaction_change
         });
@@ -1418,29 +1427,29 @@ impl Engine {
                 {
                     "label": "Ring Bond Count",
                     "submenu": [
-                        atom_property_item("Unspecified", "ring-bond-count", "unspecified", false),
-                        atom_property_item("No Ring Bonds", "ring-bond-count", "no-ring-bonds", false),
-                        atom_property_item("As Drawn", "ring-bond-count", "as-drawn", false),
-                        atom_property_item("Simple Ring", "ring-bond-count", "simple-ring", false),
-                        atom_property_item("Fusion", "ring-bond-count", "fusion", false),
-                        atom_property_item("Spiro or Higher", "ring-bond-count", "spiro-or-higher", false)
+                        atom_property_item("Unspecified", "ring-bond-count", "unspecified", ring_bond_count == Some(crate::RingBondCount::Unspecified)),
+                        atom_property_item("No Ring Bonds", "ring-bond-count", "no-ring-bonds", ring_bond_count == Some(crate::RingBondCount::NoRingBonds)),
+                        atom_property_item("As Drawn", "ring-bond-count", "as-drawn", ring_bond_count == Some(crate::RingBondCount::AsDrawn)),
+                        atom_property_item("Simple Ring", "ring-bond-count", "simple-ring", ring_bond_count == Some(crate::RingBondCount::SimpleRing)),
+                        atom_property_item("Fusion", "ring-bond-count", "fusion", ring_bond_count == Some(crate::RingBondCount::Fusion)),
+                        atom_property_item("Spiro or Higher", "ring-bond-count", "spiro-or-higher", ring_bond_count == Some(crate::RingBondCount::SpiroOrHigher))
                     ]
                 },
                 {
                     "label": "Unsaturated Bonds",
                     "submenu": [
-                        atom_property_item("Unspecified", "unsaturated-bonds", "unspecified", false),
-                        atom_property_item("Must Be Absent", "unsaturated-bonds", "must-be-absent", false),
-                        atom_property_item("Must Be Present", "unsaturated-bonds", "must-be-present", false)
+                        atom_property_item("Unspecified", "unsaturated-bonds", "unspecified", unsaturated_bonds == Some(crate::UnsaturatedBonds::Unspecified)),
+                        atom_property_item("Must Be Absent", "unsaturated-bonds", "must-be-absent", unsaturated_bonds == Some(crate::UnsaturatedBonds::MustBeAbsent)),
+                        atom_property_item("Must Be Present", "unsaturated-bonds", "must-be-present", unsaturated_bonds == Some(crate::UnsaturatedBonds::MustBePresent))
                     ]
                 },
                 {
                     "label": "Translation",
                     "submenu": [
-                        atom_property_item("Equal", "translation", "equal", false),
-                        atom_property_item("Broad", "translation", "broad", false),
-                        atom_property_item("Narrow", "translation", "narrow", false),
-                        atom_property_item("Any", "translation", "any", false)
+                        atom_property_item("Equal", "translation", "equal", translation == Some(crate::QueryTranslation::Equal)),
+                        atom_property_item("Broad", "translation", "broad", translation == Some(crate::QueryTranslation::Broad)),
+                        atom_property_item("Narrow", "translation", "narrow", translation == Some(crate::QueryTranslation::Narrow)),
+                        atom_property_item("Any", "translation", "any", translation == Some(crate::QueryTranslation::Any))
                     ]
                 },
                 separator(),
