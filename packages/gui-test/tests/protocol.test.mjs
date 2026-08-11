@@ -135,6 +135,25 @@ test("bond selection geometry targets the canonical engine selection role", asyn
   assert.deepEqual(bond.uiExpected.rect, { minWidth: 12, minHeight: 12 });
 });
 
+test("mixed text and bond selection requires one scaled handle set per selection box", async () => {
+  const scenario = await readValidatedDocument(frontendSelectionScenarioPath);
+  const selectAll = scenario.actions.find((action) => action.id === "reselect-after-font-change");
+  const handles = scenario.oracles.find((oracle) => oracle.id === "mixed-selection-resize-handles-have-scaled-screen-size");
+  assert.equal(selectAll.type, "key");
+  assert.equal(selectAll.key, "Control+A");
+  assert.equal(handles.selector, '[data-layer="editor-overlay"] [data-role="selection-resize-handle"]');
+  assert.equal(handles.uiExpected.count, 2 * 8);
+  assert.equal(handles.uiExpected.visibleCount, 2 * 8);
+  assert.deepEqual(handles.uiExpected.rect, { minWidth: 5, maxWidth: 9, minHeight: 5, maxHeight: 9 });
+  assert.deepEqual(handles.uiExpected.viewport, {
+    devicePixelRatio: 1.5,
+    minWidth: 1200,
+    maxWidth: 1360,
+    minHeight: 840,
+    maxHeight: 960,
+  });
+});
+
 test("selector targets share the bounded DOM selector limit", async () => {
   const scenario = JSON.parse(await readFile(frontendSelectionScenarioPath, "utf8"));
   const openMenu = scenario.actions.find((action) => action.id === "open-text-font-menu");

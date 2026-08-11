@@ -65,16 +65,18 @@
       }
     },
     {
-      "id": "selection-resize-handles-have-scaled-screen-size",
+      "id": "mixed-selection-resize-handles-have-scaled-screen-size",
       "kind": "ui-state",
       "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-resize-handle\"]",
       "uiExpected": {
-        "visibleCount": 8,
+        "count": 16,
+        "visibleCount": 16,
         "styles": [
           { "property": "fill", "operator": "neq", "value": "none" },
           { "property": "stroke", "operator": "eq", "value": "none" }
         ],
-        "rect": { "minWidth": 5, "maxWidth": 9, "minHeight": 5, "maxHeight": 9 }
+        "rect": { "minWidth": 5, "maxWidth": 9, "minHeight": 5, "maxHeight": 9 },
+        "viewport": { "devicePixelRatio": 1.5, "minWidth": 1200, "maxWidth": 1360, "minHeight": 840, "maxHeight": 960 }
       }
     },
     {
