@@ -464,7 +464,10 @@ try {
 (() => {
   const selector = new TextDecoder().decode(Uint8Array.from(atob('$selectorBase64'), c => c.charCodeAt(0)));
   const elements = [...document.querySelectorAll(selector)];
-  return { count: elements.length, text: elements.length === 1 ? elements[0].textContent : null };
+  const textOf = element => ['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName)
+    ? element.value
+    : element.textContent;
+  return { count: elements.length, text: elements.length === 1 ? textOf(elements[0]) : null };
 })()
 "@
       if ($request.mode -eq 'text') {
@@ -476,7 +479,9 @@ try {
   const elements = [...document.querySelectorAll(selector)];
   return {
     count: elements.length,
-    text: elements.length === 1 ? elements[0].textContent : null,
+      text: elements.length === 1
+        ? (['INPUT', 'TEXTAREA', 'SELECT'].includes(elements[0].tagName) ? elements[0].value : elements[0].textContent)
+        : null,
     state: {
       revision: null,
       appScript: document.querySelector('script[type="module"]')?.src || null,

@@ -320,8 +320,7 @@ export class ProductionBlackBoxDriver {
       return result;
     }
     if (input.kind === "text") {
-      const receipt = await this.coordinator.candidateInput("text", { text: input.text });
-      this.foreground = receipt.agent.foreground;
+      await this.performResolvedTextInput(input, action);
       return result;
     }
     throw new Error(`Production black-box input type ${action.type} is not implemented.`);
@@ -331,7 +330,10 @@ export class ProductionBlackBoxDriver {
     if (action.type === "key") return { input: { kind: "key", key: action.key }, result: { kind: "key", key: action.key } };
     if (action.type === "text") {
       if (typeof action.text === "string") {
-        return { input: { kind: "text", text: action.text }, result: { kind: "text", textLength: action.text.length } };
+        return {
+          input: { kind: "text", text: action.text, ...(action.replaceExisting ? { replaceExisting: true } : {}) },
+          result: { kind: "text", textLength: action.text.length, ...(action.replaceExisting ? { replaceExisting: true } : {}) },
+        };
       }
       if (action.textSource !== "document-output-path" || !this.documentOutput?.guestPath) throw new Error("Document output path is unavailable for text input.");
       return { input: { kind: "text", text: this.documentOutput.guestPath }, result: { kind: "text", textSource: action.textSource } };
@@ -419,11 +421,10 @@ export class ProductionBlackBoxDriver {
       return { kind: "key", key: input.key };
     }
     if (input.kind === "text") {
-      const receipt = await this.coordinator.candidateInput("text", { text: input.text });
-      this.foreground = receipt.agent.foreground;
+      await this.performResolvedTextInput(input, action);
       return action.textSource
-        ? { kind: "text", textSource: action.textSource }
-        : { kind: "text", textLength: input.text.length };
+        ? { kind: "text", textSource: action.textSource, ...(input.replaceExisting ? { replaceExisting: true } : {}) }
+        : { kind: "text", textLength: input.text.length, ...(input.replaceExisting ? { replaceExisting: true } : {}) };
     }
     if (input.kind === "click") {
       const receipt = await this.coordinator.candidateInput("click", { x: input.x, y: input.y }, { button: input.button, modifiers: input.modifiers });
@@ -436,6 +437,20 @@ export class ProductionBlackBoxDriver {
       return { kind: "drag", from: input.from, to: input.to };
     }
     throw new Error(`Unsupported resolved input ${input.kind}.`);
+  }
+
+  async performResolvedTextInput(input, action) {
+    if (input.replaceExisting) {
+      const geometry = await this.inputGeometry(action.target);
+      const [left, top, right, bottom] = geometry.rect;
+      const [x, y] = geometry.screen([(left + right) / 2, (top + bottom) / 2]);
+      const focus = await this.coordinator.candidateInput("click", { x, y }, { button: "left" });
+      this.foreground = focus.agent.foreground;
+      const selection = await this.coordinator.candidateInput("key", { key: "Control+A" });
+      this.foreground = selection.agent.foreground;
+    }
+    const receipt = await this.coordinator.candidateInput("text", { text: input.text });
+    this.foreground = receipt.agent.foreground;
   }
 
   async waitForNativeTargetDismissal(target, timeoutMs) {

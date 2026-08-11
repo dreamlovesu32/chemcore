@@ -616,6 +616,15 @@ test("coverage audit binds every registered source and scenario", async () => {
   assert.equal(explicitUncheckedMenuResult.valid, false);
   assert.match(explicitUncheckedMenuResult.errors.join("\n"), /must identify an unchecked canvas-menu toggle by its inverse command value; unchecked menuitems omit aria-checked/);
 
+  const unobservedReplacementScenarios = structuredClone(scenarios);
+  const atomNumberReplacement = unobservedReplacementScenarios
+    .find((scenario) => scenario.id === "core.atom.number-visibility-persistence.production")
+    .actions.find((action) => action.id === "type-final-atom-number-17");
+  atomNumberReplacement.completion = { kind: "actionable", timeoutMs: 8000 };
+  const unobservedReplacementResult = await auditCoverage({ registry, scenarios: unobservedReplacementScenarios, scenarioPaths });
+  assert.equal(unobservedReplacementResult.valid, false);
+  assert.match(unobservedReplacementResult.errors.join("\n"), /replaceExisting text must complete on its exact DOM value/);
+
   const ambiguousSecondaryScenarios = structuredClone(scenarios);
   const ringChoice = ambiguousSecondaryScenarios
     .find((scenario) => scenario.id === "core.ring.bond-fusion-persistence.production")
@@ -975,6 +984,11 @@ test("the atom-number cell kills disconnected-dialog, inverted-visibility, stale
   assert.equal(scenario.actions.find((action) => action.id === "show-atom-number").completion.text, "17");
   assert.equal(scenario.actions.find((action) => action.id === "apply-edited-atom-number-42").completion.text, "42");
   assert.equal(scenario.actions.find((action) => action.id === "apply-final-atom-number-17").completion.text, "17");
+  for (const [id, text] of [["type-atom-number-17", "17"], ["type-edited-atom-number-42", "42"], ["type-final-atom-number-17", "17"]]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.replaceExisting, true, `${id} must explicitly replace the declared field`);
+    assert.deepEqual(action.completion, { kind: "dom-text", selector: '.atom-property-dialog input[name="value"]', text, timeoutMs: 8000 });
+  }
   assert.deepEqual(
     scenario.oracles.find((oracle) => oracle.id === "saved-numbered-carbon-semantics").expected,
     [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomNumber: "17", showAtomNumber: true, labelText: "CH4", labelSourceText: "CH4" }],

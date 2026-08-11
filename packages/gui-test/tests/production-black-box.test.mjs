@@ -247,6 +247,30 @@ test("production black-box resolves bounded literal text without exposing its co
   assert.deepEqual(resolved.result, { kind: "text", textLength: 5 });
 });
 
+test("replace-existing text physically targets, selects, and types before exact value completion", async () => {
+  const inputs = [];
+  const target = { strategy: "selector", value: '.atom-property-dialog input[name="value"]' };
+  const driver = new ProductionBlackBoxDriver({ coordinator: {
+    async candidateInput(kind, coordinates, options) {
+      inputs.push({ kind, coordinates, options });
+      return { agent: { foreground: foreground() } };
+    },
+  } });
+  driver.foreground = foreground();
+  driver.webviewState = { viewport: { width: 1028, height: 779 } };
+  driver.targets.set(JSON.stringify(target), { rect: [300, 240, 500, 280] });
+  const result = await driver.performResolvedInput(
+    { kind: "text", text: "17", replaceExisting: true },
+    { type: "text", text: "17", replaceExisting: true, target },
+  );
+  assert.deepEqual(inputs, [
+    { kind: "click", coordinates: { x: 408, y: 261 }, options: { button: "left" } },
+    { kind: "key", coordinates: { key: "Control+A" }, options: undefined },
+    { kind: "text", coordinates: { text: "17" }, options: undefined },
+  ]);
+  assert.deepEqual(result, { kind: "text", textLength: 2, replaceExisting: true });
+});
+
 test("production black-box requires one exact DOM text match and retains its action state", async () => {
   const state = { revision: 7, appScript: "app.js", engine: null, window: { title: "Untitled *" }, rendered: { bonds: 0, nodes: 0 } };
   const requests = [];

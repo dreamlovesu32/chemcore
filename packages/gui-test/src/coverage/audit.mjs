@@ -58,6 +58,15 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
         errors.push(`Scenario ${scenario.id} action ${action.id} must reserve ${candidateActionTransportReserveMs} ms for production input transport.`);
       }
       const selector = action.completion?.selector;
+      if (action.replaceExisting) {
+        const observesExactReplacement = action.type === "text"
+          && typeof action.text === "string"
+          && action.completion?.kind === "dom-text"
+          && action.completion.text === action.text;
+        if (!observesExactReplacement) {
+          errors.push(`Scenario ${scenario.id} action ${action.id} replaceExisting text must complete on its exact DOM value.`);
+        }
+      }
       if (typeof selector === "string" && selector.includes(".is-selected") && selector.includes("[data-tool=")) {
         errors.push(`Scenario ${scenario.id} action ${action.id} must use is-active for a primary data-tool completion.`);
       }

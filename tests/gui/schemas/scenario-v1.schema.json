@@ -177,6 +177,7 @@
         "key": { "type": "string", "minLength": 1 },
         "text": { "type": "string", "minLength": 1, "maxLength": 4096 },
         "textSource": { "enum": ["document-output-path"] },
+        "replaceExisting": { "type": "boolean" },
         "completion": { "$ref": "#/$defs/completion" },
         "budgetMs": { "type": "integer", "minimum": 30000, "maximum": 300000 },
         "fakeEffect": {
@@ -214,6 +215,7 @@
             ]
           }
         },
+        { "if": { "properties": { "type": { "const": "text" } } }, "else": { "not": { "required": ["replaceExisting"] } } },
         { "if": { "properties": { "type": { "enum": ["click", "drag"] } } }, "else": { "not": { "required": ["modifiers"] } } },
         { "if": { "properties": { "type": { "const": "click" } } }, "else": { "not": { "required": ["at"] } } },
         {

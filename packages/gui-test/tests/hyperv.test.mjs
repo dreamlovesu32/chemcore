@@ -295,7 +295,8 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   const guestSource = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
   assert.match(guestSource, /'distinct-count', 'distinct-count-state', 'text', 'text-state'/);
   assert.match(guestSource, /DOM observation requires a selector of 1 to 2048 characters/);
-  assert.match(guestSource, /elements\.length === 1 \? elements\[0\]\.textContent : null/);
+  assert.match(guestSource, /\['INPUT', 'TEXTAREA', 'SELECT'\]\.includes\(element\.tagName\)/);
+  assert.match(guestSource, /\? element\.value\s+: element\.textContent/);
   const countBranch = guestSource.slice(
     guestSource.indexOf("} elseif ($request.mode -in @('count', 'count-state'"),
     guestSource.indexOf("} elseif ($request.mode -in @('text', 'text-state'"),
@@ -453,6 +454,8 @@ test("production semantic targets expose native text and select controls", async
   assert.match(source, /aria-labelledby/);
   assert.match(source, /label\.querySelector\(':scope > span'\)/);
   assert.match(source, /clone\.querySelectorAll\('input, select, textarea, button, option, em'\)/);
+  assert.match(source, /\['INPUT', 'TEXTAREA', 'SELECT'\]\.includes\(elements\[0\]\.tagName\)/);
+  assert.match(source, /elements\[0\]\.value/);
 });
 
 test("production entity targets use a real SVG geometry midpoint and retain bounded fallbacks", async () => {
