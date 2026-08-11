@@ -1,9 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  contextMenuShouldRestoreCanvasFocus,
   contextMenuViewportBounds,
   contextSubmenuPlacement,
 } from "../../viewer/editor_context_menu.js";
+
+test("canvas context menus restore focus only when no interactive owner remains", () => {
+  const body = {};
+  const documentElement = {};
+  const documentRoot = { body, documentElement };
+  assert.equal(contextMenuShouldRestoreCanvasFocus(null, documentRoot), true);
+  assert.equal(contextMenuShouldRestoreCanvasFocus(body, documentRoot), true);
+  assert.equal(contextMenuShouldRestoreCanvasFocus(documentElement, documentRoot), true);
+  assert.equal(contextMenuShouldRestoreCanvasFocus({}, documentRoot), false);
+});
 
 test("context menus use the Windows work area instead of the obscured viewport edge", () => {
   assert.deepEqual(contextMenuViewportBounds({

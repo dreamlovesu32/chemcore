@@ -1361,6 +1361,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   openImageFilePickerAt,
   renderEditorOverlay,
   refreshCommandAvailability,
+  focusCanvas: () => viewerContainer?.focus({ preventScroll: true }),
   confirmRepeatUnitUngroup: confirmRepeatUnitUngroupIfNeeded,
 });
 canvasContextMenu = canvasContextMenuHost.canvasContextMenu;

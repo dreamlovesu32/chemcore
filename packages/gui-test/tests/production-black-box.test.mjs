@@ -19,14 +19,18 @@ function foreground() {
 }
 
 test("canvas focus and selection controls have explicit accessible frontend geometry", async () => {
-  const [index, app, styles, overlay] = await Promise.all([
+  const [index, app, styles, overlay, contextMenu] = await Promise.all([
     readFile(new URL("../../../viewer/index.html", import.meta.url), "utf8"),
     readFile(new URL("../../../viewer/app.js", import.meta.url), "utf8"),
     readFile(new URL("../../../viewer/styles.css", import.meta.url), "utf8"),
     readFile(new URL("../../../viewer/editor_overlay.js", import.meta.url), "utf8"),
+    readFile(new URL("../../../viewer/editor_context_menu.js", import.meta.url), "utf8"),
   ]);
   assert.match(index, /id="viewer-container"[^>]+role="application"[^>]+tabindex="0"/);
   assert.match(app, /viewerContainer\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(app, /focusCanvas: \(\) => viewerContainer\?\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(contextMenu, /contextMenuShouldRestoreCanvasFocus\(document\.activeElement, document\)/);
+  assert.match(contextMenu, /options\.focusCanvas\?\.\(\)/);
   assert.match(styles, /\.viewer-container:focus-visible\s*\{[^}]*outline: 2px solid var\(--active\)/s);
   assert.match(overlay, /SELECTION_RESIZE_HANDLE_SCREEN_PX = 6/);
   assert.match(overlay, /SELECTION_BOND_BOX_MIN_SCREEN_PX = 12/);
