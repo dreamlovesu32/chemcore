@@ -25,7 +25,7 @@
     { "id": "nitrogen-label-rendered-on-target-node", "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_2\"]", "attribute": "data-node-id", "operator": "eq", "value": 1 },
     { "id": "saved-element-target-topology-counts", "kind": "document-counts", "expected": { "nodes": 2, "bonds": 1, "molecules": 1, "objects": 1 } },
     { "id": "saved-nitrogen-node-semantics", "kind": "document-node-properties", "expected": [
-      { "id": "n_2", "element": "N", "atomicNumber": 7, "charge": 0, "labelText": "N", "labelSourceText": "N" }
+      { "id": "n_2", "element": "N", "atomicNumber": 7, "charge": 0, "labelText": "NH2", "labelSourceText": "NH2" }
     ] },
     { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
   ],
@@ -37,7 +37,7 @@
     "cardinalities": ["1"],
     "states": ["blank-document", "element-palette-open", "element-placement", "labeled-atom", "saved-document"],
     "inputModes": ["mouse", "keyboard", "native-dialog"],
-    "properties": ["atom.element", "atom.atomic-number", "atom.charge", "atom.label-text", "atom.label-source-text"],
+    "properties": ["atom.element", "atom.atomic-number", "atom.charge", "atom.implicit-hydrogen-label", "atom.label-text", "atom.label-source-text"],
     "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
   }
 }

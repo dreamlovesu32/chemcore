@@ -62,14 +62,14 @@ test("saved-document bond oracle kills order, line-style, weight, and stereo mut
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[2], wideEnd: "begin" }]).passed, false);
 });
 
-test("saved-document node oracle kills element, atomic-number, charge, and label mutants", () => {
+test("saved-document node oracle kills element, charge, implicit-hydrogen-label, and source-label mutants", () => {
   const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
-    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, label: { text: "N", sourceText: "N" } },
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 2, label: { text: "NH2", sourceText: "NH2", meta: { implicitHydrogenLabel: { source: "shortcut", userEdited: false } } } },
   ] } } } }));
-  const expected = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 0, labelText: "N", labelSourceText: "N" }];
+  const expected = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 0, labelText: "NH2", labelSourceText: "NH2" }];
   assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
   for (const mutant of [
-    { element: "C" }, { atomicNumber: 6 }, { charge: 1 }, { labelText: "C" }, { labelSourceText: "C" },
+    { element: "C" }, { atomicNumber: 6 }, { charge: 1 }, { labelText: "N" }, { labelText: "NH" }, { labelSourceText: "N" },
   ]) {
     assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], ...mutant }]).passed, false);
   }

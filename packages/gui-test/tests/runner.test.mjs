@@ -467,7 +467,7 @@ test("the element-label matrix kills wrong-palette, wrong-target, and node-seman
   assert.ok(Math.abs(apply.at.x - 0.37257) < Number.EPSILON);
   assert.equal(apply.completion.selector, '[data-node-id="n_2"]');
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-node-properties").expected, [
-    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, labelText: "N", labelSourceText: "N" },
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, labelText: "NH2", labelSourceText: "NH2" },
   ]);
 });
 
