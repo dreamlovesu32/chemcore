@@ -328,6 +328,8 @@
                   "isotopeMass": { "type": "integer", "minimum": 1, "maximum": 32767 },
                   "isotopicAbundance": { "enum": ["unspecified", "any", "natural", "enriched", "deficient", "nonnatural"] },
                   "atomRadical": { "enum": ["none", "singlet", "doublet", "triplet"] },
+                  "atomNumber": { "type": "string", "minLength": 1, "maxLength": 128 },
+                  "showAtomNumber": { "type": "boolean" },
                   "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }
                 }

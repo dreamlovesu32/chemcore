@@ -42,6 +42,7 @@
     { "id": "source.scenario.core.atom.isotope-preset-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-isotope-preset-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.isotopic-abundance-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-isotopic-abundance-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.radical-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-radical-value-matrix-production.json"] },
+    { "id": "source.scenario.core.atom.number-visibility-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-number-visibility-persistence-production.json"] },
     { "id": "source.scenario.core.atom.periodic-representative-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-representative-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-common-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-common-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-noble-lanthanide-free-placement-production.json"] },
@@ -109,6 +110,7 @@
     { "id": "capability.editor.atom.isotope", "kind": "capability" },
     { "id": "capability.editor.atom.isotopic-abundance", "kind": "capability" },
     { "id": "capability.editor.atom.radical", "kind": "capability" },
+    { "id": "capability.editor.atom.number", "kind": "capability" },
     { "id": "capability.editor.atom.implicit-hydrogen-visibility", "kind": "capability" },
     { "id": "capability.editor.atom.charge-symbol-attachment", "kind": "capability" },
     { "id": "capability.editor.ring.insert", "kind": "capability" },
@@ -159,6 +161,7 @@
     { "id": "scenario.core.atom.isotope-preset-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.isotopic-abundance-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.radical-value-matrix.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.number-visibility-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-representative-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-common-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "scenario" },
@@ -249,6 +252,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.isotope-preset-value-matrix.production", "reason": "Runner, nested atom-property menus, custom dialog input, native save, and exact isotope oracle changes invalidate isotope evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.isotopic-abundance-value-matrix.production", "reason": "Runner, nested atom-property menus, native save, and exact abundance oracle changes invalidate isotopic-abundance evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.radical-value-matrix.production", "reason": "Runner, nested atom-property menus, native save, and exact radical oracle changes invalidate atom-radical evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.number-visibility-persistence.production", "reason": "Runner, atom-property dialogs, annotation visibility checks, native save, and exact atom-number oracle changes invalidate atom-number evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the representative periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the common-value periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the noble/lanthanide matrix." },
@@ -874,5 +878,12 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.radical-value-matrix.production", "reason": "The physical driver uses real right-click menus, nested menu items, Escape, and native Save As." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.radical-value-matrix.production", "reason": "Regenerated checked states for all four values kill missing, swapped, and stale-menu mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.radical-value-matrix.production", "reason": "Exact Triplet enum, atomic number 6, radical-aware CH2 formula, zero bonds, and one molecule object kill lost metadata, defaulting, wrong-enum, stale-formula, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.atom.number", "reason": "Atom context menus, the shared property dialog, visibility toggling, annotation rendering, clearing, and persistence form one public editor capability." }
+    ,{ "from": "capability.editor.atom.radical", "to": "scenario.core.atom.number-visibility-persistence.production", "reason": "The adjacent completed radical closure supplies the trusted standalone Carbon and Atom Properties interaction checkpoint without repeating earlier value matrices." }
+    ,{ "from": "capability.editor.atom.number", "to": "scenario.core.atom.number-visibility-persistence.production", "reason": "The production cell sets 17, hides and shows it, edits to 42, clears it, and finally persists visible 17 semantics." }
+    ,{ "from": "source.scenario.core.atom.number-visibility-persistence.production", "to": "scenario.core.atom.number-visibility-persistence.production", "reason": "Changing the atom-number visibility and persistence cell invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.number-visibility-persistence.production", "reason": "The physical driver uses real right-click menus, public dialogs, annotation observations, and native Save As." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.number-visibility-persistence.production", "reason": "Exact 17/42 annotation text plus hide, show, and clear transitions kill disconnected-dialog, inverted-visibility, stale-render, and wrong-value mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.number-visibility-persistence.production", "reason": "Exact atomNumber=17 and showAtomNumber=true plus Carbon CH4 and one-object counts kill lost-value, hidden-final, display-only, label-rewrite, collapsed-object, and accidental-bond mutants." }
   ]
 }

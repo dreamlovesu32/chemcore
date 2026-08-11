@@ -139,6 +139,8 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       isotopeMass: node?.atomProperties?.isotopeMass ?? node?.atom_properties?.isotope_mass ?? null,
       isotopicAbundance: node?.atomProperties?.isotopicAbundance ?? node?.atom_properties?.isotopic_abundance ?? "unspecified",
       atomRadical: node?.atomProperties?.radical ?? "none",
+      atomNumber: node?.atomProperties?.atomNumber ?? node?.atom_properties?.atom_number ?? null,
+      showAtomNumber: node?.atomProperties?.showAtomNumber ?? node?.atom_properties?.show_atom_number ?? null,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };

@@ -78,6 +78,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.number-visibility-persistence.production",
     "scenario.core.atom.periodic-actinide-early-free-placement.production",
     "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
     "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
@@ -172,6 +173,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.number-visibility-persistence.production",
       "scenario.core.atom.periodic-actinide-early-free-placement.production",
       "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
       "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
@@ -266,6 +268,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.number-visibility-persistence.production",
     "scenario.core.atom.periodic-actinide-early-free-placement.production",
     "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
     "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
@@ -348,6 +351,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.number-visibility-persistence.production",
     "scenario.core.atom.periodic-actinide-early-free-placement.production",
     "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
     "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
@@ -425,6 +429,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.number-visibility-persistence.production",
       "scenario.core.atom.periodic-actinide-early-free-placement.production",
       "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
       "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
@@ -532,6 +537,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-isotope-preset-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-isotopic-abundance-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-radical-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-number-visibility-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
@@ -580,8 +586,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 48);
-  assert.equal(result.summary.scenarios, 78);
+  assert.equal(result.summary.entries, 49);
+  assert.equal(result.summary.scenarios, 79);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -944,6 +950,23 @@ test("the atom radical matrix kills missing values, swapped mappings, stale chec
     [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, atomRadical: "triplet", labelText: "CH2", labelSourceText: "CH2" }],
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-number cell kills disconnected-dialog, inverted-visibility, stale-clear, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-number-visibility-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.number"));
+  assert.equal(scenario.actions.find((action) => action.id === "open-set-atom-number-dialog").target.name, "Set Atom Number…");
+  assert.equal(scenario.actions.find((action) => action.id === "open-edit-atom-number-dialog").target.name, "Edit Atom Number…");
+  assert.equal(scenario.actions.find((action) => action.id === "clear-atom-number").target.name, "Clear Atom Number");
+  assert.equal(scenario.actions.find((action) => action.id === "hide-atom-number").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "show-atom-number").completion.text, "17");
+  assert.equal(scenario.actions.find((action) => action.id === "apply-edited-atom-number-42").completion.text, "42");
+  assert.equal(scenario.actions.find((action) => action.id === "apply-final-atom-number-17").completion.text, "17");
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-numbered-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomNumber: "17", showAtomNumber: true, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-numbered-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
 });
 
 test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {

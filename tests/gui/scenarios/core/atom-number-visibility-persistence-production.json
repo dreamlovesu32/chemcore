@@ -1,0 +1,73 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.atom.number-visibility-persistence.production",
+  "title": "Set, hide, show, edit, clear, and persist an atom number",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "No physical production cell could kill a disconnected Atom Number dialog, lost string values, inverted visibility, stale annotations after clear, or display-only state that was not persisted.",
+  "capabilities": ["gui.public-input", "editor.atom.element", "editor.atom.number", "editor.context-menu", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 23,
+  "actions": [
+    { "id": "open-element-palette-for-carbon", "type": "click", "target": { "strategy": "selector", "value": ".quick-palette-toggle-element[data-quick-palette-mode=\"element\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette.is-open[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-carbon", "type": "click", "target": { "strategy": "selector", "value": ".periodic-element-button[data-element-symbol=\"C\"][data-element-atomic-number=\"6\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette:not(.is-open)[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "place-carbon", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.5, "y": 0.5 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_1\"]", "attribute": "data-node-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-initial-number-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"show-atom-number:true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-set", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-set-atom-number-dialog", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Set Atom Number…", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".atom-property-dialog input[name=\"value\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-atom-number-17", "type": "text", "target": { "strategy": "selector", "value": ".atom-property-dialog input[name=\"value\"]" }, "text": "17", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "apply-atom-number-17", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Apply" }, "completion": { "kind": "dom-text", "selector": "text[data-node-id=\"n_1\"]:last-of-type", "text": "17", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-visible-number-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"show-atom-number:false\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-hide", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "hide-atom-number", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Show Atom Number", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": "text[data-node-id=\"n_1\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-hidden-number-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"show-atom-number:true\"][aria-checked=\"false\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-show", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "show-atom-number", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Show Atom Number", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-node-id=\"n_1\"]:last-of-type", "text": "17", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-number-menu-for-edit", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Edit Atom Number…\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-edit", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-edit-atom-number-dialog", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Edit Atom Number…", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".atom-property-dialog input[name=\"value\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-edited-atom-number-42", "type": "text", "target": { "strategy": "selector", "value": ".atom-property-dialog input[name=\"value\"]" }, "text": "42", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "apply-edited-atom-number-42", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Apply" }, "completion": { "kind": "dom-text", "selector": "text[data-node-id=\"n_1\"]:last-of-type", "text": "42", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-number-menu-for-clear", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Clear Atom Number\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-clear", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "clear-atom-number", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Clear Atom Number", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": "text[data-node-id=\"n_1\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-cleared-number-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Set Atom Number…\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-final-set", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-final-atom-number-dialog", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Set Atom Number…", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".atom-property-dialog input[name=\"value\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-final-atom-number-17", "type": "text", "target": { "strategy": "selector", "value": ".atom-property-dialog input[name=\"value\"]" }, "text": "17", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "apply-final-atom-number-17", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Apply" }, "completion": { "kind": "dom-text", "selector": "text[data-node-id=\"n_1\"]:last-of-type", "text": "17", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "one-numbered-carbon-rendered", "kind": "dom-distinct-count", "selector": "[data-node-id]", "attribute": "data-node-id", "operator": "eq", "value": 1 },
+    { "id": "saved-numbered-carbon-counts", "kind": "document-counts", "expected": { "nodes": 1, "bonds": 0, "molecules": 1, "objects": 1 } },
+    { "id": "saved-numbered-carbon-semantics", "kind": "document-node-properties", "expected": [
+      { "id": "n_1", "element": "C", "atomicNumber": 6, "charge": 0, "numHydrogens": 4, "atomNumber": "17", "showAtomNumber": true, "labelText": "CH4", "labelSourceText": "CH4" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.atom.element", "editor.atom.number", "editor.context-menu", "editor.dialog", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["atom", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "number-unset", "number-visible", "number-hidden", "number-shown", "number-edited", "number-cleared", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["atom.element", "atom.atomic-number", "atom.atom-number", "atom.show-atom-number", "atom.num-hydrogens", "atom.label-text"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}
