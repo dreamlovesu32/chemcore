@@ -398,8 +398,26 @@ try {
       $expression = @"
 (() => {
   const target = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('$targetBase64'), c => c.charCodeAt(0))));
-  const roleOf = (element) => element.getAttribute('role') || ({BUTTON:'button',ASIDE:'complementary',MAIN:'main',TEXTAREA:'textbox',SELECT:'combobox'}[element.tagName] || (element.tagName === 'INPUT' ? (element.type === 'button' || element.type === 'submit' ? 'button' : 'textbox') : null));
-  const nameOf = (element) => element.getAttribute('aria-label') || element.getAttribute('title') || element.textContent?.trim() || '';
+  const inputRoleOf = (element) => ({
+    button:'button', submit:'button', reset:'button', checkbox:'checkbox', radio:'radio',
+    number:'spinbutton', range:'slider', search:'searchbox',
+    email:'textbox', password:'textbox', tel:'textbox', text:'textbox', url:'textbox'
+  }[element.type] || 'textbox');
+  const roleOf = (element) => element.getAttribute('role') || ({BUTTON:'button',ASIDE:'complementary',MAIN:'main',TEXTAREA:'textbox',SELECT:'combobox'}[element.tagName] || (element.tagName === 'INPUT' ? inputRoleOf(element) : null));
+  const labelName = (label) => {
+    const heading = label.querySelector(':scope > span');
+    if (heading?.textContent?.trim()) return heading.textContent.trim();
+    const clone = label.cloneNode(true);
+    clone.querySelectorAll('input, select, textarea, button, option, em').forEach(control => control.remove());
+    return clone.textContent?.trim() || '';
+  };
+  const nameOf = (element) => {
+    const labelledBy = (element.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean)
+      .map(id => document.getElementById(id)?.textContent?.trim() || '').filter(Boolean).join(' ');
+    const associatedLabels = [...(element.labels || [])].map(labelName).filter(Boolean).join(' ');
+    return element.getAttribute('aria-label') || labelledBy || associatedLabels
+      || element.getAttribute('title') || element.getAttribute('placeholder') || element.textContent?.trim() || '';
+  };
   const visibleElement = element => {
     const rect = element.getBoundingClientRect();
     const style = getComputedStyle(element);

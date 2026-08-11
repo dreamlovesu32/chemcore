@@ -429,6 +429,13 @@ test("production semantic targets expose native text and select controls", async
   assert.match(source, /TEXTAREA:'textbox'/);
   assert.match(source, /SELECT:'combobox'/);
   assert.match(source, /element\.tagName === 'INPUT'/);
+  assert.match(source, /number:'spinbutton'/);
+  assert.match(source, /checkbox:'checkbox'/);
+  assert.match(source, /radio:'radio'/);
+  assert.match(source, /element\.labels \|\| \[\]/);
+  assert.match(source, /aria-labelledby/);
+  assert.match(source, /label\.querySelector\(':scope > span'\)/);
+  assert.match(source, /clone\.querySelectorAll\('input, select, textarea, button, option, em'\)/);
 });
 
 test("production entity targets use a real SVG geometry midpoint and retain bounded fallbacks", async () => {

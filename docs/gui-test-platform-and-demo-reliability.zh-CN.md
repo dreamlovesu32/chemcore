@@ -910,6 +910,16 @@ trace 协议现在会在每个普通 guest 动作事务内部写入四个有界�
 
 `qualification-current-22-incomplete.json` 仍有意保持 `failed`：预期 22、通过 1、缺失 21、失败运行 0，重新验证 9 个 evidence 对象且无 evidence 诊断。Bracket 标签、重复次数 Link 关系、分子包含、控制柄缩放、锁定/组合交互、剪贴板、CDXML/CDX 往返和大文档仍开放。
 
+### 原生 Table：结构、单元格格式、历史与精确持久化
+
+登记闭包现已扩展为 23 个场景。`core.table.structure-border-history.production` 通过公开 Table 工具拖出表格，在插入对话框中用真实输入创建 2×2 表格；在第一个单元格的公开右键菜单中使用 Add Row After 与 Add Column After 扩展为 3×3；应用 Right 与 Bottom 对齐；再通过 Borders 对话框设置四条 1.5 pt 黑色虚线边。随后撤销边框事务，重新打开对话框证明原始 Solid/1 pt 状态；重做并再次打开，证明 Dashed/1.5 pt/四边全部恢复；最后通过 Windows 原生对话框保存，并经有界且带 SHA 校验的通道回传文件。
+
+Run `1195e2b8-0ac4-4ed8-8967-9856bd19c6e7` 在候选 `c86f57294f357c804c6f81216fd4bbcb621058f6f0204a3faf59a2f181b9cad6` 上于 375,792 ms 内通过 42/42 个受守卫 OS 输入动作和 3/3 个最终 oracle，诊断为 0。Evidence key `5148a59a42a16d06e7ddf9c9df62ca3be431c437cff3a6dc1bdfd2d8ebba3ec6` 保留 8 个 driver 制品。独立文件 oracle 要求恰好 3 行、3 列、4 个严格递增的行导引、4 个严格递增的列导引、9 个具有 9 个唯一 ID 的单元格，以及第 0 行第 0 列目标单元格精确的 right/bottom 对齐和四份完整 `{visible:true,lineStyle:"dashed",width:1.5,color:"#000000"}` 边框记录。资格过程重新哈希 9 个 evidence 对象共 12,185,546 字节，8-vCPU VM 最终恢复为 `Off`。
+
+完整失败链继续保留。Evidence `11b73d3a93298d0db2c26c2a3d6e4575d636ba8c198f4a897e5a9bcea1240f84` 暴露 production 语义定位器把所有 input 都当成 textbox 且忽略关联 label。Evidence `e1ae62f8d37522914439e7176090a090f200326975adf16b04e26f28a6900b34` 证明 select 的 option 文本污染了 Style 控件名称。通用定位器现在把 number/radio/checkbox/select 映射为正确语义角色，并从 `aria-labelledby` 或排除内部控件与 option 后的关联 label 推导名称；平台回归测试固定了该行为。Evidence `fa9340858144fb518dd099e469ecdd4261999ba4f03e8bd70788478f32dc5a00` 拒绝了只检查 focus 的子菜单假设，尽管截图已证明 Align 子菜单可见；现在由紧随其后的语义 Right/Bottom 动作构成真正的可见性门禁。Evidence `d4150a34148ca7876199cd792a7b44a1ba476fc7ade409f88b3638f62e17c5ca` 证明 ArrowDown 只是在打开的原生 select 中高亮 Dashed，因此场景在检查已提交状态前真实发送 Enter。Evidence `16c819c0231bedaab7c775bd7677b9419cb7fd9f924056d4c23e3979e7cabcdc` 证明 Redo 已恢复四条精确边框，而单单元格 Box 重新打开时必然被反推为数据等价的 All。上述失败均未删除，也没有被改写成重试通过。
+
+`qualification-current-23-incomplete.json` 仍有意保持 `failed`：预期 23、通过 1、缺失 22、失败运行 0，重新验证 9 个 evidence 对象且无 evidence 诊断。非法行列边界、每一种插入/删除位置、单元格内容、Clear Contents、Size To Fit Contents、全部对齐值、none/custom 边集合、边框颜色、锁定、变换、剪贴板、多表格、CDXML/CDX 往返和复杂/large/xlarge 表格仍开放。
+
 ## 22. 上游技术依据
 
 - Tauri WebDriver 与 WebdriverIO：<https://v2.tauri.app/develop/tests/webdriver/>

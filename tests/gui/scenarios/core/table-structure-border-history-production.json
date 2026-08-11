@@ -1,0 +1,93 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.table.structure-border-history.production",
+  "title": "Insert a table, edit its structure and cell properties, verify history, and save exact data",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Native table creation and cell dialogs had no production black-box evidence tying real input to exact structural, alignment, border, history, and CCJS persistence state.",
+  "capabilities": ["gui.public-input", "editor.table.draw", "editor.table.properties", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 22,
+  "actions": [
+    { "id": "activate-table-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Table", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"table\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-table-bounds", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.22, "y": 0.25 }, "to": { "x": 0.72, "y": 0.65 }, "steps": 8, "completion": { "kind": "dom-count", "selector": ".table-insert-dialog:not([hidden])", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "focus-rows", "type": "click", "target": { "strategy": "role", "value": "spinbutton", "name": "Rows" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-rows", "type": "key", "target": { "strategy": "role", "value": "spinbutton", "name": "Rows" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-rows", "type": "text", "target": { "strategy": "role", "value": "spinbutton", "name": "Rows" }, "text": "2", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "focus-columns", "type": "click", "target": { "strategy": "role", "value": "spinbutton", "name": "Columns" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-columns", "type": "key", "target": { "strategy": "role", "value": "spinbutton", "name": "Columns" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-columns", "type": "text", "target": { "strategy": "role", "value": "spinbutton", "name": "Columns" }, "text": "2", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-table-insert", "type": "click", "target": { "strategy": "role", "value": "button", "name": "OK" }, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id=\"obj_table_1\"]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-first-cell-menu-for-row", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "right", "at": { "x": 0.31, "y": 0.34 }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"table-edit\"]", "operator": "gte", "value": 10, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "add-row-after", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Add Row After", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-first-cell-menu-for-column", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "right", "at": { "x": 0.31, "y": 0.31 }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"table-edit\"]", "operator": "gte", "value": 10, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "add-column-after", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Add Column After", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-first-cell-menu-for-horizontal-align", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "right", "at": { "x": 0.28, "y": 0.29 }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Align\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-horizontal-align", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Align", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "align-cell-right", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Right", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-first-cell-menu-for-vertical-align", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "right", "at": { "x": 0.28, "y": 0.29 }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Align\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-vertical-align", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Align", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "align-cell-bottom", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bottom", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-first-cell-menu-for-borders", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "right", "at": { "x": 0.28, "y": 0.29 }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"table-borders-dialog\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-border-dialog", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Borders...", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".table-borders-dialog:not([hidden])", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-box-borders", "type": "click", "target": { "strategy": "role", "value": "radio", "name": "Box" }, "completion": { "kind": "dom-count", "selector": ".table-borders-dialog input[name=\"setting\"][value=\"box\"]:checked", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "focus-border-style", "type": "click", "target": { "strategy": "role", "value": "combobox", "name": "Style" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "highlight-dashed-border", "type": "key", "target": { "strategy": "role", "value": "combobox", "name": "Style" }, "key": "ArrowDown", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "commit-dashed-border", "type": "key", "target": { "strategy": "role", "value": "combobox", "name": "Style" }, "key": "Enter", "completion": { "kind": "dom-count", "selector": ".table-borders-dialog select[name=\"lineStyle\"] option[value=\"dashed\"]:checked", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "focus-border-width", "type": "click", "target": { "strategy": "role", "value": "spinbutton", "name": "Width" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-border-width", "type": "key", "target": { "strategy": "role", "value": "spinbutton", "name": "Width" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-border-width", "type": "text", "target": { "strategy": "role", "value": "spinbutton", "name": "Width" }, "text": "1.5", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "apply-borders", "type": "click", "target": { "strategy": "role", "value": "button", "name": "OK" }, "completion": { "kind": "dom-count", "selector": ".table-borders-dialog", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "undo-borders", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-undo-cell-menu", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "right", "at": { "x": 0.28, "y": 0.29 }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"table-borders-dialog\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-undo-border-dialog", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Borders...", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".table-borders-dialog:has(select[name=\"lineStyle\"] option[value=\"solid\"]:checked):has(input[name=\"width\"][value=\"1\"])", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "cancel-undo-border-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Cancel" }, "completion": { "kind": "dom-count", "selector": ".table-borders-dialog", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-borders", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-redo-cell-menu", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "right", "at": { "x": 0.28, "y": 0.29 }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"table-borders-dialog\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-redo-border-dialog", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Borders...", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".table-borders-dialog:has(input[name=\"setting\"][value=\"all\"]:checked):has(select[name=\"lineStyle\"] option[value=\"dashed\"]:checked):has(input[name=\"width\"][value=\"1.5\"]) input[name=\"side\"]:checked", "operator": "eq", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "cancel-redo-border-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Cancel" }, "completion": { "kind": "dom-count", "selector": ".table-borders-dialog", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "one-table-object-remains", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id=\"obj_table_1\"]", "attribute": "data-object-id", "operator": "eq", "value": 1 },
+    { "id": "saved-table-structure-and-cell-properties", "kind": "document-table-properties", "expected": [{
+      "id": "obj_table_1",
+      "rows": 3,
+      "columns": 3,
+      "cells": [{
+        "row": 0,
+        "column": 0,
+        "horizontalAlignment": "right",
+        "verticalAlignment": "bottom",
+        "borders": {
+          "top": { "visible": true, "lineStyle": "dashed", "width": 1.5, "color": "#000000" },
+          "left": { "visible": true, "lineStyle": "dashed", "width": 1.5, "color": "#000000" },
+          "bottom": { "visible": true, "lineStyle": "dashed", "width": 1.5, "color": "#000000" },
+          "right": { "visible": true, "lineStyle": "dashed", "width": 1.5, "color": "#000000" }
+        }
+      }]
+    }] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.table.draw", "editor.table.properties", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["table"],
+    "cardinalities": ["1", "many"],
+    "states": ["insert-dialog", "2x2", "3x3", "selected-cell", "aligned-right-bottom", "solid-border", "dashed-box-border", "undone", "redone", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "text", "modal-dialog", "native-dialog"],
+    "properties": ["table.rows", "table.columns", "table.row-guides", "table.column-guides", "table.cell-ids", "table.cell.horizontal-alignment", "table.cell.vertical-alignment", "table.cell.borders.visible", "table.cell.borders.line-style", "table.cell.borders.width", "table.cell.borders.color"],
+    "persistenceBoundaries": ["runtime", "history", "filesystem", "native-dialog"]
+  }
+}

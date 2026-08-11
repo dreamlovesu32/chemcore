@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
 
 const validReports = {
   inspect: {
@@ -166,6 +166,34 @@ test("saved-document bracket oracle checks paired group membership and visible s
   assert.equal(evaluateDocumentBracketProperties(wrongHierarchy, expected).passed, false);
   assert.equal(evaluateDocumentBracketProperties(bytes, [{ ...expected[0], children: [{ ...expected[0].children[0], side: "right" }, expected[0].children[1]] }]).passed, false);
   assert.equal(evaluateDocumentBracketProperties(bytes, [{ ...expected[0], children: [{ ...expected[0].children[0], stroke: "#000000" }, expected[0].children[1]] }]).passed, false);
+});
+
+test("saved-document table oracle checks structure, unique cells, guides, alignment, and borders", () => {
+  const border = { visible: true, lineStyle: "dashed", width: 1.5, color: "#000000" };
+  const bytes = Buffer.from(JSON.stringify({
+    entities: { scene: [{
+      id: "obj_table_1",
+      type: "table",
+      payload: { table: {
+        rows: 2,
+        columns: 2,
+        rowGuides: [0, 40, 80],
+        columnGuides: [0, 60, 120],
+        cells: [
+          { id: "c00", row: 0, column: 0, horizontalAlignment: "right", verticalAlignment: "bottom", borders: { top: border, left: border, bottom: border, right: border } },
+          { id: "c01", row: 0, column: 1, horizontalAlignment: "left", verticalAlignment: "middle", borders: {} },
+          { id: "c10", row: 1, column: 0, horizontalAlignment: "left", verticalAlignment: "middle", borders: {} },
+          { id: "c11", row: 1, column: 1, horizontalAlignment: "left", verticalAlignment: "middle", borders: {} },
+        ],
+      } },
+    }] },
+  }));
+  const expected = [{ id: "obj_table_1", rows: 2, columns: 2, cells: [{ row: 0, column: 0, horizontalAlignment: "right", verticalAlignment: "bottom", borders: { top: border, left: border, bottom: border, right: border } }] }];
+  assert.equal(evaluateDocumentTableProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentTableProperties(bytes, [{ ...expected[0], columns: 3 }]).passed, false);
+  const duplicateIds = Buffer.from(bytes.toString("utf8").replace('"id":"c11"', '"id":"c10"'));
+  assert.equal(evaluateDocumentTableProperties(duplicateIds, expected).passed, false);
+  assert.equal(evaluateDocumentTableProperties(bytes, [{ ...expected[0], cells: [{ ...expected[0].cells[0], horizontalAlignment: "center" }] }]).passed, false);
 });
 
 test("saved-document validation is chemical only when a nonempty molecular graph exists", () => {

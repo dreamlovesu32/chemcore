@@ -254,6 +254,64 @@ export function evaluateDocumentBracketProperties(bytes, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentTableProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const scene = Array.isArray(document?.entities?.scene) ? document.entities.scene : [];
+  const observed = expected.map((entry) => {
+    const object = scene.find((candidate) => candidate?.id === entry.id && candidate?.type === "table");
+    const table = object?.payload?.table;
+    const cells = Array.isArray(table?.cells) ? table.cells : [];
+    return {
+      id: entry.id,
+      found: !!object,
+      rows: table?.rows ?? null,
+      columns: table?.columns ?? null,
+      rowGuides: Array.isArray(table?.rowGuides) ? table.rowGuides : [],
+      columnGuides: Array.isArray(table?.columnGuides) ? table.columnGuides : [],
+      cellCount: cells.length,
+      uniqueCellIds: new Set(cells.map((cell) => cell?.id).filter(Boolean)).size,
+      cells: entry.cells.map((wanted) => {
+        const cell = cells.find((candidate) => candidate?.row === wanted.row && candidate?.column === wanted.column);
+        return {
+          row: wanted.row,
+          column: wanted.column,
+          found: !!cell,
+          horizontalAlignment: cell?.horizontalAlignment ?? null,
+          verticalAlignment: cell?.verticalAlignment ?? null,
+          borders: cell?.borders ?? {},
+        };
+      }),
+    };
+  });
+  const strictlyIncreasing = (values) => values.every((value, index) => Number.isFinite(value)
+    && (index === 0 || value > values[index - 1]));
+  const passed = observed.every((actual, index) => {
+    const wanted = expected[index];
+    return actual.found
+      && actual.rows === wanted.rows
+      && actual.columns === wanted.columns
+      && actual.rowGuides.length === wanted.rows + 1
+      && actual.columnGuides.length === wanted.columns + 1
+      && strictlyIncreasing(actual.rowGuides)
+      && strictlyIncreasing(actual.columnGuides)
+      && actual.cellCount === wanted.rows * wanted.columns
+      && actual.uniqueCellIds === actual.cellCount
+      && wanted.cells.every((cell, cellIndex) => {
+        const found = actual.cells[cellIndex];
+        return found?.found
+          && found.horizontalAlignment === cell.horizontalAlignment
+          && found.verticalAlignment === cell.verticalAlignment
+          && Object.entries(cell.borders).every(([side, border]) => JSON.stringify(found.borders?.[side]) === JSON.stringify(border));
+      });
+  });
+  return { passed, observed };
+}
+
 export function validationLevelForDocumentBytes(bytes) {
   try {
     const document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
