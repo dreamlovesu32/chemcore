@@ -812,17 +812,17 @@ test("the alkali and alkaline-earth free-placement matrix kills adjacent-column,
   });
 });
 
-test("the Group 13 and 14 free-placement matrix kills cross-column, late-row, collapsed-object, and accidental-bond mutants", async () => {
+test("the Group 13 and 14 free-placement matrix kills cross-column, late-row, bare-symbol, wrong-valence, collapsed-object, and accidental-bond mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-group-thirteen-fourteen-free-placement-production.json"));
   const expectedValues = [
-    ["aluminum", "Al", 13, "n_1", 0.15, 0.34],
-    ["gallium", "Ga", 31, "n_2", 0.37, 0.34],
-    ["indium", "In", 49, "n_3", 0.59, 0.34],
-    ["thallium", "Tl", 81, "n_4", 0.81, 0.34],
-    ["germanium", "Ge", 32, "n_5", 0.15, 0.64],
-    ["tin", "Sn", 50, "n_6", 0.37, 0.64],
-    ["lead", "Pb", 82, "n_7", 0.59, 0.64],
-    ["flerovium", "Fl", 114, "n_8", 0.81, 0.64],
+    ["aluminum", "Al", 13, "n_1", 0.15, 0.34, 3, "AlH3"],
+    ["gallium", "Ga", 31, "n_2", 0.37, 0.34, 3, "GaH3"],
+    ["indium", "In", 49, "n_3", 0.59, 0.34, 3, "InH3"],
+    ["thallium", "Tl", 81, "n_4", 0.81, 0.34, 3, "TlH3"],
+    ["germanium", "Ge", 32, "n_5", 0.15, 0.64, 4, "GeH4"],
+    ["tin", "Sn", 50, "n_6", 0.37, 0.64, 4, "SnH4"],
+    ["lead", "Pb", 82, "n_7", 0.59, 0.64, 4, "PbH4"],
+    ["flerovium", "Fl", 114, "n_8", 0.81, 0.64, 4, "FlH4"],
   ];
   assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
   assert.deepEqual(
@@ -835,7 +835,7 @@ test("the Group 13 and 14 free-placement matrix kills cross-column, late-row, co
   );
   assert.deepEqual(
     scenario.oracles.find((oracle) => oracle.id === "saved-group-thirteen-fourteen-semantics").expected,
-    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, labelText: element, labelSourceText: element })),
+    expectedValues.map(([, element, atomicNumber, id, , , numHydrogens, labelText]) => ({ id, element, atomicNumber, charge: 0, numHydrogens, labelText, labelSourceText: labelText })),
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-group-thirteen-fourteen-counts").expected, {
     nodes: 8,

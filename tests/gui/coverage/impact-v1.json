@@ -752,6 +752,6 @@
     ,{ "from": "source.scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "to": "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "reason": "Changing the Group 13/14 free-placement matrix invalidates only its evidence." }
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "reason": "The physical driver selects each new Group 13/14 value, places it on blank canvas, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "reason": "Eight exact standalone identities kill dropped placement, duplicate-object, and bonded-only mutants." }
-    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "reason": "Zero bonds, eight normalized molecule objects, and exact Al/Ga/In/Tl/Ge/Sn/Pb/Fl persistence kill cross-column swaps, late-row truncation, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "reason": "Zero bonds, eight normalized molecule objects, exact Al/Ga/In/Tl/Ge/Sn/Pb/Fl persistence, and Group 13 H3 versus Group 14 H4 valence labels kill cross-column swaps, late-row truncation, bare-symbol, wrong-valence, collapsed-object, and accidental-bond mutants." }
   ]
 }

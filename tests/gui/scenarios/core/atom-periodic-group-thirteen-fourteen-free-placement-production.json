@@ -44,14 +44,14 @@
     { "id": "eight-group-thirteen-fourteen-atoms-rendered", "kind": "dom-distinct-count", "selector": "[data-node-id]", "attribute": "data-node-id", "operator": "eq", "value": 8 },
     { "id": "saved-group-thirteen-fourteen-counts", "kind": "document-counts", "expected": { "nodes": 8, "bonds": 0, "molecules": 8, "objects": 8 } },
     { "id": "saved-group-thirteen-fourteen-semantics", "kind": "document-node-properties", "expected": [
-      { "id": "n_1", "element": "Al", "atomicNumber": 13, "charge": 0, "labelText": "Al", "labelSourceText": "Al" },
-      { "id": "n_2", "element": "Ga", "atomicNumber": 31, "charge": 0, "labelText": "Ga", "labelSourceText": "Ga" },
-      { "id": "n_3", "element": "In", "atomicNumber": 49, "charge": 0, "labelText": "In", "labelSourceText": "In" },
-      { "id": "n_4", "element": "Tl", "atomicNumber": 81, "charge": 0, "labelText": "Tl", "labelSourceText": "Tl" },
-      { "id": "n_5", "element": "Ge", "atomicNumber": 32, "charge": 0, "labelText": "Ge", "labelSourceText": "Ge" },
-      { "id": "n_6", "element": "Sn", "atomicNumber": 50, "charge": 0, "labelText": "Sn", "labelSourceText": "Sn" },
-      { "id": "n_7", "element": "Pb", "atomicNumber": 82, "charge": 0, "labelText": "Pb", "labelSourceText": "Pb" },
-      { "id": "n_8", "element": "Fl", "atomicNumber": 114, "charge": 0, "labelText": "Fl", "labelSourceText": "Fl" }
+      { "id": "n_1", "element": "Al", "atomicNumber": 13, "charge": 0, "numHydrogens": 3, "labelText": "AlH3", "labelSourceText": "AlH3" },
+      { "id": "n_2", "element": "Ga", "atomicNumber": 31, "charge": 0, "numHydrogens": 3, "labelText": "GaH3", "labelSourceText": "GaH3" },
+      { "id": "n_3", "element": "In", "atomicNumber": 49, "charge": 0, "numHydrogens": 3, "labelText": "InH3", "labelSourceText": "InH3" },
+      { "id": "n_4", "element": "Tl", "atomicNumber": 81, "charge": 0, "numHydrogens": 3, "labelText": "TlH3", "labelSourceText": "TlH3" },
+      { "id": "n_5", "element": "Ge", "atomicNumber": 32, "charge": 0, "numHydrogens": 4, "labelText": "GeH4", "labelSourceText": "GeH4" },
+      { "id": "n_6", "element": "Sn", "atomicNumber": 50, "charge": 0, "numHydrogens": 4, "labelText": "SnH4", "labelSourceText": "SnH4" },
+      { "id": "n_7", "element": "Pb", "atomicNumber": 82, "charge": 0, "numHydrogens": 4, "labelText": "PbH4", "labelSourceText": "PbH4" },
+      { "id": "n_8", "element": "Fl", "atomicNumber": 114, "charge": 0, "numHydrogens": 4, "labelText": "FlH4", "labelSourceText": "FlH4" }
     ] },
     { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
   ],
