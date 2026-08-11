@@ -50,6 +50,13 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
           errors.push(`Scenario ${scenario.id} action ${action.id} must scope a secondary role target to the Secondary toolbar.`);
         }
       }
+      if (typeof selector === "string" && selector.includes('.quick-palette.is-open[data-mode="element"]')) {
+        const targetIsElementModeToggle = action.target?.strategy === "selector"
+          && action.target.value === '.quick-palette-toggle-element[data-quick-palette-mode="element"]';
+        if (!targetIsElementModeToggle) {
+          errors.push(`Scenario ${scenario.id} action ${action.id} must target the stable Element quick-palette mode toggle.`);
+        }
+      }
     }
   }
   for (const entry of registry.entries.filter((candidate) => candidate.status === "gap")) {

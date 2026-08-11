@@ -6,7 +6,7 @@
 
 当前产品候选：`7714f687f6e74bd1df479c4bd1db61cf45b5a808755e6979eb3a4a25b957a03a`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**35/36 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。环顶点单键续画批次与重建的不可变 35/35 qualification 已通过；首次六元环 Bond 融合运行的 test-locator 失败证据永久保留。现按影响图新增且只排队 Element/原子标签持久化场景。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**35/36 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。环顶点单键续画批次与重建的不可变 35/35 qualification 已通过；六元环 Bond 融合及 Element 首次运行的 test-locator 失败证据永久保留。Element 失败已归类为测试定位器把 quick-palette 模式按钮误当作 Main Drawing Rail 工具，通用规则与 mutation 回归已修复，现只重启受影响的 Element/原子标签持久化场景。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；环顶点单键续画与重建的 35/35 qualification 已通过。六元环 Bond 融合首次 test-locator 失败证据保留；当前只排队新增的 Element/原子标签场景，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；环顶点单键续画与重建的 35/35 qualification 已通过。六元环 Bond 融合及 Element 首次 test-locator 失败证据保留；当前只重启 locator 修复后的 Element/原子标签场景，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -103,7 +103,7 @@
 | ✅ | `core.ring.bond-fusion-persistence.production` | 先真实绘制单键，再于键中点插入六元环，要求共享键去重并持久化为单一六节点环；首次 test-locator 失败证据保留，修复后的精确闭包已通过 |
 | ✅ | `core.ring.endpoint-attachment-persistence.production` | 在已绘制单键的精确端点插入六元环，要求共享一个节点并持久化为 7 节点、7 键、单分子；独立后台实机证据与文件 oracle 已通过 |
 | ✅ | `core.ring.vertex-bond-continuation-persistence.production` | 从已附着六元环的精确外侧顶点继续拖出单键，要求共享环顶点并持久化为 8 节点、8 键、单分子；独立后台实机证据与文件 oracle 已通过 |
-| 🟡 | `core.atom.element-label-persistence.production` | 在 GUI 绘制的单键端点通过公开周期表选择 Nitrogen，要求渲染唯一原子标签并精确持久化元素、原子序数、中性电荷、显示/源标签与拓扑；待独立后台实机证据 |
+| 🟡 | `core.atom.element-label-persistence.production` | 在 GUI 绘制的单键端点通过公开周期表选择 Nitrogen，要求渲染唯一原子标签并精确持久化元素、原子序数、中性电荷、显示/源标签与拓扑；首次运行的错误 rail scope 定位器证据已保留，通用 quick-palette 定位规则修复后待独立后台实机证据 |
 | ✅ | `core.chain.drag-count-persistence.production` | Chain 工具的真实 OS 可变长度拖拽、四键之字形提交、原生保存与精确连通拓扑 |
 | ✅ | `core.chain.endpoint-attachment-continuation.production` | 从已存在端点继续真实 OS Chain 拖拽，要求八键仍为单一九节点分子并精确持久化 |
 | ✅ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
@@ -139,6 +139,8 @@
 六元环端点附着批次 `impact-b2f18ab-ring-endpoint-production-1786450363071` 已通过：10/10 actions、3/3 oracles、0 diagnostics；报告 SHA-256 `7766b621ef38e7f8d1566b2c584c6d4f2c3d16eee57157f1112aba963680bf1d`，manifest SHA-256 `52d06ec3e045c4d5a20f9e907423aa358c6485d3410b9d04d2c56461a0468287`，9 个证据对象共 7,472,199 bytes 全部复算一致。34 份当前报告已合并为不可变 qualification `99fce458-faf1-4a38-a0b4-9336ae9c61f8`：34/34 passed、0 failed、0 missing、0 diagnostics，274 个证据对象共 272,190,133 bytes，qualification SHA-256 为 `e218f96a8de621eafd7018c6a936ef39bb93d07ac1fa0ddfba588f5b9f07e5e9`。
 
 环顶点单键续画批次 `impact-587995c-ring-vertex-continuation-production-1786450892866` 已通过：12/12 actions、4/4 oracles、0 diagnostics；报告 SHA-256 `e98d5d9085b8f2a883ee8097d104bc81f253df7f826fbca0f935c896cfc5aec3`，manifest SHA-256 `077ac9d56c408a095bc73a317a47ef376305372d6e16f5a5179a3209b05e93fc`，9 个证据对象共 7,539,901 bytes 全部复算一致。35 份当前报告已合并为不可变 qualification `ce0eedc8-83e4-4cd2-b25c-5a4bd1629584`：35/35 passed、0 failed、0 missing、0 diagnostics，283 个证据对象共 279,730,034 bytes，qualification SHA-256 为 `adb2eed00f75251590b5328a78a28a0abdf0285ac597a17a5a28abf68e45fe82`。
+
+Element/原子标签首次批次 `impact-a49f068-atom-element-label-production-1786451437924` 在 `open-element-palette` fail closed：场景错误地在 `Main Drawing Rail` 内寻找 `Element` role button，而真实公开控件是 rail 外唯一的 `data-quick-palette-mode="element"` 模式按钮；产品已正确绘制前置单键，故归类为 test-locator failure。失败报告 SHA-256 `02eb9e6a73df3b4d2a90564b1a06e7bef3d7911b0b1d68fccb9b390fb3601962`，manifest SHA-256 `362b514b16819cd00ad83a6da36868614f00262707a779e4495760ca22c79a33`，7 个 failure-retention 证据对象共 7,075,986 bytes 全部复算一致。通用 coverage audit 现强制 Element palette-open 动作使用稳定 mode-toggle selector，并以错误 rail scope mutant 证明可被门禁杀死。
 
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 

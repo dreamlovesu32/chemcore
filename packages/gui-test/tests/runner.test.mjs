@@ -357,6 +357,15 @@ test("coverage audit binds every registered source and scenario", async () => {
   const ambiguousSecondaryResult = await auditCoverage({ registry, scenarios: ambiguousSecondaryScenarios, scenarioPaths });
   assert.equal(ambiguousSecondaryResult.valid, false);
   assert.match(ambiguousSecondaryResult.errors.join("\n"), /must scope a secondary role target to the Secondary toolbar/);
+
+  const wrongPaletteControlScenarios = structuredClone(scenarios);
+  const elementPaletteAction = wrongPaletteControlScenarios
+    .find((scenario) => scenario.id === "core.atom.element-label-persistence.production")
+    .actions.find((action) => action.id === "open-element-palette");
+  elementPaletteAction.target = { strategy: "role", value: "button", name: "Element", scope: { role: "complementary", name: "Main Drawing Rail" } };
+  const wrongPaletteControlResult = await auditCoverage({ registry, scenarios: wrongPaletteControlScenarios, scenarioPaths });
+  assert.equal(wrongPaletteControlResult.valid, false);
+  assert.match(wrongPaletteControlResult.errors.join("\n"), /must target the stable Element quick-palette mode toggle/);
 });
 
 test("the planar ring matrix kills missing and wrong-member-count tool mutants", async () => {
@@ -449,6 +458,10 @@ test("the element-label matrix kills wrong-palette, wrong-target, and node-seman
   const palette = scenario.actions.find((action) => action.id === "open-element-palette");
   const nitrogen = scenario.actions.find((action) => action.id === "choose-nitrogen");
   const apply = scenario.actions.find((action) => action.id === "apply-nitrogen-to-target-endpoint");
+  assert.deepEqual(palette.target, {
+    strategy: "selector",
+    value: '.quick-palette-toggle-element[data-quick-palette-mode="element"]',
+  });
   assert.equal(palette.completion.selector, '.quick-palette.is-open[data-mode="element"]');
   assert.equal(nitrogen.target.value, '.periodic-element-button[data-element-symbol="N"][data-element-atomic-number="7"]');
   assert.ok(Math.abs(apply.at.x - 0.37257) < Number.EPSILON);

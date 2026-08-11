@@ -24,8 +24,11 @@ test("worker profile contains no secret and expands its external credential path
 
 test("production canvas and secondary controls expose stable accessibility locators", async () => {
   const html = await readFile(join(repositoryRoot, "viewer", "index.html"), "utf8");
+  const palette = await readFile(join(repositoryRoot, "viewer", "text_symbol_palette.js"), "utf8");
   assert.match(html, /id="viewer-container"[^>]+role="application"[^>]+aria-label="Drawing canvas"/);
   assert.match(html, /id="secondary-toolbar"[^>]+role="toolbar"[^>]+aria-label="Secondary toolbar"/);
+  assert.match(palette, /elementToggle\.className = "quick-palette-toggle quick-palette-toggle-element"/);
+  assert.match(palette, /elementToggle\.dataset\.quickPaletteMode = "element"/);
 });
 
 test("host attestation verifies identity, services, VM bounds, and encrypted credential", async () => {
