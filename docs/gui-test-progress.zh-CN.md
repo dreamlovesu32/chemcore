@@ -105,7 +105,7 @@
 | ✅ | `core.bond.double-placement-value-matrix.production` | 真实绘制 Double bond，经公开 `Bond Type > Double` 菜单遍历 Left、Right、Center 并检查每次重新生成的 checked 状态，最终精确保存 `double.placement=left`；修复逻辑 bond locator 后的独立后台证据已通过 |
 | ✅ | `core.bond.wedge-endpoint-reversal.production` | 真实绘制 Solid wedge，保持公开楔键工具激活并点击逻辑键中心，要求单一 bond identity 不变且最终精确保存 `stereo.kind=solid-wedge`、`wideEnd=begin`；独立后台证据已通过 |
 | ✅ | `core.bond.center-click-cycle.production` | 真实绘制 Single bond，保持公开 Single 工具激活并在同一逻辑键中心连续点击三次，遍历 Left double、Center、Right double，要求 identity 不变且最终精确保存 `order=2`、`double.placement=right`；独立后台证据 `5655c226c7b36b266b8181b195befdafa68a5c4f5fd4a241836378bcac5ffd46` 已通过，9 个证据对象全部重哈希一致 |
-| 🟡 | `core.bond.dashed-double-center-click-cycle.production` | 真实绘制 Right Dashed-solid double，保持该公开工具激活并在同一逻辑键中心连续点击两次，遍历 Center 与 Left，要求 identity 不变且最终精确保存 `order=2`、`double.placement=left`、左线 dashed、主线/右线 solid；当前待独立后台证据 |
+| 🟡 | `core.bond.dashed-double-center-click-cycle.production` | 真实绘制 Right Dashed-solid double，保持该公开工具激活并在同一逻辑键中心连续点击两次，遍历 Center 与 Left，要求 identity 不变且最终精确保存 `order=2`、`double.placement=left`、左线 dashed、主线/右线 solid；首次运行证据 `276fd4e70ff6756a95840e9b87f05985691504b2a0c3b7893c199f7ab63e63b5` 保留了 7 个重哈希一致的失败对象，根因为测试将 1 个逻辑虚线双键的 7 个 SVG primitive 误写为固定 raw count 2，现改用 distinct `data-bond-id` 并待独立重跑 |
 | ✅ | `core.bond.reaction-participation-history-persistence.production` | 真实绘制单键，经公开 `Bond Query & Reaction > Reaction Participation` 菜单选择 Make and Change，检查选中态与 `Rxn` 注释、撤销/重做，并精确保存 `reactionParticipation=make-and-change`；产品增量 identity 修复后的独立后台闭包已通过 |
 | ✅ | `core.bond.reaction-participation-value-matrix.production` | 从真实单键逐一显式选择 Reaction Center、Unspecified、Make or Break、Change Type、Not Reaction Center、No Change 与 Unmapped，检查每个 checked 状态及 `Rxn` 显隐，最终精确保存 `reactionParticipation=unmapped`；独立后台实机证据已通过 |
 | ✅ | `core.ring.six-planar-persistence.production` | 六种公开平面环的真实 OS 点击、累计拓扑、原生保存与精确节点/键/分子计数 |
@@ -218,10 +218,10 @@ Solid wedge 端点反转批次 `impact-08c904e-bond-wedge-endpoint-reversal-prod
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 54 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 55 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 41 场景已有单候选完整资格；后续独立修复/扩展闭包均保留候选身份并已通过。当前 54 场景 registry 保留全部首次 test/oracle/product 失败，新增 Single bond 中心点击循环场景待证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 41 场景已有单候选完整资格；后续独立修复/扩展闭包均保留候选身份并已通过。当前 55 场景 registry 保留全部首次 test/oracle/product 失败；Single bond 中心点击循环已通过，Dashed-solid double 循环的首次 raw-primitive-count oracle 失败已保留并进入 distinct-identity 修复重跑。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
@@ -229,7 +229,7 @@ Solid wedge 端点反转批次 `impact-08c904e-bond-wedge-endpoint-reversal-prod
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
 1. 🟡 **当前缺陷族与 oracle 收口**：41/41 单候选 qualification 与 Lone pair 独立修复闭包已完成；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
-2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、Chain/环连接、Element/原子标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置与楔键端点反转批次已完成；Template Library 因缺少本机生成且不入库的授权 catalog/CDXML 暂不可执行，当前推进 Single bond 中心点击循环，再继续其他样式族循环。
+2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、Chain/环连接、Element/原子标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、楔键端点反转与 Single bond 中心点击循环批次已完成；Template Library 因缺少本机生成且不入库的授权 catalog/CDXML 暂不可执行，当前修复并重跑 Dashed-solid double 循环，再继续其他样式族循环。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
 5. **文档与外部边界**：多标签、所有格式、恢复、系统剪贴板、Office、文件关联。

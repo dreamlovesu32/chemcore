@@ -850,11 +850,16 @@ test("the Single-tool center-click cycle kills skipped-state, duplicate-bond, an
 test("the Dashed-solid-double center-click cycle kills wrong-side, skipped-Center, and stale-line-style mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-dashed-double-center-click-cycle-production.json"));
   assert.ok(scenario.coverage.features.includes("editor.bond.center-click-cycle"));
-  assert.deepEqual(scenario.actions.filter((action) => action.id.startsWith("cycle-")).map((action) => action.id), [
+  const logicalBondActions = scenario.actions.filter((action) => action.id === "draw-right-dashed-double-cycle-target" || action.id.startsWith("cycle-"));
+  assert.deepEqual(logicalBondActions.filter((action) => action.id.startsWith("cycle-")).map((action) => action.id), [
     "cycle-right-dashed-double-to-center",
     "cycle-center-to-left-dashed-double",
   ]);
-  assert.ok(scenario.actions.filter((action) => action.id.startsWith("cycle-")).every((action) => action.target.value === '[data-bond-id="b_3"]'));
+  assert.ok(logicalBondActions.filter((action) => action.id.startsWith("cycle-")).every((action) => action.target.value === '[data-bond-id="b_3"]'));
+  assert.ok(logicalBondActions.every((action) => action.completion.kind === "dom-distinct-count"));
+  assert.ok(logicalBondActions.every((action) => action.completion.selector === "[data-bond-id]"));
+  assert.ok(logicalBondActions.every((action) => action.completion.attribute === "data-bond-id"));
+  assert.ok(logicalBondActions.every((action) => action.completion.value === 1));
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-left-dashed-double-after-center-cycle").expected, [
     { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "dashed", rightLineStyle: "solid", mainLineWeight: "normal", doublePlacement: "left", stereoKind: null, wideEnd: null },
   ]);
