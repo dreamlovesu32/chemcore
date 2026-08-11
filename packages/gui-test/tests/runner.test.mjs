@@ -93,6 +93,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bond.topology-value-matrix.production",
+    "scenario.core.bond.triple-hash-wavy-center-replacement.production",
     "scenario.core.bond.visibility-value-matrix.production",
     "scenario.core.bond.wedge-endpoint-reversal.production",
     "scenario.core.bracket.three-kind-properties-history.production",
@@ -167,6 +168,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.reaction-participation-value-matrix.production",
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bond.topology-value-matrix.production",
+      "scenario.core.bond.triple-hash-wavy-center-replacement.production",
       "scenario.core.bond.visibility-value-matrix.production",
       "scenario.core.bond.wedge-endpoint-reversal.production",
       "scenario.core.bracket.three-kind-properties-history.production",
@@ -240,6 +242,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bond.topology-value-matrix.production",
+    "scenario.core.bond.triple-hash-wavy-center-replacement.production",
     "scenario.core.bond.visibility-value-matrix.production",
     "scenario.core.bond.wedge-endpoint-reversal.production",
     "scenario.core.bracket.three-kind-properties-history.production",
@@ -301,6 +304,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.reaction-participation-value-matrix.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bond.topology-value-matrix.production",
+    "scenario.core.bond.triple-hash-wavy-center-replacement.production",
     "scenario.core.bond.visibility-value-matrix.production",
     "scenario.core.bond.wedge-endpoint-reversal.production",
     "scenario.core.bracket.three-kind-properties-history.production",
@@ -360,6 +364,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.reaction-participation-value-matrix.production",
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bond.topology-value-matrix.production",
+      "scenario.core.bond.triple-hash-wavy-center-replacement.production",
       "scenario.core.bond.visibility-value-matrix.production",
       "scenario.core.bond.wedge-endpoint-reversal.production",
       "scenario.core.bracket.three-kind-properties-history.production",
@@ -411,6 +416,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "bond-wedge-endpoint-reversal-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-query-order-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-topology-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-triple-hash-wavy-center-replacement-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-visibility-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-value-matrix-production.json"),
@@ -461,7 +467,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 58);
+  assert.equal(result.summary.scenarios, 59);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -866,6 +872,29 @@ test("the Hashed/Hollow wedge cell kills cross-kind, cross-target, recreated-bon
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-reversed-stereo-wedge-semantics").expected, [
     { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "hashed-wedge", wideEnd: "begin" },
     { id: "b_6", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "hollow-wedge", wideEnd: "begin" },
+  ]);
+});
+
+test("the Triple/Hash/Wavy replacement cell kills wrong-style, stale-double, cross-target, and recreated-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-triple-hash-wavy-center-replacement-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.center-click-cycle"));
+  const replacements = scenario.actions.filter((action) => action.id.startsWith("replace-"));
+  assert.deepEqual(replacements.map((action) => action.id), [
+    "replace-first-with-triple",
+    "replace-second-with-hash",
+    "replace-third-with-wavy",
+  ]);
+  assert.deepEqual(replacements.map((action) => action.target.value), [
+    '[data-role="document-bond"][data-bond-id="b_3"]',
+    '[data-role="document-bond"][data-bond-id="b_6"]',
+    '[data-role="document-bond"][data-bond-id="b_9"]',
+  ]);
+  assert.ok(replacements.every((action) => action.completion.kind === "dom-distinct-count"));
+  assert.ok(replacements.every((action) => action.completion.attribute === "data-bond-id" && action.completion.value === 3));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-triple-hash-wavy-replacement-semantics").expected, [
+    { id: "b_3", order: 3, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
+    { id: "b_6", order: 1, mainLineStyle: "hash", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
+    { id: "b_9", order: 1, mainLineStyle: "wavy", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
   ]);
 });
 

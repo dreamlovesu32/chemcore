@@ -2,11 +2,11 @@
 
 最后更新：2026-08-12
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**58**
+登记场景：**59**
 
 当前产品候选：`f5ed7f23b07d0d1b9e67bcbb8119b5de9838bdae983acdc4051d1c2caba80320`（源码闭包 `e9ddd5b915320ccf434aeb186106f38c1816314e38cc0ed1d92492e2052e1c1e`）
 
-当前源码闭包已登记场景资格：**57/58 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen 与 Bond Reaction Participation 的首次失败证据永久保留。Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、Double Bond Left/Right/Center、Solid wedge 端点反转、Single、Dashed-solid double、Dashed bond 及 Bold bond 中心点击循环现已取得独立实机证据；当前影响图选择 Hashed/Hollow wedge 两种尚未独立覆盖的端点反转。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**58/59 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen 与 Bond Reaction Participation 的首次失败证据永久保留。Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、Double Bond Left/Right/Center、三种 wedge 端点反转、Single、Dashed-solid double、Dashed bond 及 Bold bond 中心点击循环现已取得独立实机证据；当前影响图选择 Triple/Hash/Wavy 三种无状态工具对现有 styled double 的中心替换。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；41/41 qualification 及后续独立修复/扩展闭包均已通过。首次 test/oracle/product 失败证据均保留；当前选择 Hashed/Hollow wedge 端点反转精确影响批次，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；41/41 qualification 及后续独立修复/扩展闭包均已通过。首次 test/oracle/product 失败证据均保留；当前选择 Triple/Hash/Wavy 中心替换精确影响批次，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -56,7 +56,7 @@
 
 | 状态 | 功能族 | 已有真实覆盖 | 明确剩余 |
 |---|---|---|---|
-| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen Element/`NH2` 标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen Automatic/Hide、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、Solid wedge 端点反转、Single、Dashed-solid double、Dashed bond 及 Bold bond 中心点击循环已取得真实 OS 输入与精确持久化证据 | Hashed/Hollow wedge 端点反转当前待实机证据；其他元素、其余氢值域、其余样式族中心点击循环、混合选择与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
+| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen Element/`NH2` 标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen Automatic/Hide、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、三种 wedge 端点反转、Single、Dashed-solid double、Dashed bond 及 Bold bond 中心点击循环已取得真实 OS 输入与精确持久化证据 | Triple/Hash/Wavy 现有键中心替换当前待实机证据；其他元素、其余氢值域、混合选择与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
 | 🟡 | Arrow | 多对象属性、锁定混合、属性持久化 | 全部直接绘制预设、所有 head/curve/no-go/color 值、组合/大文档 |
 | 🟡 | Text | 新建、既有编辑、多行、主要样式、行距、取消、历史、持久化 | 局部选区、全部字体/字号/对齐/行距边界、IME/composition、Formula、端点标签、锁定/组合/大文档 |
 | 🟡 | Shape | 四种 kind、五种代表样式、批量样式、历史、持久化 | 全颜色/Faded、控制点、缩放/旋转、锁定/组合/剪贴板、格式与大文档 |
@@ -89,9 +89,9 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 58 个场景
+## 4. 已登记的 59 个场景
 
-所有 58 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 57/58 reusable passed；Single、Dashed-solid double、Dashed bond 及 Bold bond 的中心点击循环均已通过，影响图接着选择 Hashed/Hollow wedge 两种未独立验证的端点反转与精确立体语义持久化分支。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 59 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 58/59 reusable passed；三种 wedge 端点反转及 Single、Dashed-solid double、Dashed bond、Bold bond 中心循环均已通过，影响图接着选择 Triple/Hash/Wavy 三种无状态工具替换现有 dashed double、保持 identity、清除陈旧 double/line 元数据并持久化精确语义。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -104,7 +104,8 @@
 | ✅ | `core.bond.visibility-value-matrix.production` | 在一个真实单键上分别以 Ring、Make and Change 与 Z 驱动 Query/Reaction/Stereo annotation，逐一显式选择三组 Inherit Document Setting、Show、Hide，检查每个 checked 状态及独立显隐，最终精确保存 `showQuery=false`、`showReaction=false`、`showStereo=true`；独立后台实机证据已通过 |
 | ✅ | `core.bond.double-placement-value-matrix.production` | 真实绘制 Double bond，经公开 `Bond Type > Double` 菜单遍历 Left、Right、Center 并检查每次重新生成的 checked 状态，最终精确保存 `double.placement=left`；修复逻辑 bond locator 后的独立后台证据已通过 |
 | ✅ | `core.bond.wedge-endpoint-reversal.production` | 真实绘制 Solid wedge，保持公开楔键工具激活并点击逻辑键中心，要求单一 bond identity 不变且最终精确保存 `stereo.kind=solid-wedge`、`wideEnd=begin`；独立后台证据已通过 |
-| 🟡 | `core.bond.hashed-hollow-wedge-endpoint-reversal.production` | 分别真实绘制 Hashed wedge 与 Hollow wedge，保持各自公开工具激活并点击精确逻辑键中心，要求两个 bond identity 均不变且最终精确保存各自 `stereo.kind` 与 `wideEnd=begin`；这是影响图选择的下一独立功能覆盖批次 |
+| ✅ | `core.bond.hashed-hollow-wedge-endpoint-reversal.production` | 分别真实绘制 Hashed wedge 与 Hollow wedge，保持各自公开工具激活并点击精确逻辑键中心，两个 bond identity 均保持不变且最终精确保存各自 `stereo.kind` 与 `wideEnd=begin`；独立后台证据已通过 |
+| 🟡 | `core.bond.triple-hash-wavy-center-replacement.production` | 真实绘制三个 Dashed-solid double，再以公开 Triple、Hash bond、Wavy bond 工具分别点击精确逻辑中心；要求三个 identity 均不变、陈旧 double placement/虚线 lane 被清除，并精确保存 Triple、Hash、Wavy 最终语义；这是影响图选择的下一独立功能覆盖批次 |
 | ✅ | `core.bond.center-click-cycle.production` | 真实绘制 Single bond，保持公开 Single 工具激活并在同一逻辑键中心连续点击三次，遍历 Left double、Center、Right double，要求 identity 不变且最终精确保存 `order=2`、`double.placement=right`；独立后台证据 `5655c226c7b36b266b8181b195befdafa68a5c4f5fd4a241836378bcac5ffd46` 已通过，9 个证据对象全部重哈希一致 |
 | ✅ | `core.bond.dashed-double-center-click-cycle.production` | 直接真实绘制 Dashed-solid double 的公开默认 Center（右线 dashed）状态，保持工具激活并在同一逻辑键中心连续点击三次，遍历 Left、Center（左线 dashed）与 Right，要求 distinct identity 始终为 1 且最终精确保存 `order=2`、`double.placement=right`、右线 dashed、主线/左线 solid；前三次失败证据永久保留，聚合同 identity 的逻辑中心 locator 修复批次 `impact-4a8b407-bond-logical-center-locator-fix-production-1786470232323` 已完成 11/11 actions、4/4 oracles、0 diagnostics，9 个证据对象共 7,593,195 bytes 全部重哈希一致 |
 | ✅ | `core.bond.dashed-center-click-style-cycle.production` | 先以公开 Single 工具在同一逻辑键上建立 Right double，再激活 Dashed bond 工具并连续点击四次，要求依次经过右外线 dashed、右双线 dashed、Centered 双线 dashed、Left 外线 dashed，distinct identity 始终为 1，最终精确保存 `order=2`、`double.placement=left`、左线 dashed、主线/右线 solid；独立后台批次已完成 15/15 actions、4/4 oracles、0 diagnostics，9 个证据对象全部重哈希一致 |
@@ -222,15 +223,17 @@ Dashed bond 样式循环批次 `impact-b86e17d-bond-dashed-style-cycle-productio
 
 Bold bond 样式循环批次 `impact-3b5aa54-bond-bold-style-cycle-production-1786471276942` 已通过：14/14 actions、4/4 oracles、0 diagnostics；终态、heartbeat、checkpoint、报告、manifest SHA-256 分别为 `7b9dcb8e2b400ef76c02ed2ed85c42dfdd9a38f57af2f0d73a0b3d11f4188a7a`、`fbc9b2d894c655ed2d89b3e6e85bd1f7e19a64ac4d2aa04564ab3a64a6813e34`、`4ab0c126b2dcf76668f6589dde12abc1b3fe37fd7ffb4ae31417d236f`、`f4773f74e04b8038e61acb2d19d35789c27349b1a24cb24da3aaf0db0eb0e309`、`08c68540d9f1e6477226a74a5c3552723a928ba1b78f9217820ecedfd76686e9`；9 个证据对象共 7,754,127 bytes 全部独立复算一致。终态提交 `3b5aa5447b871536238893bbb80945a6ea12cd02`、候选 `f5ed7f23b07d0d1b9e67bcbb8119b5de9838bdae983acdc4051d1c2caba80320`、源码闭包 `e9ddd5b915320ccf434aeb186106f38c1816314e38cc0ed1d92492e2052e1c1e`、profile `502462c2249c63bd6e44a00dacc55a1df5a9b0b194fb5d89ce4df93acd0fe661` 与 queue `fe75c8df2a1e79138141ba23f1fe1d6976d3befa9c195f07fc5a9211e1ee423a` 哈希均匹配；六次公开 Bold bond 中心点击始终保持唯一 `b_3`，最终精确持久化 Right placement、main bold 与全 solid 线型。
 
+Hashed/Hollow wedge 端点反转批次 `impact-41a5acb-bond-stereo-wedge-reversal-production-1786471828235` 已通过：12/12 actions、4/4 oracles、0 diagnostics；终态、heartbeat、checkpoint、报告、manifest SHA-256 分别为 `0ef987199f7b3a1bc72df64582db7a54c34908ddb040e52e03c7454af37d9d4b`、`56d6ccdfac21e6db93a682144ffded5d2f1340b344183402be27ef034f7d2a74`、`71504780085506ce6e412695d0e00180178a3e0fe93ae5b39e121c92f11bdca6`、`40bd9bab4fa1d364ecef98977842d7586861524dc1f3aaf266859667c600da89`、`ac1a08a93d2106de49668e104a3955d3450003473a345a0bf7208f97cea80672`；9 个证据对象共 7,561,881 bytes 全部独立复算一致。终态提交 `41a5acbfc829bd1f2968011b61dafb5cb4a76b1b`、候选 `f5ed7f23b07d0d1b9e67bcbb8119b5de9838bdae983acdc4051d1c2caba80320`、源码闭包 `e9ddd5b915320ccf434aeb186106f38c1816314e38cc0ed1d92492e2052e1c1e`、profile `502462c2249c63bd6e44a00dacc55a1df5a9b0b194fb5d89ce4df93acd0fe661` 与 queue `8769f0425b4a1ebda16c5e938985da7c8a3686c96341e70679bf1327944eb516` 哈希均匹配；精确 `b_3`/`b_6` 中心点击保持两个 identity，最终分别精确持久化 `hashed-wedge`/`hollow-wedge` 与 `wideEnd=begin`。
+
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 58 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 59 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 41 场景已有单候选完整资格；后续独立修复/扩展闭包均保留候选身份并已通过。当前 58 场景 registry 保留全部首次 test/oracle/product 失败；Single bond、Dashed-solid double、Dashed bond 与 Bold bond 循环已通过，Hashed/Hollow wedge 端点反转待独立实机证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 41 场景已有单候选完整资格；后续独立修复/扩展闭包均保留候选身份并已通过。当前 59 场景 registry 保留全部首次 test/oracle/product 失败；Single bond、Dashed-solid double、Dashed bond、Bold bond 循环及三种 wedge 反转已通过，Triple/Hash/Wavy 中心替换待独立实机证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
@@ -238,7 +241,7 @@ Bold bond 样式循环批次 `impact-3b5aa54-bond-bold-style-cycle-production-17
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
 1. 🟡 **当前缺陷族与 oracle 收口**：41/41 单候选 qualification 与 Lone pair 独立修复闭包已完成；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
-2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、Chain/环连接、Element/原子标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、Solid wedge 端点反转、Single bond、Dashed-solid double、Dashed bond 与 Bold bond 中心点击循环批次已完成；Template Library 因缺少本机生成且不入库的授权 catalog/CDXML 暂不可执行，当前执行 Hashed/Hollow wedge 端点反转，再继续其他样式族循环。
+2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、Chain/环连接、Element/原子标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、三种 wedge 端点反转、Single bond、Dashed-solid double、Dashed bond 与 Bold bond 中心点击循环批次已完成；Template Library 因缺少本机生成且不入库的授权 catalog/CDXML 暂不可执行，当前执行 Triple/Hash/Wavy 中心替换，再继续其他绘制主干缺口。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
 5. **文档与外部边界**：多标签、所有格式、恢复、系统剪贴板、Office、文件关联。
@@ -250,7 +253,7 @@ Bold bond 样式循环批次 `impact-3b5aa54-bond-bold-style-cycle-production-17
 
 本清单不是一次性说明：
 
-- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 58 个场景 ID，漏项直接失败。
+- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 59 个场景 ID，漏项直接失败。
 - 每完成一个对象族或发现新的公开缺口，必须同时更新第 3 节状态和“明确剩余”，不能只在长架构文档末尾追加段落。
 - 每产生新候选或 qualification，必须更新页首候选哈希、通过/缺失/失败数和最新证据。
 - 每个本地测试提交必须让本文反映该提交后的真实状态；不得把“场景通过”写成“功能族完成”。
