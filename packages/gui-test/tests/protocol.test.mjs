@@ -127,6 +127,14 @@ test("text selection geometry requires both ink containment and a tight metrics 
   assert.equal(encloses.referenceSelector, tight.referenceSelector);
 });
 
+test("bond selection geometry targets the canonical engine selection role", async () => {
+  const scenario = await readValidatedDocument(frontendSelectionScenarioPath);
+  const bond = scenario.oracles.find((oracle) => oracle.id === "selection-overlay-encloses-rendered-bond");
+  assert.equal(bond.selector, '[data-layer="editor-overlay"] [data-role="selection-bond"]');
+  assert.doesNotMatch(bond.selector, /selection-(bond|node)-box/);
+  assert.deepEqual(bond.uiExpected.rect, { minWidth: 12, minHeight: 12 });
+});
+
 test("selector targets share the bounded DOM selector limit", async () => {
   const scenario = JSON.parse(await readFile(frontendSelectionScenarioPath, "utf8"));
   const openMenu = scenario.actions.find((action) => action.id === "open-text-font-menu");
