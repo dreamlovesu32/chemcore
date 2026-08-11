@@ -87,6 +87,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.double-placement-value-matrix.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
     "scenario.core.bond.query-order-value-matrix.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
@@ -160,6 +161,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.double-placement-value-matrix.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
       "scenario.core.bond.query-order-value-matrix.production",
       "scenario.core.bond.reaction-participation-history-persistence.production",
       "scenario.core.bond.reaction-participation-value-matrix.production",
@@ -232,6 +234,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.dashed-double-center-click-cycle.production",
     "scenario.core.bond.double-placement-value-matrix.production",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
     "scenario.core.bond.query-order-value-matrix.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
@@ -292,6 +295,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.dashed-center-click-style-cycle.production",
     "scenario.core.bond.dashed-double-center-click-cycle.production",
     "scenario.core.bond.double-placement-value-matrix.production",
+    "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
     "scenario.core.bond.query-order-value-matrix.production",
     "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.reaction-participation-value-matrix.production",
@@ -350,6 +354,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.double-placement-value-matrix.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
       "scenario.core.bond.query-order-value-matrix.production",
       "scenario.core.bond.reaction-participation-history-persistence.production",
       "scenario.core.bond.reaction-participation-value-matrix.production",
@@ -402,6 +407,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "bond-dashed-center-click-style-cycle-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-dashed-double-center-click-cycle-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-double-placement-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-hashed-hollow-wedge-endpoint-reversal-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-wedge-endpoint-reversal-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-query-order-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-topology-value-matrix-production.json"),
@@ -455,7 +461,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 57);
+  assert.equal(result.summary.scenarios, 58);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -841,6 +847,25 @@ test("the wedge endpoint-reversal cell kills ignored-click, recreated-bond, and 
   assert.deepEqual(reverse.target, { strategy: "selector", value: '[data-bond-id="b_3"]' });
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-reversed-wedge-semantics").expected, [
     { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "solid-wedge", wideEnd: "begin" },
+  ]);
+});
+
+test("the Hashed/Hollow wedge cell kills cross-kind, cross-target, recreated-bond, and wrong-wide-end mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-hashed-hollow-wedge-endpoint-reversal-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.endpoint-reversal"));
+  const reversals = scenario.actions.filter((action) => action.id.startsWith("reverse-"));
+  assert.deepEqual(reversals.map((action) => action.id), [
+    "reverse-hashed-wedge-at-center",
+    "reverse-hollow-wedge-at-center",
+  ]);
+  assert.deepEqual(reversals.map((action) => action.target.value), [
+    '[data-role="document-bond"][data-bond-id="b_3"]',
+    '[data-role="document-bond"][data-bond-id="b_6"]',
+  ]);
+  assert.deepEqual(reversals.map((action) => action.completion.value), [1, 2]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-reversed-stereo-wedge-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "hashed-wedge", wideEnd: "begin" },
+    { id: "b_6", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "hollow-wedge", wideEnd: "begin" },
   ]);
 });
 
