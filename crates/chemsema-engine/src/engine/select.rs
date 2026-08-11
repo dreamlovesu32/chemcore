@@ -1257,6 +1257,38 @@ impl Engine {
             return false;
         };
         let mut changed = false;
+        if object.payload.extra.get("kind").and_then(JsonValue::as_str) == Some("tlcPlate") {
+            if let Some(lanes) = object
+                .payload
+                .extra
+                .get_mut("lanes")
+                .and_then(JsonValue::as_array_mut)
+            {
+                for lane in lanes {
+                    if let Some(spots) = lane.get_mut("spots").and_then(JsonValue::as_array_mut) {
+                        for spot in spots {
+                            if let Some(spot) = spot.as_object_mut() {
+                                changed |= set_style_string(spot, "color", color);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(gel) = object.payload.gel_electrophoresis.as_mut() {
+            if gel.color != color {
+                gel.color = color.to_string();
+                changed = true;
+            }
+            for lane in &mut gel.lanes {
+                for band in &mut lane.bands {
+                    if band.color != color {
+                        band.color = color.to_string();
+                        changed = true;
+                    }
+                }
+            }
+        }
         match object.object_type.as_str() {
             "bracket" => {
                 changed |= set_payload_string(&mut object.payload.extra, "stroke", color);

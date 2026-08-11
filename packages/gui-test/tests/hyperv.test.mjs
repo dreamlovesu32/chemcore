@@ -22,9 +22,10 @@ test("worker profile contains no secret and expands its external credential path
   );
 });
 
-test("production canvas exposes a stable accessibility locator", async () => {
+test("production canvas and secondary controls expose stable accessibility locators", async () => {
   const html = await readFile(join(repositoryRoot, "viewer", "index.html"), "utf8");
   assert.match(html, /id="viewer-container"[^>]+role="application"[^>]+aria-label="Drawing canvas"/);
+  assert.match(html, /id="secondary-toolbar"[^>]+role="toolbar"[^>]+aria-label="Secondary toolbar"/);
 });
 
 test("host attestation verifies identity, services, VM bounds, and encrypted credential", async () => {

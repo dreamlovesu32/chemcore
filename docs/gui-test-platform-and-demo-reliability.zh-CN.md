@@ -4,6 +4,8 @@
 
 本文与以下规范共同组成质量体系：
 
+- [GUI 完整测试总清单与进度](./gui-test-progress.zh-CN.md)集中列出完成状态、剩余边界、当前候选和固定执行顺序；
+
 - [发布质量矩阵](./release-quality.zh-CN.md)定义公开能力的可信度和发布边界；
 - [Windows 桌面端与 Office 集成长期架构](./windows-desktop-office-architecture.zh-CN.md)定义产品运行时边界；
 - [核心契约审计](./core-contract-audit-2026-07-23.zh-CN.md)定义 engine、viewer、desktop 和 Office 之间不得漂移的责任；
@@ -929,6 +931,18 @@ Run `1195e2b8-0ac4-4ed8-8967-9856bd19c6e7` 在候选 `c86f57294f357c804c6f81216f
 Run `2b994b97-de4f-4a73-8ff9-9302c1e4812f` 在候选 `6351dec771567fc57118994aec5071221a8132a204c3724edb2893f00d2d9425` 上于 361,391 ms 内通过 39/39 个真实 OS 输入动作和 3/3 个最终 oracle，诊断为 0。Evidence key `04f4b0073e746810af55b717b9efa2ce4d25c8615a1d85b4debb090a806fd366` 保留 8 个 driver 制品。独立 oracle 要求七个精确轨道 ID、`dz2`/Filled/Plus/黑色 payload、有限且非零的轴几何、不存在陈旧椭圆字段，以及精确 Filled 样式。首轮失败 evidence `9d6f91266c6e349fc64a7a8bad9e1a31aea0533cff6b267c46b6e278950fe44a` 被完整保留：测试曾错误假定只有一个预设按钮高亮，而公开工具栏会同时高亮模板预设与匹配样式预设；修正后的断言明确要求两个，没有抹去首轮失败。8-vCPU、20-GiB VM 最终恢复为 `Off`，分配内存为 0。
 
 `qualification-current-24-incomplete.json` 仍有意保持 `failed`：预期 24、通过 1、缺失 23。颜色、每一种独立样式/相位组合、原子与标签附着、变换、锁定、组合、剪贴板、多轨道交互、CDXML/CDX 往返、复杂/large/xlarge 文档、环境/故障/模型/变异覆盖、耐久和连续 1,000 次展示资格仍是明确待办。
+
+### 原生色谱：TLC/凝胶创建、标记编辑、颜色事务与持久化
+
+登记闭包现包含 25 个场景。`core.chromatography.tlc-gel-mark-color-history.production` 从空白文档开始，经具名二级工具栏选择两种公开色谱子工具，真实绘制一块原生 TLC 板和一块原生凝胶电泳板；全选两块 12 泳道对象，并通过公开 Color 菜单批量设为 Blue。场景随后把第七个 TLC 斑点从 RF 0.15 拖到 0.50，把第七个凝胶条带从 0.50 拖到 0.75；每次标记移动都真实执行撤销和重做，最后通过 Windows 原生对话框保存。独立文件 oracle 要求两个精确对象 ID/kind、每块板 12 条泳道、TLC offset 严格递增、24 个内部标记及两个外框全部为 `#0000ff`、两个移动值精确且所有未移动值保持不变，并且四个 TLC 显示开关仍全部启用。
+
+本单元关闭了两个产品缺陷和一个无障碍边界。公开 Color 此前只修改板外框，显式 TLC 斑点和凝胶条带颜色会陈旧；引擎现在在同一个可撤销事务中同步更新外框与全部内部颜色。TLC/凝胶 payload kind 此前也没有进入 Shape 命中分类，因此用户右键真实可见的斑点或条带仍得到空白画布菜单；现在两者按矩形 Shape 参与选择和上下文命中，并有未选中/已选中 TLC 与凝胶的精确回归。视觉上独立的二级控件此前还缺少 toolbar role，导致主 TLC 按钮与 TLC 子工具语义重名；production 表面现公开 `role="toolbar"` 和稳定名称 `Secondary toolbar`，场景的两次子工具选择都严格限定在该范围内。
+
+运行 `32dfb9e7-5301-443d-821e-5e7f8f495b40` 在候选 `94e5c602dd6297b5e78fe1ee7893fb311c252c62ab99a80ecb15dd9e6226bca6` 上于 294,968 ms 内通过 23/23 个受守卫真实 OS 输入动作和 3/3 个最终 oracle，诊断为 0。Evidence key `f55b0142255084f8a3df86011851ba658c28bc9e408ef56c84fda1da8d3acd1a` 保留 8 个 driver 制品，其中 6,933 字节保存 CCJS 的 SHA-256 为 `143848b8cece981c7d8c75653484941d61247550ab04b7707a4f380cbe6a4ea0`。8-vCPU VM 最终恢复为 `Off`，分配内存为 0。
+
+失败链完整保留。Evidence `f77bd73658edc51f4c393c0e5eda04abf56acdc392df8f0976ec19b071dc45e0` 拒绝了未限定范围且重名的 TLC 子工具。Evidence `cbafa36968e61af995b940976e573f268dbcdbe6ff88d67849ea4b391f6681aa` 与 `97db8d80db13a215c60f9268a3fb38ab41dc564e8b9b5d6aafad1be0885812e8` 证明 SVG 几何中点和无填充板内部空白点都会打开空白画布菜单。Evidence `127ed2378a09fccbafb7cec96b2561b3e6826cf28e1ebcd2784a9c10b8d69611` 随后把真实指针直接落在可见 TLC 斑点上，暴露产品命中缺陷；该失败没有被改写成坐标重试，而是经引擎修复产生新的候选哈希。
+
+`qualification-current-25-incomplete.json` 仍有意保持 `failed`：预期 25、通过 1、缺失 24、失败运行 0；重新校验 9 个 evidence 对象共 10,207,716 字节，且无 evidence 诊断。其他 TLC 显示开关取值、泳道/标记增删、单泳道多标记、凝胶标签及条带宽度/高度/可见性/值域、变换、锁定、组合、剪贴板、导入导出往返、复杂/large/xlarge 色谱文档、环境/故障/模型/变异覆盖、耐久和连续 1,000 次展示资格仍是明确待办。
 
 ## 22. 上游技术依据
 

@@ -11,7 +11,7 @@
 | Office/OLE 复制与嵌入 | Beta | 剪贴板 payload、EMF preview、Word 粘贴/回读验证 |
 | 浏览器编辑器 | Beta | viewer 交互 smoke test 和用户路径稳定性脚本 |
 | 桌面端 | Beta | Tauri build、文件关联配置、hybrid latency 回归、安装验证 |
-| GUI 测试平台 | 实施中/现有 24 个登记场景在既有 production 鼠标、键盘、原生保存/打开、多对象、组合、箭头、文本、Shape、Symbol、Bracket 与 Table 单元之外，新增全部七种公开轨道模板、批量模板/样式/相位、双向几何迁移、历史与精确持久化；当前 24 场景候选资格有意保持红灯，为通过 1、缺失 23 | 版本化 Schema/runner/资格 manifest、真实 Playwright 与隔离 Hyper-V production 路径、精确影响/资源门禁、内容寻址候选、受守卫 UIA/CDP 定位、真实输入、相互独立的产品与传输窗口、原生保存/重开、独立 CCJS 化学/属性/几何/层级/Table oracle、选择/剪贴板/历史/锁定/组合、trace 归因、先失败后通过仍阻断的汇总、受 root 约束的证据重哈希、有界 bundle 及 guest/host SHA-256 验证已运行；轨道单元通过 39/39 个真实动作与 3/3 个 oracle，证明七个对象全部保留并精确持久化迁移后的几何与样式；完整功能—对象—属性—值域与 `0/1/2/many` 矩阵、复杂/large/xlarge 构建、环境/模型/故障/变异覆盖、耐久、连续 1,000 次展示资格和最终安装包资格仍待完成 |
+| GUI 测试平台 | 实施中；[总清单与进度](./gui-test-progress.zh-CN.md)登记 25 个场景，当前候选资格为通过 1、缺失 24、整体红灯；最新单元覆盖原生 TLC/凝胶创建、可访问的二级工具选择、多板批量颜色、内部斑点/条带精确拖动、历史与持久化 | 版本化 Schema/runner/资格 manifest、真实 Playwright 与隔离 Hyper-V production 路径、精确影响/资源门禁、内容寻址候选、受守卫 UIA/CDP 定位、真实输入、相互独立的产品与传输窗口、原生保存/重开、独立 CCJS 化学/属性/几何/层级/Table/色谱 oracle、选择/剪贴板/历史/锁定/组合、trace 归因、先失败后通过仍阻断的汇总、受 root 约束的证据重哈希、有界 bundle 及 guest/host SHA-256 验证已运行；色谱单元通过 23/23 个真实动作与 3/3 个 oracle，证明两块 12 泳道板、精确移动后的标记值及外框/内部颜色同步持久化；完整功能—对象—属性—值域与 `0/1/2/many` 矩阵、复杂/large/xlarge 构建、环境/模型/故障/变异覆盖、耐久、连续 1,000 次展示资格和最终安装包资格仍待完成 |
 | CLI one-shot 命令 | Usable | Rust 测试、`npm run verify`、稳定性报告、输出写入验证 |
 | CLI JSONL session | Experimental/usable | session 单测和大文件性能报告 |
 | Agent 精确截图 | Usable beta | PNG/SVG capture 测试、公开 fixture crop、README 示例图 |

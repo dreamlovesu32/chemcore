@@ -37,6 +37,7 @@
     { "id": "source.scenario.core.bracket.three-kind-properties-history.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/bracket-three-kind-properties-history-production.json"] },
     { "id": "source.scenario.core.table.structure-border-history.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/table-structure-border-history-production.json"] },
     { "id": "source.scenario.core.orbital.seven-template-properties-history.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/orbital-seven-template-properties-history-production.json"] },
+    { "id": "source.scenario.core.chromatography.tlc-gel-mark-color-history.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chromatography-tlc-gel-mark-color-history-production.json"] },
     { "id": "source.scenario.core.document.save-open-roundtrip.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/save-open-roundtrip-production.json"] },
     { "id": "source.runtime-dependencies", "kind": "source", "patterns": ["Cargo.lock", "package.json", "package-lock.json"] },
     { "id": "source.test-entrypoints", "kind": "source", "patterns": ["scripts/test.mjs", "scripts/verify.mjs"] },
@@ -60,6 +61,8 @@
     { "id": "capability.editor.table.properties", "kind": "capability" },
     { "id": "capability.editor.orbital.draw", "kind": "capability" },
     { "id": "capability.editor.orbital.properties", "kind": "capability" },
+    { "id": "capability.editor.chromatography.draw", "kind": "capability" },
+    { "id": "capability.editor.chromatography.properties", "kind": "capability" },
     { "id": "capability.editor.history.undo-redo", "kind": "capability" },
     { "id": "capability.editor.selection.select-all", "kind": "capability" },
     { "id": "capability.editor.selection.region", "kind": "capability" },
@@ -105,6 +108,7 @@
     { "id": "scenario.core.bracket.three-kind-properties-history.production", "kind": "scenario" },
     { "id": "scenario.core.table.structure-border-history.production", "kind": "scenario" },
     { "id": "scenario.core.orbital.seven-template-properties-history.production", "kind": "scenario" },
+    { "id": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "kind": "scenario" },
     { "id": "scenario.core.document.save-open-roundtrip.production", "kind": "scenario" }
   ],
   "edges": [
@@ -140,6 +144,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.bracket.three-kind-properties-history.production", "reason": "Runner, guarded bracket input, nested property targeting, history, native save, and document-property oracle changes invalidate bracket evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.table.structure-border-history.production", "reason": "Runner, guarded modal input, cell hit targeting, context menus, history, native save, and document-property oracle changes invalidate table evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.orbital.seven-template-properties-history.production", "reason": "Runner, guarded orbital input, nested property targeting, history, native save, and document-property oracle changes invalidate orbital evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "Runner, guarded chromatography input, mark dragging, history, native save, and document-property oracle changes invalidate chromatography evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.document.save-open-roundtrip.production", "reason": "Runner and native-boundary changes invalidate production save/open evidence." },
     { "from": "source.scenario.core.bond.draw-single", "to": "scenario.core.bond.draw-single", "reason": "Changing the scenario invalidates its evidence." },
     { "from": "source.scenario.core.bond.draw-single.production", "to": "scenario.core.bond.draw-single.production", "reason": "Changing the production scenario invalidates its evidence." },
@@ -164,6 +169,7 @@
     { "from": "source.scenario.core.bracket.three-kind-properties-history.production", "to": "scenario.core.bracket.three-kind-properties-history.production", "reason": "Changing the paired bracket property/history scenario invalidates its evidence." },
     { "from": "source.scenario.core.table.structure-border-history.production", "to": "scenario.core.table.structure-border-history.production", "reason": "Changing the native table structure/property scenario invalidates its evidence." },
     { "from": "source.scenario.core.orbital.seven-template-properties-history.production", "to": "scenario.core.orbital.seven-template-properties-history.production", "reason": "Changing the seven-template orbital property/history scenario invalidates its evidence." },
+    { "from": "source.scenario.core.chromatography.tlc-gel-mark-color-history.production", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "Changing the TLC/gel mark/property/history scenario invalidates its evidence." },
     { "from": "source.scenario.core.document.save-open-roundtrip.production", "to": "scenario.core.document.save-open-roundtrip.production", "reason": "Changing the save/open roundtrip scenario invalidates its evidence." },
     { "from": "component.editor-interaction", "to": "capability.editor.bond.draw", "reason": "Bond drawing is an editor interaction capability." },
     { "from": "capability.editor.bond.draw", "to": "scenario.core.bond.draw-single", "reason": "The scenario provides real-user-path evidence for bond drawing." },
@@ -177,6 +183,8 @@
     { "from": "component.editor-interaction", "to": "capability.editor.table.properties", "reason": "Table editing crosses exact cell hit testing, public context menus and border dialogs, structural mutation, formatting, and history." },
     { "from": "component.editor-interaction", "to": "capability.editor.orbital.draw", "reason": "Orbital drawing crosses toolbar template presets, guarded drag input, template-specific geometry, and rendering." },
     { "from": "component.editor-interaction", "to": "capability.editor.orbital.properties", "reason": "Orbital editing crosses homogeneous multi-selection, public nested menus, geometry representation migration, styling, phase, and history." },
+    { "from": "component.editor-interaction", "to": "capability.editor.chromatography.draw", "reason": "Chromatography drawing crosses public TLC/gel presets, guarded drags, native lane/mark models, and rendering." },
+    { "from": "component.editor-interaction", "to": "capability.editor.chromatography.properties", "reason": "Chromatography editing crosses internal spot/band hit testing, public color, mark movement, persistence, and history." },
     { "from": "component.editor-interaction", "to": "capability.editor.history.undo-redo", "reason": "Undo and redo are editor interaction capabilities." },
     { "from": "component.editor-interaction", "to": "capability.editor.group.locked-ancestor", "reason": "Effective lock inheritance is an editor hierarchy and interaction capability." },
     { "from": "capability.editor.bond.draw", "to": "scenario.core.history.undo-redo-bond.production", "reason": "The history scenario creates its bond through real OS input." },
@@ -228,6 +236,11 @@
     { "from": "capability.editor.selection.select-all", "to": "scenario.core.orbital.seven-template-properties-history.production", "reason": "Ctrl+A establishes and restores the seven-orbital batch target across history." },
     { "from": "capability.editor.history.undo-redo", "to": "scenario.core.orbital.seven-template-properties-history.production", "reason": "Undo restores mixed phases and redo restores uniform plus phase without losing any orbital." },
     { "from": "capability.document.save-as", "to": "scenario.core.orbital.seven-template-properties-history.production", "reason": "The final seven-orbital result is written through public Save As and the native Windows dialog." },
+    { "from": "capability.editor.chromatography.draw", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "Native TLC and gel plates are created from a blank document through real guarded drags." },
+    { "from": "capability.editor.chromatography.properties", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "Public color and direct mark drags update frames, internal spots/bands, Rf, and gel values." },
+    { "from": "capability.editor.selection.select-all", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "Ctrl+A establishes the two-plate color target." },
+    { "from": "capability.editor.history.undo-redo", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "TLC spot and gel band moves are independently undone and redone." },
+    { "from": "capability.document.save-as", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "The final chromatography document is written through public Save As and the native Windows dialog." },
     { "from": "capability.editor.arrow.draw", "to": "scenario.core.arrow.property-matrix-persistence.production", "reason": "The scenario creates both persisted property targets through real guarded pointer input." },
     { "from": "capability.editor.arrow.properties", "to": "scenario.core.arrow.property-matrix-persistence.production", "reason": "Public nested menus edit variant, size, curve, no-go, endpoint, line style, and color through field-level commands." },
     { "from": "capability.editor.selection.select-all", "to": "scenario.core.arrow.property-matrix-persistence.production", "reason": "Ctrl+A establishes the uniform two-arrow target for every property transaction." },
@@ -337,6 +350,7 @@
     { "from": "driver.production-black-box", "to": "scenario.core.bracket.three-kind-properties-history.production", "reason": "The isolated guest driver executes three pair creations, batch type/color editing, history, and native save through guarded OS input." },
     { "from": "driver.production-black-box", "to": "scenario.core.table.structure-border-history.production", "reason": "The isolated guest driver executes table insertion, exact cell menus, modal property editing, history, and native save through guarded OS input." },
     { "from": "driver.production-black-box", "to": "scenario.core.orbital.seven-template-properties-history.production", "reason": "The isolated guest driver executes seven orbital toolbar presets, drag creation, batch template/style/phase editing, history, and native save through guarded OS input." },
+    { "from": "driver.production-black-box", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "The isolated guest driver executes TLC/gel creation, internal mark drags, batch color, history, and native save through guarded OS input." },
     { "from": "driver.production-black-box", "to": "scenario.core.document.save-open-roundtrip.production", "reason": "The isolated guest driver executes WebView and native-dialog actions with guarded OS input." },
     { "from": "oracle.dom", "to": "scenario.core.bond.draw-single", "reason": "The scenario checks the rendered bond through the DOM oracle." },
     { "from": "oracle.dom", "to": "scenario.core.bond.draw-single.production", "reason": "The production scenario checks the rendered bond through an independent CDP oracle." },
@@ -361,6 +375,7 @@
     { "from": "oracle.dom", "to": "scenario.core.bracket.three-kind-properties-history.production", "reason": "Independent DOM observations prove six distinct visible sides, toolbar kinds, mixed/uniform properties, selection, and history transitions." },
     { "from": "oracle.dom", "to": "scenario.core.table.structure-border-history.production", "reason": "Independent DOM observations prove the table, cell menus, modal states, edge selection, and undo/redo transitions." },
     { "from": "oracle.dom", "to": "scenario.core.orbital.seven-template-properties-history.production", "reason": "Independent DOM observations prove all seven distinct orbitals remain rendered through template geometry migration and phase history transitions." },
+    { "from": "oracle.dom", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "Independent DOM observations prove both plates remain rendered through color and mark history transitions." },
     { "from": "oracle.dom", "to": "scenario.core.document.save-open-roundtrip.production", "reason": "The scenario checks live bond counts before save, after modification, after reopen, and after continued editing." },
     { "from": "oracle.document-file", "to": "scenario.core.document.save-open-roundtrip.production", "reason": "The saved CCJS is transferred with double SHA-256 verification and parsed by the release CLI outside the app process." },
     { "from": "oracle.document-file", "to": "scenario.core.arrow.property-matrix-persistence.production", "reason": "The validated saved CCJS is independently checked for exact per-arrow property and color values." },
@@ -372,5 +387,6 @@
     { "from": "oracle.document-file", "to": "scenario.core.bracket.three-kind-properties-history.production", "reason": "The validated saved CCJS is independently checked for three paired roots and six exact kind/side/stroke child records." },
     { "from": "oracle.document-file", "to": "scenario.core.table.structure-border-history.production", "reason": "The validated saved CCJS is independently checked for exact dimensions, monotonic guides, unique cell IDs, alignment, and four complete border records." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.orbital.seven-template-properties-history.production", "reason": "The validated saved CCJS is independently checked for seven exact orbital payloads, nonzero finite dz2 axis geometry, and matching filled style fields." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "The validated saved CCJS is independently checked for exact TLC/gel lanes, marks, display flags, and internal colors." }
   ]
 }

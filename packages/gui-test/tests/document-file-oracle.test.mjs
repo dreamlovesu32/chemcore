@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
 
 const validReports = {
   inspect: {
@@ -153,6 +153,30 @@ test("saved-document orbital oracle checks exact properties and template-compati
   assert.equal(evaluateDocumentOrbitalProperties(zeroAxis, expected).passed, false);
   const staleEllipseGeometry = Buffer.from(JSON.stringify({ ...document, entities: { scene: [{ ...document.entities.scene[0], payload: { ...document.entities.scene[0].payload, center: [30, 40] } }] } }));
   assert.equal(evaluateDocumentOrbitalProperties(staleEllipseGeometry, expected).passed, false);
+});
+
+test("saved-document chromatography oracle checks TLC and gel marks plus internal colors", () => {
+  const bytes = Buffer.from(JSON.stringify({
+    styles: { tlc_style: { stroke: "#0000ff", fill: null }, gel_style: { stroke: "#0000ff", fill: null } },
+    entities: { scene: [
+      { id: "obj_shape_1", type: "shape", styleRef: "tlc_style", payload: { kind: "tlcPlate", showOrigin: true, showSolventFront: true, showBorders: true, showSideTicks: true, lanes: [
+        { offset: 0.25, spots: [{ rf: 0.15, color: "#0000ff" }] },
+        { offset: 0.75, spots: [{ rf: 0.5, color: "#0000ff" }] },
+      ] } },
+      { id: "obj_shape_2", type: "shape", styleRef: "gel_style", payload: { kind: "gelPlate", gelElectrophoresis: { color: "#0000ff", lanes: [
+        { bands: [{ value: 0.5, color: "#0000ff" }] },
+        { bands: [{ value: 0.75, color: "#0000ff" }] },
+      ] } } },
+    ] },
+  }));
+  const expected = [
+    { id: "obj_shape_1", kind: "tlcPlate", laneCount: 2, firstMarkValues: [0.15, 0.5], color: "#0000ff", showOrigin: true, showSolventFront: true, showBorders: true, showSideTicks: true },
+    { id: "obj_shape_2", kind: "gelPlate", laneCount: 2, firstMarkValues: [0.5, 0.75], color: "#0000ff" },
+  ];
+  assert.equal(evaluateDocumentChromatographyProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentChromatographyProperties(bytes, [{ ...expected[0], firstMarkValues: [0.15, 0.6] }, expected[1]]).passed, false);
+  const staleBand = Buffer.from(bytes.toString("utf8").replace('"value":0.75,"color":"#0000ff"', '"value":0.75,"color":"#ff0000"'));
+  assert.equal(evaluateDocumentChromatographyProperties(staleBand, expected).passed, false);
 });
 
 test("saved-document symbol oracle checks exact kind and both persisted color surfaces", () => {

@@ -232,6 +232,64 @@ export function evaluateDocumentOrbitalProperties(bytes, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentChromatographyProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const scene = Array.isArray(document?.entities?.scene) ? document.entities.scene : [];
+  const styles = document?.styles && typeof document.styles === "object" ? document.styles : {};
+  const observed = expected.map((entry) => {
+    const object = scene.find((candidate) => candidate?.id === entry.id
+      && candidate?.type === "shape"
+      && candidate?.payload?.kind === entry.kind);
+    const style = styles[object?.styleRef] || {};
+    if (entry.kind === "tlcPlate") {
+      const lanes = Array.isArray(object?.payload?.lanes) ? object.payload.lanes : [];
+      return {
+        id: entry.id,
+        found: !!object,
+        kind: object?.payload?.kind ?? null,
+        laneCount: lanes.length,
+        offsetsValid: lanes.length > 0 && lanes.every((lane, index) => Number.isFinite(lane?.offset)
+          && lane.offset > 0 && lane.offset < 1 && (index === 0 || lane.offset > lanes[index - 1].offset)),
+        firstMarkValues: lanes.map((lane) => lane?.spots?.[0]?.rf ?? null),
+        markColors: lanes.flatMap((lane) => lane?.spots || []).map((spot) => spot?.color ?? null),
+        color: style.stroke ?? null,
+        showOrigin: object?.payload?.showOrigin ?? null,
+        showSolventFront: object?.payload?.showSolventFront ?? null,
+        showBorders: object?.payload?.showBorders ?? null,
+        showSideTicks: object?.payload?.showSideTicks ?? null,
+      };
+    }
+    const gel = object?.payload?.gelElectrophoresis;
+    const lanes = Array.isArray(gel?.lanes) ? gel.lanes : [];
+    return {
+      id: entry.id,
+      found: !!object,
+      kind: object?.payload?.kind ?? null,
+      laneCount: lanes.length,
+      offsetsValid: lanes.length > 0,
+      firstMarkValues: lanes.map((lane) => lane?.bands?.[0]?.value ?? null),
+      markColors: lanes.flatMap((lane) => lane?.bands || []).map((band) => band?.color ?? null),
+      color: gel?.color ?? null,
+      showOrigin: null,
+      showSolventFront: null,
+      showBorders: null,
+      showSideTicks: null,
+    };
+  });
+  const passed = observed.every((actual, index) => actual.found
+    && actual.offsetsValid
+    && actual.markColors.length >= actual.laneCount
+    && actual.markColors.every((color) => color === expected[index].color)
+    && Object.entries(expected[index]).every(([name, value]) => name === "id"
+      || JSON.stringify(actual[name]) === JSON.stringify(value)));
+  return { passed, observed };
+}
+
 export function evaluateDocumentSymbolProperties(bytes, expected) {
   let document;
   try {

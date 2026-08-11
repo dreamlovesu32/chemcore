@@ -626,6 +626,18 @@ fn tlc_plate_spot_drag_updates_rf() {
     let target_rf = 0.25;
     let target = Point::new(lane_x, origin_y - (origin_y - solvent_y) * target_rf);
 
+    let context_hit: serde_json::Value =
+        serde_json::from_str(&engine.context_hit_test_json(start)).expect("TLC context hit JSON");
+    assert_eq!(context_hit["kind"], "object");
+    assert_eq!(context_hit["objectId"], "obj_shape_tlc_001");
+    assert_eq!(context_hit["objectType"], "shape");
+    assert_eq!(context_hit["selected"], false);
+    engine.select_at_point(start, false);
+    let selected_context_hit: serde_json::Value =
+        serde_json::from_str(&engine.context_hit_test_json(start)).expect("selected TLC context hit JSON");
+    assert_eq!(selected_context_hit["objectId"], "obj_shape_tlc_001");
+    assert_eq!(selected_context_hit["selected"], true);
+
     let begin = engine
         .begin_tlc_spot_drag(start)
         .expect("spot drag should begin");
@@ -672,6 +684,105 @@ fn tlc_plate_spot_drag_updates_rf() {
         (rf_after - target_rf).abs() < 0.02,
         "expected persisted rf close to {target_rf}, got {rf_after}"
     );
+
+    assert!(engine.undo(), "spot drag should be one undoable transaction");
+    let rf_after_undo = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find(|object| object.id == "obj_shape_tlc_001")
+        .and_then(|object| object.payload.extra.get("lanes"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|lanes| lanes.first())
+        .and_then(|lane| lane.get("spots"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|spots| spots.first())
+        .and_then(|spot| spot.get("rf"))
+        .and_then(serde_json::Value::as_f64)
+        .expect("undo should restore TLC spot RF");
+    assert!((rf_after_undo - initial_rf).abs() < 0.0001);
+
+    assert!(engine.redo(), "spot drag should redo as one transaction");
+    let rf_after_redo = engine
+        .state()
+        .document
+        .objects
+        .iter()
+        .find(|object| object.id == "obj_shape_tlc_001")
+        .and_then(|object| object.payload.extra.get("lanes"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|lanes| lanes.first())
+        .and_then(|lane| lane.get("spots"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|spots| spots.first())
+        .and_then(|spot| spot.get("rf"))
+        .and_then(serde_json::Value::as_f64)
+        .expect("redo should restore moved TLC spot RF");
+    assert!((rf_after_redo - target_rf).abs() < 0.02);
+}
+
+#[test]
+fn editor_gel_band_drag_updates_value_with_atomic_history() {
+    let mut engine = Engine::new();
+    let result: serde_json::Value = serde_json::from_str(
+        &engine
+            .execute_command_json(
+                &json!({
+                    "type": "add-shape",
+                    "kind": "gel-plate",
+                    "style": "solid",
+                    "color": "#ff0000",
+                    "begin": { "x": 110.0, "y": 20.0 },
+                    "end": { "x": 190.0, "y": 140.0 }
+                })
+                .to_string(),
+            )
+            .expect("gel plate command should execute"),
+    )
+    .expect("gel plate command result should be JSON");
+    assert_eq!(result["changed"], true);
+
+    let start = Point::new(120.0, 80.0);
+    let target = Point::new(120.0, 50.0);
+    let context_hit: serde_json::Value =
+        serde_json::from_str(&engine.context_hit_test_json(start)).expect("gel context hit JSON");
+    assert_eq!(context_hit["kind"], "object");
+    assert_eq!(context_hit["objectId"], "obj_shape_1");
+    assert_eq!(context_hit["objectType"], "shape");
+    assert_eq!(context_hit["selected"], false);
+    engine.select_at_point(start, false);
+    let selected_context_hit: serde_json::Value =
+        serde_json::from_str(&engine.context_hit_test_json(start)).expect("selected gel context hit JSON");
+    assert_eq!(selected_context_hit["objectId"], "obj_shape_1");
+    assert_eq!(selected_context_hit["selected"], true);
+    let begin = engine.begin_tlc_spot_drag(start).expect("gel band drag should begin");
+    assert_eq!(begin.object_id, "obj_shape_1");
+    assert_eq!(begin.value_kind, "band-value");
+    assert!((begin.rf - 0.5).abs() < 0.0001);
+    let finish = engine
+        .finish_tlc_spot_drag(target)
+        .expect("gel band drag should finish");
+    assert!((finish.rf - 0.75).abs() < 0.0001);
+
+    let band_value = |engine: &Engine| {
+        engine
+            .state()
+            .document
+            .objects
+            .iter()
+            .find(|object| object.id == "obj_shape_1")
+            .and_then(|object| object.payload.gel_electrophoresis.as_ref())
+            .and_then(|gel| gel.lanes.first())
+            .and_then(|lane| lane.bands.first())
+            .map(|band| band.value)
+            .expect("first gel band value")
+    };
+    assert!((band_value(&engine) - 0.75).abs() < 0.0001);
+    assert!(engine.undo());
+    assert!((band_value(&engine) - 0.5).abs() < 0.0001);
+    assert!(engine.redo());
+    assert!((band_value(&engine) - 0.75).abs() < 0.0001);
 }
 
 #[test]

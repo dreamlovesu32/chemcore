@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import { auditCoverage } from "../src/coverage/audit.mjs";
 import { FakeDriver } from "../src/drivers/fake.mjs";
 import { planImpactedScenarios, selectImpactedScenarios } from "../src/impact/select.mjs";
-import { guiTestsDir } from "../src/protocol/paths.mjs";
+import { guiTestsDir, repositoryRoot } from "../src/protocol/paths.mjs";
 import { assertValidDocument, readValidatedDocument } from "../src/protocol/validate.mjs";
 import { runScenario } from "../src/runner/run-scenario.mjs";
 import { ResourceBudget } from "../src/scheduler/resource-budget.mjs";
@@ -71,6 +72,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
     "scenario.core.bracket.three-kind-properties-history.production",
+    "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.group.locked-ancestor-transform.production",
@@ -111,6 +113,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
       "scenario.core.bracket.three-kind-properties-history.production",
+      "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
       "scenario.core.group.locked-ancestor-transform.production",
@@ -134,6 +137,7 @@ test("impact selection follows the transitive source to scenario closure", async
   assert.deepEqual(selectImpactedScenarios(graph, ["scripts/tests/recovery-journal.test.mjs"]), [
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
+    "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.orbital.seven-template-properties-history.production",
@@ -149,6 +153,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.bond.draw-single.production",
     "scenario.core.bracket.three-kind-properties-history.production",
+    "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.group.locked-ancestor-transform.production",
@@ -175,6 +180,7 @@ test("impact selection follows the transitive source to scenario closure", async
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/document-file.mjs"]), [
     "scenario.core.arrow.property-matrix-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
+    "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.orbital.seven-template-properties-history.production",
     "scenario.core.shape.multi-kind-style-history.production",
@@ -198,6 +204,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
       "scenario.core.bracket.three-kind-properties-history.production",
+      "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
       "scenario.core.group.locked-ancestor-transform.production",
@@ -245,14 +252,15 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "bracket-three-kind-properties-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "table-structure-border-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "orbital-seven-template-properties-history-production.json"),
+    join(guiTestsDir, "scenarios", "core", "chromatography-tlc-gel-mark-color-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 35);
-  assert.equal(result.summary.scenarios, 24);
+  assert.equal(result.summary.entries, 36);
+  assert.equal(result.summary.scenarios, 25);
   assert.equal(result.summary.gaps, 0);
 });
 
@@ -263,4 +271,14 @@ test("aggregate scheduler limits fail closed at 10 CPU units and 30 GiB", () => 
   assert.deepEqual(budget.admit("coordinator", { cpuUnits: 2, memoryGiB: 10 }), { cpuUnits: 10, memoryGiB: 30 });
   assert.throws(() => budget.admit("overflow", { cpuUnits: 1, memoryGiB: 1 }), /Resource budget exceeded/);
   assert.deepEqual(budget.release("interactive-b"), { cpuUnits: 6, memoryGiB: 20 });
+});
+
+test("the Chinese GUI progress checklist lists every registered scenario", async () => {
+  const registry = await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
+  const scenarioIds = [...new Set(registry.entries.flatMap((entry) => entry.scenarioIds || []))].sort();
+  const progress = await readFile(join(repositoryRoot, "docs", "gui-test-progress.zh-CN.md"), "utf8");
+  assert.match(progress, new RegExp(`登记场景：\\*\\*${scenarioIds.length}\\*\\*`));
+  for (const scenarioId of scenarioIds) {
+    assert.equal(progress.includes(`| \`${scenarioId}\` |`), true, `progress checklist is missing ${scenarioId}`);
+  }
 });

@@ -1626,6 +1626,107 @@ fn set_shape_geometry_updates_rect_bounds() {
 }
 
 #[test]
+fn editor_commands_create_native_tlc_and_gel_plate_models() {
+    let mut engine = Engine::new();
+    let tlc = execute(
+        &mut engine,
+        json!({
+            "type": "add-shape",
+            "kind": "tlc-plate",
+            "style": "solid",
+            "color": "#008000",
+            "begin": { "x": 10.0, "y": 20.0 },
+            "end": { "x": 90.0, "y": 140.0 }
+        }),
+    );
+    let tlc_id = created_object_id(&tlc);
+    let gel = execute(
+        &mut engine,
+        json!({
+            "type": "add-shape",
+            "kind": "gel-plate",
+            "style": "solid",
+            "color": "#ff0000",
+            "begin": { "x": 110.0, "y": 20.0 },
+            "end": { "x": 190.0, "y": 140.0 }
+        }),
+    );
+    let gel_id = created_object_id(&gel);
+    let document = document_value(&engine);
+
+    let tlc = find_object(&document, &tlc_id);
+    assert_eq!(tlc["payload"]["kind"], "tlcPlate");
+    assert_eq!(tlc["payload"]["originFraction"], 0.1);
+    assert_eq!(tlc["payload"]["solventFrontFraction"], 0.1);
+    assert_eq!(tlc["payload"]["showOrigin"], true);
+    assert_eq!(tlc["payload"]["showSolventFront"], true);
+    assert_eq!(tlc["payload"]["showBorders"], true);
+    assert_eq!(tlc["payload"]["showSideTicks"], true);
+    let tlc_lanes = tlc["payload"]["lanes"].as_array().expect("TLC lanes");
+    assert!((3..=12).contains(&tlc_lanes.len()));
+    assert!(tlc_lanes.iter().all(|lane| lane["spots"].as_array().is_some_and(|spots| {
+        spots.len() == 1 && spots[0]["rf"] == 0.15
+    })));
+
+    let gel = find_object(&document, &gel_id);
+    assert_eq!(gel["payload"]["kind"], "gelPlate");
+    let gel_data = &gel["payload"]["gelElectrophoresis"];
+    let gel_lanes = gel_data["lanes"].as_array().expect("gel lanes");
+    assert_eq!(gel_data["color"], "#ff0000");
+    assert!((3..=12).contains(&gel_lanes.len()));
+    assert!(gel_lanes.iter().all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+        bands.len() == 1
+            && bands[0]["value"] == 0.5
+            && bands[0]["color"] == "#ff0000"
+            && bands[0]["visible"] == true
+    })));
+
+    assert!(engine.select_all());
+    assert!(engine.apply_color_to_selection("#0000ff"));
+    let recolored = document_value(&engine);
+    let tlc = find_object(&recolored, &tlc_id);
+    assert!(tlc["payload"]["lanes"].as_array().expect("recolored TLC lanes").iter().all(|lane| {
+        lane["spots"].as_array().is_some_and(|spots| {
+            spots.iter().all(|spot| spot["color"] == "#0000ff")
+        })
+    }));
+    let gel = find_object(&recolored, &gel_id);
+    assert_eq!(gel["payload"]["gelElectrophoresis"]["color"], "#0000ff");
+    assert!(gel["payload"]["gelElectrophoresis"]["lanes"]
+        .as_array()
+        .expect("recolored gel lanes")
+        .iter()
+        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+            bands.iter().all(|band| band["color"] == "#0000ff")
+        })));
+    assert!(engine.undo(), "batch chromatography color should be one history step");
+    let undone = document_value(&engine);
+    let tlc = find_object(&undone, &tlc_id);
+    assert!(tlc["payload"]["lanes"].as_array().expect("undone TLC lanes").iter().all(|lane| {
+        lane["spots"].as_array().is_some_and(|spots| {
+            spots.iter().all(|spot| spot.get("color").is_none())
+        })
+    }));
+    let gel = find_object(&undone, &gel_id);
+    assert!(gel["payload"]["gelElectrophoresis"]["lanes"]
+        .as_array()
+        .expect("undone gel lanes")
+        .iter()
+        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+            bands.iter().all(|band| band["color"] == "#ff0000")
+        })));
+    assert!(engine.redo());
+    let redone = document_value(&engine);
+    assert!(find_object(&redone, &gel_id)["payload"]["gelElectrophoresis"]["lanes"]
+        .as_array()
+        .expect("redone gel lanes")
+        .iter()
+        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+            bands.iter().all(|band| band["color"] == "#0000ff")
+        })));
+}
+
+#[test]
 fn delete_targets_removes_object_by_id() {
     let mut engine = Engine::new();
     let add = execute(
