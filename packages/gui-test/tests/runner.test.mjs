@@ -435,6 +435,16 @@ test("coverage audit binds every registered source and scenario", async () => {
   const wrongPrimitiveTargetResult = await auditCoverage({ registry, scenarios: wrongPrimitiveTargetScenarios, scenarioPaths });
   assert.equal(wrongPrimitiveTargetResult.valid, false);
   assert.match(wrongPrimitiveTargetResult.errors.join("\n"), /entity-id resolves scene object ids only/);
+
+  const unadvertisedCapabilityScenarios = structuredClone(scenarios);
+  const reactionScenario = unadvertisedCapabilityScenarios
+    .find((scenario) => scenario.id === "core.bond.reaction-participation-history-persistence.production");
+  reactionScenario.capabilities = reactionScenario.capabilities
+    .filter((capability) => capability !== "editor.bond.reaction-participation")
+    .concat("editor.bond.unadvertised-mutant");
+  const unadvertisedCapabilityResult = await auditCoverage({ registry, scenarios: unadvertisedCapabilityScenarios, scenarioPaths });
+  assert.equal(unadvertisedCapabilityResult.valid, false);
+  assert.match(unadvertisedCapabilityResult.errors.join("\n"), /requires capabilities not advertised by production-black-box: editor\.bond\.unadvertised-mutant/);
 });
 
 test("the planar ring matrix kills missing and wrong-member-count tool mutants", async () => {

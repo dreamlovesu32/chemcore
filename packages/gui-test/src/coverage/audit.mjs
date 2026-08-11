@@ -2,6 +2,9 @@ import { access } from "node:fs/promises";
 import { relative } from "node:path";
 import { repositoryRoot } from "../protocol/paths.mjs";
 import { candidateActionBudgetIsValid, candidateActionTransportReserveMs } from "../workers/action-budget.mjs";
+import { productionBlackBoxCapabilities } from "../drivers/production-black-box.mjs";
+
+const productionCapabilitySet = new Set(productionBlackBoxCapabilities);
 
 export async function auditCoverage({ registry, scenarios, scenarioPaths = [] }) {
   const errors = [];
@@ -34,6 +37,10 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
     }
   }
   for (const scenario of scenarios.filter((candidate) => candidate.drivers.includes("production-black-box"))) {
+    const missingCapabilities = scenario.capabilities.filter((capability) => !productionCapabilitySet.has(capability));
+    if (missingCapabilities.length > 0) {
+      errors.push(`Scenario ${scenario.id} requires capabilities not advertised by production-black-box: ${missingCapabilities.join(", ")}.`);
+    }
     for (const action of scenario.actions) {
       if (!candidateActionBudgetIsValid(action.budgetMs, action.completion?.timeoutMs)) {
         errors.push(`Scenario ${scenario.id} action ${action.id} must reserve ${candidateActionTransportReserveMs} ms for production input transport.`);
