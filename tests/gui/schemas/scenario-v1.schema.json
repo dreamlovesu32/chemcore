@@ -358,6 +358,8 @@
                   "topology": { "enum": ["unspecified", "ring", "chain", "ring-or-chain"] },
                   "reactionParticipation": { "enum": ["unspecified", "reaction-center", "make-or-break", "change-type", "make-and-change", "not-reaction-center", "no-change", "unmapped"] },
                   "absoluteStereo": { "enum": ["unspecified", "none", "e", "z"] },
+                  "showQuery": { "type": ["boolean", "null"] },
+                  "showReaction": { "type": ["boolean", "null"] },
                   "showStereo": { "type": ["boolean", "null"] }
                 }
               }

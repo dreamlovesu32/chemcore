@@ -92,6 +92,8 @@ export function evaluateDocumentBondProperties(bytes, expected) {
       topology: bond?.properties?.topology ?? "unspecified",
       reactionParticipation: bond?.properties?.reactionParticipation ?? bond?.properties?.reaction_participation ?? null,
       absoluteStereo: bond?.properties?.absoluteStereo ?? bond?.properties?.absolute_stereo ?? "unspecified",
+      showQuery: bond?.properties?.showQuery ?? bond?.properties?.show_query ?? null,
+      showReaction: bond?.properties?.showReaction ?? bond?.properties?.show_reaction ?? null,
       showStereo: bond?.properties?.showStereo ?? bond?.properties?.show_stereo ?? null,
     };
   });
