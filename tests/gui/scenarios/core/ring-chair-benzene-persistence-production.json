@@ -1,0 +1,50 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.ring.chair-benzene-persistence.production",
+  "title": "Insert both chair conformers and benzene through guarded production input and persist exact aromatic semantics",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": null,
+  "capabilities": ["gui.public-input", "editor.ring.insert", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 30,
+  "actions": [
+    { "id": "activate-rings-tool", "type": "click", "target": { "strategy": "selector", "value": "button[data-tool=\"templates\"][data-tool-rail=\"main\"]" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value^=\"chair-\"], button[data-secondary-value=\"benzene\"]", "operator": "eq", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-chair-right", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Chair cyclohexane" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"chair-6-right\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "insert-chair-right", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.25, "y": 0.42 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 6, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-chair-left", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Flipped chair cyclohexane" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"chair-6-left\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "insert-chair-left", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.50, "y": 0.42 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 12, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-benzene", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Benzene ring" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"benzene\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "insert-benzene", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.75, "y": 0.42 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 18, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "chair-and-benzene-bonds-rendered", "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 18 },
+    { "id": "saved-conformer-and-aromatic-topology-counts", "kind": "document-counts", "expected": { "nodes": 18, "bonds": 18, "molecules": 3, "objects": 3 } },
+    { "id": "saved-benzene-alternating-bond-semantics", "kind": "document-bond-properties", "expected": [
+      { "id": "b_31", "order": 2, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_32", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_33", "order": 2, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_34", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_35", "order": 2, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_36", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.ring.insert", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "molecule"],
+    "cardinalities": ["1", "many"],
+    "states": ["blank-document", "chair-right", "chair-left", "benzene", "alternating-double-bonds", "saved-document"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["ring.conformation", "ring.aromatic-kekule-order", "bond.order"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

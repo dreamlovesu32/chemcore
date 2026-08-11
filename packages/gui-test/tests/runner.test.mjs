@@ -82,6 +82,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
     "scenario.core.orbital.seven-template-properties-history.production",
+    "scenario.core.ring.chair-benzene-persistence.production",
     "scenario.core.ring.six-planar-persistence.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
@@ -127,6 +128,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
       "scenario.core.orbital.seven-template-properties-history.production",
+      "scenario.core.ring.chair-benzene-persistence.production",
       "scenario.core.ring.six-planar-persistence.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
@@ -171,6 +173,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
     "scenario.core.orbital.seven-template-properties-history.production",
+    "scenario.core.ring.chair-benzene-persistence.production",
     "scenario.core.ring.six-planar-persistence.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
@@ -196,6 +199,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.orbital.seven-template-properties-history.production",
+    "scenario.core.ring.chair-benzene-persistence.production",
     "scenario.core.ring.six-planar-persistence.production",
     "scenario.core.shape.multi-kind-style-history.production",
     "scenario.core.symbol.eight-kind-color-history.production",
@@ -232,6 +236,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
       "scenario.core.orbital.seven-template-properties-history.production",
+      "scenario.core.ring.chair-benzene-persistence.production",
       "scenario.core.ring.six-planar-persistence.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
@@ -256,6 +261,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "ring-chair-benzene-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "undo-redo-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json"),
     join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json"),
@@ -286,7 +292,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 39);
-  assert.equal(result.summary.scenarios, 29);
+  assert.equal(result.summary.scenarios, 30);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -315,6 +321,22 @@ test("the planar ring matrix kills missing and wrong-member-count tool mutants",
     molecules: 6,
     objects: 6,
   });
+});
+
+test("the chair and benzene matrix kills conformer omission and aromatic-order mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "ring-chair-benzene-persistence-production.json"));
+  assert.deepEqual(
+    scenario.actions.filter((action) => action.id.startsWith("choose-")).map((action) => action.id),
+    ["choose-chair-right", "choose-chair-left", "choose-benzene"],
+  );
+  assert.deepEqual(
+    scenario.actions.filter((action) => action.id.startsWith("insert-")).map((action) => action.completion.value),
+    [6, 12, 18],
+  );
+  const aromatic = scenario.oracles.find((oracle) => oracle.id === "saved-benzene-alternating-bond-semantics");
+  assert.deepEqual(aromatic.expected.map(({ id, order }) => [id, order]), [
+    ["b_31", 2], ["b_32", 1], ["b_33", 2], ["b_34", 1], ["b_35", 2], ["b_36", 1],
+  ]);
 });
 
 test("aggregate scheduler limits fail closed at 10 CPU units and 30 GiB", () => {

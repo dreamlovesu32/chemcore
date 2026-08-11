@@ -19,6 +19,7 @@
     { "id": "source.scenario.core.bond.draw-single.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/draw-single-bond-production.json"] },
     { "id": "source.scenario.core.bond.ten-variant-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/bond-ten-variant-persistence-production.json"] },
     { "id": "source.scenario.core.ring.six-planar-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-six-planar-persistence-production.json"] },
+    { "id": "source.scenario.core.ring.chair-benzene-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-chair-benzene-persistence-production.json"] },
     { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
     { "id": "source.scenario.core.selection.clipboard-delete-multi-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/multi-bond-clipboard-delete-production.json"] },
     { "id": "source.scenario.core.selection.clipboard-delete-mixed-bond-arrow.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/mixed-bond-arrow-clipboard-production.json"] },
@@ -97,6 +98,7 @@
     { "id": "scenario.core.bond.draw-single.production", "kind": "scenario" },
     { "id": "scenario.core.bond.ten-variant-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.six-planar-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.ring.chair-benzene-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.history.undo-redo-bond.production", "kind": "scenario" },
     { "id": "scenario.core.selection.clipboard-delete-multi-bond.production", "kind": "scenario" },
     { "id": "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production", "kind": "scenario" },
@@ -426,5 +428,10 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.ring.six-planar-persistence.production", "reason": "The physical driver performs ring-tool choices, canvas insertions, and native save through guarded OS input." }
     ,{ "from": "oracle.dom", "to": "scenario.core.ring.six-planar-persistence.production", "reason": "Cumulative distinct bond identities kill missing, duplicated, or wrong-member-count ring insertions." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.ring.six-planar-persistence.production", "reason": "The saved CCJS is independently checked for exact six-cycle node, bond, molecule, and object counts." }
+    ,{ "from": "capability.editor.ring.insert", "to": "scenario.core.ring.chair-benzene-persistence.production", "reason": "The production matrix covers both chair conformers and the public benzene template." }
+    ,{ "from": "source.scenario.core.ring.chair-benzene-persistence.production", "to": "scenario.core.ring.chair-benzene-persistence.production", "reason": "Changing the chair and benzene production scenario invalidates its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.ring.chair-benzene-persistence.production", "reason": "The physical driver performs template choices, canvas insertions, and native save through guarded OS input." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.ring.chair-benzene-persistence.production", "reason": "Cumulative distinct bond identities prove both conformers and benzene committed." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.ring.chair-benzene-persistence.production", "reason": "The saved CCJS is independently checked for exact component counts and alternating benzene bond orders." }
   ]
 }
