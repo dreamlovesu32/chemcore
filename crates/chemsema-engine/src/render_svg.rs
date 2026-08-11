@@ -1053,6 +1053,7 @@ mod tests {
         }];
         let svg = primitives_to_svg(
             &[RenderPrimitive::Text {
+                bond_id: None,
                 role: RenderRole::DocumentText,
                 object_id: Some("conditions".to_string()),
                 node_id: None,

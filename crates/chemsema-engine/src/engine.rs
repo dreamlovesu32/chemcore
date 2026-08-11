@@ -200,10 +200,13 @@ fn preview_primitive_ids(
         }
         | RenderPrimitive::Rect {
             object_id, node_id, ..
-        }
-        | RenderPrimitive::Text {
-            object_id, node_id, ..
         } => (object_id.as_deref(), node_id.as_deref(), None),
+        RenderPrimitive::Text {
+            object_id,
+            node_id,
+            bond_id,
+            ..
+        } => (object_id.as_deref(), node_id.as_deref(), bond_id.as_deref()),
         RenderPrimitive::Polygon {
             object_id,
             node_id,

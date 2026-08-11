@@ -653,6 +653,7 @@ fn render_fragment_bond_annotations(
             font_family.clone(),
             fill,
             object_id.clone(),
+            &bond.id,
         );
     }
     if !query.is_empty() {
@@ -668,6 +669,7 @@ fn render_fragment_bond_annotations(
             font_family,
             fill,
             object_id,
+            &bond.id,
         );
     }
 }
@@ -685,6 +687,7 @@ fn push_bond_annotation_text(
     font_family: Option<String>,
     fill: &str,
     object_id: Option<String>,
+    bond_id: &str,
 ) {
     let width = annotation_text_width(text, font_size);
     let half_stroke = stroke_width * 0.5;
@@ -729,6 +732,7 @@ fn push_bond_annotation_text(
         }],
         object_id,
         None,
+        Some(bond_id.to_string()),
     );
 }
 
@@ -1222,6 +1226,7 @@ fn push_atom_property_text(
         runs,
         object_id,
         Some(node_id.to_string()),
+        None,
     );
 }
 
@@ -1282,6 +1287,7 @@ fn render_external_connection_marker(
                 Vec::new(),
                 object_id,
                 node_id,
+                None,
             );
         }
         crate::ExternalConnectionType::Star => {
@@ -1298,6 +1304,7 @@ fn render_external_connection_marker(
                 Vec::new(),
                 object_id,
                 node_id,
+                None,
             );
         }
         crate::ExternalConnectionType::PolymerBead => {
@@ -1932,6 +1939,7 @@ fn push_atom_query_text(
         runs,
         object_id,
         Some(node_id.to_string()),
+        None,
     );
 }
 
@@ -2275,6 +2283,7 @@ pub(super) fn render_fragment_label(
             role: RenderRole::DocumentText,
             object_id,
             node_id: Some(node.id.clone()),
+            bond_id: None,
             x: render_x,
             y: world_position.y,
             baseline_offset: Some(font_size * 0.82),
@@ -2322,6 +2331,7 @@ pub(super) fn render_fragment_label(
             fragment_label_runs_for_line(label, index, line),
             object_id.clone(),
             Some(node.id.clone()),
+            None,
         );
     }
 }

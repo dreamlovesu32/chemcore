@@ -53,6 +53,7 @@ fn main() {
             role,
             object_id,
             node_id,
+            bond_id,
             x,
             y,
             baseline_offset,
@@ -77,7 +78,8 @@ fn main() {
         }
         let matches = filters.is_empty()
             || object_id.as_ref().is_some_and(|id| filters.contains(id))
-            || node_id.as_ref().is_some_and(|id| filters.contains(id));
+            || node_id.as_ref().is_some_and(|id| filters.contains(id))
+            || bond_id.as_ref().is_some_and(|id| filters.contains(id));
         if !matches {
             continue;
         }
@@ -85,6 +87,7 @@ fn main() {
             "role": role,
             "objectId": object_id,
             "nodeId": node_id,
+            "bondId": bond_id,
             "x": x,
             "y": y,
             "baselineOffset": baseline_offset,

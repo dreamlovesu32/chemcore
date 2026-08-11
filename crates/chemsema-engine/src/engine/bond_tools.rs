@@ -70,6 +70,7 @@ impl Engine {
             role: crate::RenderRole::DocumentText,
             object_id: Some("__text_format_icon".to_string()),
             node_id: None,
+            bond_id: None,
             x: 12.0,
             y,
             baseline_offset: Some(default_font_size * 0.82),

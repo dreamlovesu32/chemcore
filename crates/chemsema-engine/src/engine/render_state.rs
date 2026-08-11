@@ -175,6 +175,7 @@ impl Engine {
                 role: RenderRole::DocumentText,
                 object_id: Some("__preview_chain_count".to_string()),
                 node_id: None,
+                bond_id: None,
                 x: point.x,
                 y: point.y,
                 baseline_offset: None,

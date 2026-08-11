@@ -1352,6 +1352,7 @@ fn render_image_object(
             role: RenderRole::DocumentText,
             object_id: Some(object.id.clone()),
             node_id: None,
+            bond_id: None,
             x: center.x,
             y: center.y,
             baseline_offset: None,
@@ -1470,7 +1471,8 @@ fn primitive_bond_id(primitive: &RenderPrimitive) -> Option<&str> {
         | RenderPrimitive::Polygon { bond_id, .. }
         | RenderPrimitive::Polyline { bond_id, .. }
         | RenderPrimitive::Path { bond_id, .. }
-        | RenderPrimitive::FilledPath { bond_id, .. } => bond_id.as_deref(),
+        | RenderPrimitive::FilledPath { bond_id, .. }
+        | RenderPrimitive::Text { bond_id, .. } => bond_id.as_deref(),
         _ => None,
     }
 }

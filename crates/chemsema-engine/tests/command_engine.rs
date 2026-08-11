@@ -2114,6 +2114,91 @@ fn bond_query_reaction_command_round_trips_through_ccjs_cdxml_and_cdx() {
 }
 
 #[test]
+fn bond_derived_annotation_identity_survives_set_undo_and_redo() {
+    let mut engine = Engine::new();
+    let add = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 100.0, "y": 100.0 },
+            "end": { "x": 148.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    let bond_id = created_bond_id(&add);
+    execute(
+        &mut engine,
+        json!({
+            "type": "select-targets",
+            "targets": { "bonds": [bond_id] }
+        }),
+    );
+    let changed = execute(
+        &mut engine,
+        json!({
+            "type": "set-bond-property-for-selection",
+            "property": "reaction-participation",
+            "value": "make-and-change"
+        }),
+    );
+    assert_eq!(changed["changed"], true);
+
+    let target_bonds = BTreeSet::from([bond_id.clone()]);
+    let rendered = engine.render_targets(&BTreeSet::new(), &target_bonds, &BTreeSet::new());
+    let reaction_annotation = rendered.iter().find(|primitive| match primitive {
+        RenderPrimitive::Text { text, runs, .. } => {
+            text == "Rxn" || runs.iter().map(|run| run.text.as_str()).collect::<String>() == "Rxn"
+        }
+        _ => false,
+    });
+    assert!(
+        matches!(
+            reaction_annotation,
+            Some(RenderPrimitive::Text {
+                bond_id: Some(annotation_bond_id),
+                ..
+            }) if annotation_bond_id == &bond_id
+        ),
+        "derived bond text must carry its owning bond id so incremental DOM replacement can remove it: {rendered:?}"
+    );
+
+    let undo = execute(&mut engine, json!({ "type": "undo" }));
+    assert_eq!(undo["changed"], true);
+    let rendered_after_undo =
+        engine.render_targets(&BTreeSet::new(), &target_bonds, &BTreeSet::new());
+    assert!(
+        !rendered_after_undo.iter().any(|primitive| match primitive {
+            RenderPrimitive::Text { text, runs, .. } => {
+                text == "Rxn"
+                    || runs.iter().map(|run| run.text.as_str()).collect::<String>() == "Rxn"
+            }
+            _ => false,
+        }),
+        "undo must remove the derived annotation from the affected target render: {rendered_after_undo:?}"
+    );
+
+    let redo = execute(&mut engine, json!({ "type": "redo" }));
+    assert_eq!(redo["changed"], true);
+    let rendered_after_redo =
+        engine.render_targets(&BTreeSet::new(), &target_bonds, &BTreeSet::new());
+    assert!(
+        rendered_after_redo.iter().any(|primitive| matches!(
+            primitive,
+            RenderPrimitive::Text {
+                bond_id: Some(annotation_bond_id),
+                text,
+                runs,
+                ..
+            } if annotation_bond_id == &bond_id
+                && (text == "Rxn"
+                    || runs.iter().map(|run| run.text.as_str()).collect::<String>() == "Rxn")
+        )),
+        "redo must restore a target-addressable derived annotation: {rendered_after_redo:?}"
+    );
+}
+
+#[test]
 fn convert_document_command_returns_output_without_replacing_current_document() {
     let mut source = Engine::new();
     execute(
