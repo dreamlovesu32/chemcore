@@ -18,6 +18,7 @@
     { "id": "source.scenario.core.bond.draw-single", "kind": "source", "patterns": ["tests/gui/scenarios/core/draw-single-bond.json"] },
     { "id": "source.scenario.core.bond.draw-single.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/draw-single-bond-production.json"] },
     { "id": "source.scenario.core.bond.ten-variant-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/bond-ten-variant-persistence-production.json"] },
+    { "id": "source.scenario.core.ring.six-planar-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-six-planar-persistence-production.json"] },
     { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
     { "id": "source.scenario.core.selection.clipboard-delete-multi-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/multi-bond-clipboard-delete-production.json"] },
     { "id": "source.scenario.core.selection.clipboard-delete-mixed-bond-arrow.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/mixed-bond-arrow-clipboard-production.json"] },
@@ -50,6 +51,7 @@
     { "id": "component.editor-interaction", "kind": "component" },
     { "id": "component.document-io", "kind": "component" },
     { "id": "capability.editor.bond.draw", "kind": "capability" },
+    { "id": "capability.editor.ring.insert", "kind": "capability" },
     { "id": "capability.editor.arrow.draw", "kind": "capability" },
     { "id": "capability.editor.arrow.properties", "kind": "capability" },
     { "id": "capability.editor.text.create", "kind": "capability" },
@@ -94,6 +96,7 @@
     { "id": "scenario.core.bond.draw-single", "kind": "scenario" },
     { "id": "scenario.core.bond.draw-single.production", "kind": "scenario" },
     { "id": "scenario.core.bond.ten-variant-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.ring.six-planar-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.history.undo-redo-bond.production", "kind": "scenario" },
     { "id": "scenario.core.selection.clipboard-delete-multi-bond.production", "kind": "scenario" },
     { "id": "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production", "kind": "scenario" },
@@ -417,5 +420,11 @@
     { "from": "oracle.document-file", "to": "scenario.core.table.structure-border-history.production", "reason": "The validated saved CCJS is independently checked for exact dimensions, monotonic guides, unique cell IDs, alignment, and four complete border records." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.orbital.seven-template-properties-history.production", "reason": "The validated saved CCJS is independently checked for seven exact orbital payloads, nonzero finite dz2 axis geometry, and matching filled style fields." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.chromatography.tlc-gel-mark-color-history.production", "reason": "The validated saved CCJS is independently checked for exact TLC/gel lanes, marks, display flags, and internal colors." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.ring.insert", "reason": "The shared editor interaction path owns public ring-template insertion." }
+    ,{ "from": "capability.editor.ring.insert", "to": "scenario.core.ring.six-planar-persistence.production", "reason": "The production matrix covers all six public planar ring sizes." }
+    ,{ "from": "source.scenario.core.ring.six-planar-persistence.production", "to": "scenario.core.ring.six-planar-persistence.production", "reason": "Changing the planar-ring production scenario invalidates its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.ring.six-planar-persistence.production", "reason": "The physical driver performs ring-tool choices, canvas insertions, and native save through guarded OS input." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.ring.six-planar-persistence.production", "reason": "Cumulative distinct bond identities kill missing, duplicated, or wrong-member-count ring insertions." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.ring.six-planar-persistence.production", "reason": "The saved CCJS is independently checked for exact six-cycle node, bond, molecule, and object counts." }
   ]
 }
