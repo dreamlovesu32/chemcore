@@ -4,7 +4,7 @@
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
 登记场景：**42**
 
-当前产品候选：`7714f687f6e74bd1df479c4bd1db61cf45b5a808755e6979eb3a4a25b957a03a`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
+当前产品候选：`b4465999da835e091ca6eef89a5c39a6584a7740f2848ac037d2dde8d7c9a5d2`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
 当前源码闭包已登记场景资格：**41/42 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。Electron→Nitrogen 批次已通过，重建的不可变 41/41 qualification 也已通过；六元环 Bond 融合、Element、正电荷及 Lone pair 的 locator/oracle 首次失败证据永久保留。Lone pair 首批已证明产品正确保持 `N/0/H2`、`NH2`、零 chemistry delta 与 atom/link 身份，失败来自 oracle 未把省略的 canonical 零 radical count 归一为 `0`；当前仅重启这一修复闭包。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
