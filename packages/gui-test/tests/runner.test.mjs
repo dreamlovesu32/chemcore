@@ -89,6 +89,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bond.topology-value-matrix.production",
     "scenario.core.bond.visibility-value-matrix.production",
+    "scenario.core.bond.wedge-endpoint-reversal.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
     "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -157,6 +158,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bond.topology-value-matrix.production",
       "scenario.core.bond.visibility-value-matrix.production",
+      "scenario.core.bond.wedge-endpoint-reversal.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
       "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -224,6 +226,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bond.topology-value-matrix.production",
     "scenario.core.bond.visibility-value-matrix.production",
+    "scenario.core.bond.wedge-endpoint-reversal.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
     "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -279,6 +282,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bond.topology-value-matrix.production",
     "scenario.core.bond.visibility-value-matrix.production",
+    "scenario.core.bond.wedge-endpoint-reversal.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
     "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -332,6 +336,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bond.topology-value-matrix.production",
       "scenario.core.bond.visibility-value-matrix.production",
+      "scenario.core.bond.wedge-endpoint-reversal.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
       "scenario.core.chain.endpoint-attachment-continuation.production",
@@ -373,6 +378,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-absolute-stereo-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-double-placement-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-wedge-endpoint-reversal-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-query-order-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-topology-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-visibility-value-matrix-production.json"),
@@ -425,7 +431,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 44);
-  assert.equal(result.summary.scenarios, 52);
+  assert.equal(result.summary.scenarios, 53);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -799,6 +805,18 @@ test("the double-bond placement matrix kills skipped-value, aliased-side, stale-
   assert.deepEqual(verifiedValues, ["center", "left", "right", "center", "left"]);
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-left-double-placement-semantics").expected, [
     { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", doublePlacement: "left", stereoKind: null, wideEnd: null },
+  ]);
+});
+
+test("the wedge endpoint-reversal cell kills ignored-click, recreated-bond, and wrong-wide-end mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-wedge-endpoint-reversal-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.endpoint-reversal"));
+  const draw = scenario.actions.find((action) => action.id === "draw-solid-wedge");
+  const reverse = scenario.actions.find((action) => action.id === "reverse-wedge-at-center");
+  assert.equal(scenario.actions.indexOf(reverse), scenario.actions.indexOf(draw) + 1);
+  assert.deepEqual(reverse.target, { strategy: "selector", value: '[data-bond-id="b_3"]' });
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-reversed-wedge-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "solid-wedge", wideEnd: "begin" },
   ]);
 });
 
