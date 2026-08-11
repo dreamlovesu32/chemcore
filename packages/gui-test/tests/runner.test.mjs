@@ -198,6 +198,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.text.multi-property-persistence.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/tests/hyperv.test.mjs"]), []);
+  assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/coverage/audit.mjs"]), []);
   assert.deepEqual(selectImpactedScenarios(graph, ["viewer/numeric_dialog_host.js"]), [
     "scenario.core.text.line-spacing-validation.production",
   ]);
@@ -329,6 +330,15 @@ test("coverage audit binds every registered source and scenario", async () => {
   const wrongToolStateResult = await auditCoverage({ registry, scenarios: wrongToolStateScenarios, scenarioPaths });
   assert.equal(wrongToolStateResult.valid, false);
   assert.match(wrongToolStateResult.errors.join("\n"), /must use is-active for a primary data-tool completion/);
+
+  const ambiguousSecondaryScenarios = structuredClone(scenarios);
+  const ringChoice = ambiguousSecondaryScenarios
+    .find((scenario) => scenario.id === "core.ring.bond-fusion-persistence.production")
+    .actions.find((action) => action.id === "choose-ring-6");
+  delete ringChoice.target.scope;
+  const ambiguousSecondaryResult = await auditCoverage({ registry, scenarios: ambiguousSecondaryScenarios, scenarioPaths });
+  assert.equal(ambiguousSecondaryResult.valid, false);
+  assert.match(ambiguousSecondaryResult.errors.join("\n"), /must scope a secondary role target to the Secondary toolbar/);
 });
 
 test("the planar ring matrix kills missing and wrong-member-count tool mutants", async () => {

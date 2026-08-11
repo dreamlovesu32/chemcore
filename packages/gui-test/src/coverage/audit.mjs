@@ -45,6 +45,11 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
       if (typeof selector === "string" && selector.includes(".is-active") && selector.includes("[data-secondary-value=")) {
         errors.push(`Scenario ${scenario.id} action ${action.id} must use is-selected for a secondary data-secondary-value completion.`);
       }
+      if (typeof selector === "string" && selector.includes("[data-secondary-value=") && action.target?.strategy === "role") {
+        if (action.target.scope?.role !== "toolbar" || action.target.scope?.name !== "Secondary toolbar") {
+          errors.push(`Scenario ${scenario.id} action ${action.id} must scope a secondary role target to the Secondary toolbar.`);
+        }
+      }
     }
   }
   for (const entry of registry.entries.filter((candidate) => candidate.status === "gap")) {
