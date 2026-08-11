@@ -86,6 +86,7 @@ export function evaluateDocumentBondProperties(bytes, expected) {
       leftLineStyle: bond?.lineStyles?.left ?? null,
       rightLineStyle: bond?.lineStyles?.right ?? null,
       mainLineWeight: bond?.lineWeights?.main ?? null,
+      doublePlacement: bond?.double?.placement ?? null,
       stereoKind: bond?.stereo?.kind ?? null,
       wideEnd: bond?.stereo?.wideEnd ?? bond?.stereo?.wide_end ?? null,
       queryOrders: bond?.properties?.queryOrders ?? bond?.properties?.query_orders ?? [],

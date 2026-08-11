@@ -346,6 +346,7 @@
                   "leftLineStyle": { "enum": ["solid", "dashed", "hash", "wavy"] },
                   "rightLineStyle": { "enum": ["solid", "dashed", "hash", "wavy"] },
                   "mainLineWeight": { "enum": ["normal", "bold"] },
+                  "doublePlacement": { "type": ["string", "null"], "enum": [null, "left", "right", "center"] },
                   "stereoKind": { "type": ["string", "null"], "enum": [null, "solid-wedge", "hashed-wedge", "hollow-wedge"] },
                   "wideEnd": { "type": ["string", "null"], "enum": [null, "begin", "end"] },
                   "queryOrders": {

@@ -35,14 +35,14 @@ test("document counts reject collapsing disconnected GUI fragments into one mole
   assert.equal(evaluateDocumentReports(disconnectedReports, { ...exact, molecules: 1, objects: 1 }).passed, false);
 });
 
-test("saved-document bond oracle kills order, line-style, stereo, query, topology, reaction, and display-property mutants", () => {
+test("saved-document bond oracle kills order, double-placement, line-style, stereo, query, topology, reaction, and display-property mutants", () => {
   const bytes = Buffer.from(JSON.stringify({
     resources: {
       mol: {
         type: "molecule_fragment2d",
         data: {
           bonds: [
-            { id: "b_double", order: 2, lineStyles: { main: "solid", left: "solid", right: "solid" }, lineWeights: { main: "normal" } },
+            { id: "b_double", order: 2, double: { placement: "left" }, lineStyles: { main: "solid", left: "solid", right: "solid" }, lineWeights: { main: "normal" } },
             { id: "b_hash", order: 1, lineStyles: { main: "hash", left: "solid", right: "solid" }, lineWeights: { main: "normal" } },
             { id: "b_wedge", order: 1, lineStyles: { main: "solid", left: "solid", right: "solid" }, lineWeights: { main: "normal" }, stereo: { kind: "solid-wedge", wideEnd: "end" } },
             { id: "b_reaction", order: 1, properties: { queryOrders: ["double", "aromatic"], topology: "ring-or-chain", reactionParticipation: "make-and-change", absoluteStereo: "z", showQuery: false, showReaction: false, showStereo: true } },
@@ -52,13 +52,14 @@ test("saved-document bond oracle kills order, line-style, stereo, query, topolog
     },
   }));
   const expected = [
-    { id: "b_double", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
+    { id: "b_double", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", doublePlacement: "left", stereoKind: null, wideEnd: null },
     { id: "b_hash", order: 1, mainLineStyle: "hash", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
     { id: "b_wedge", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "solid-wedge", wideEnd: "end" },
     { id: "b_reaction", order: 1, queryOrders: ["double", "aromatic"], topology: "ring-or-chain", reactionParticipation: "make-and-change", absoluteStereo: "z", showQuery: false, showReaction: false, showStereo: true },
   ];
   assert.equal(evaluateDocumentBondProperties(bytes, expected).passed, true);
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[0], order: 1 }]).passed, false);
+  assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[0], doublePlacement: "right" }]).passed, false);
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[1], mainLineStyle: "dashed" }]).passed, false);
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[2], stereoKind: "hashed-wedge" }]).passed, false);
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[2], wideEnd: "begin" }]).passed, false);
