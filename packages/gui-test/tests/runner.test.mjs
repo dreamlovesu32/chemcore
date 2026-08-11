@@ -81,6 +81,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
@@ -142,6 +143,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.reaction-participation-history-persistence.production",
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
@@ -202,6 +204,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
@@ -250,6 +253,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+    "scenario.core.bond.reaction-participation-history-persistence.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
@@ -296,6 +300,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.reaction-participation-history-persistence.production",
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
@@ -336,6 +341,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "draw-single-bond.json"),
     join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-chair-benzene-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-bond-fusion-persistence-production.json"),
@@ -382,8 +388,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 43);
-  assert.equal(result.summary.scenarios, 45);
+  assert.equal(result.summary.entries, 44);
+  assert.equal(result.summary.scenarios, 46);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -557,6 +563,27 @@ test("the implicit-hydrogen matrix kills wrong-menu-value, missing-history, and 
   assert.equal(redo.completion.text, "N");
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-explicit-hidden-hydrogen-semantics").expected, [
     { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 0, numHydrogensOverride: 0, labelText: "N", labelSourceText: "N" },
+  ]);
+});
+
+test("the bond reaction matrix kills wrong-enum, missing-annotation, and missing-history mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"));
+  const initialMenu = scenario.actions.find((action) => action.id === "open-initial-bond-reaction-menu");
+  const apply = scenario.actions.find((action) => action.id === "set-make-and-change");
+  const changedMenu = scenario.actions.find((action) => action.id === "open-changed-bond-reaction-menu");
+  const undo = scenario.actions.find((action) => action.id === "undo-reaction-participation");
+  const redo = scenario.actions.find((action) => action.id === "redo-reaction-participation");
+  assert.deepEqual(initialMenu.target, { strategy: "selector", value: 'line[data-bond-id="b_3"]' });
+  assert.match(initialMenu.completion.selector, /reaction-participation:unspecified/);
+  assert.equal(apply.target.name, "Make and Change");
+  assert.equal(apply.completion.text, "Rxn");
+  assert.match(changedMenu.completion.selector, /reaction-participation:make-and-change/);
+  assert.equal(undo.key, "Control+Z");
+  assert.equal(undo.completion.value, 0);
+  assert.equal(redo.key, "Control+Y");
+  assert.equal(redo.completion.text, "Rxn");
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-make-and-change-bond-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, reactionParticipation: "make-and-change" },
   ]);
 });
 

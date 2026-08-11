@@ -347,7 +347,8 @@
                   "rightLineStyle": { "enum": ["solid", "dashed", "hash", "wavy"] },
                   "mainLineWeight": { "enum": ["normal", "bold"] },
                   "stereoKind": { "type": ["string", "null"], "enum": [null, "solid-wedge", "hashed-wedge", "hollow-wedge"] },
-                  "wideEnd": { "type": ["string", "null"], "enum": [null, "begin", "end"] }
+                  "wideEnd": { "type": ["string", "null"], "enum": [null, "begin", "end"] },
+                  "reactionParticipation": { "enum": ["unspecified", "reaction-center", "make-or-break", "change-type", "make-and-change", "not-reaction-center", "no-change", "unmapped"] }
                 }
               }
             },

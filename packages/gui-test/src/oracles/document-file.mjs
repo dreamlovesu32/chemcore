@@ -88,6 +88,7 @@ export function evaluateDocumentBondProperties(bytes, expected) {
       mainLineWeight: bond?.lineWeights?.main ?? null,
       stereoKind: bond?.stereo?.kind ?? null,
       wideEnd: bond?.stereo?.wideEnd ?? bond?.stereo?.wide_end ?? null,
+      reactionParticipation: bond?.properties?.reactionParticipation ?? bond?.properties?.reaction_participation ?? null,
     };
   });
   const passed = observed.every((actual, index) => actual.found
