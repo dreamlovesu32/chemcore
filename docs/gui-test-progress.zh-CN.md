@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 已实现单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；已完成 7 场景无人值守批次及当前前端 2 场景批次，分别复算 49 和 14 个证据对象；事件唤醒仍需完成 active-writer 退避验收和重启续跑 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；新增长期 supervisor，在一轮结束后立即续接下一轮，按轮 checkpoint，且必须同时满足时长和执行次数目标，不依赖 Codex/目标模式/整点轮询；当前 24 场景无人值守批次及前端 2 场景已通过并纳入 27/27 资格，尚需完成 supervisor/子进程重启故障注入和终态事件唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -134,13 +134,13 @@
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
 - 当前 registry 的 27 场景已有单候选完整资格；这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
-- 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、事件触发器 active-writer 无空档续接、重启续跑、PR CI 收口。
+- 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
 
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
-1. 🟡 **物理节点第一阶段收口**：完成 NSIS 安装/文件关联、事件触发无空档续接验收、干净提交与 PR/CI、重启 checkpoint 续跑；保持已登记 27/27 资格。
+1. 🟡 **物理节点第一阶段收口**：启动独立 24 小时/至少 1,000 次物理 GUI soak；完成 NSIS 安装/文件关联、supervisor/子进程重启 checkpoint 与终态事件唤醒验收、PR/CI；保持已登记 27/27 资格。
 2. **化学绘制主干**：11 种键、原子/标签/电荷、环、Chain、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。

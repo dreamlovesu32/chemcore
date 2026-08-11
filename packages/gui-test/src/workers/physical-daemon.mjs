@@ -236,7 +236,7 @@ async function runDaemon(options) {
   }
 }
 
-async function startDaemon(options) {
+export async function startDaemon(options) {
   const stateRoot = boundedStateRoot(String(options["state-root"] || ""));
   const paths = statePaths(stateRoot);
   await mkdir(stateRoot, { recursive: true });

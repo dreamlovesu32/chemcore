@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createWorkerCoordinator } from "../src/workers/create.mjs";
 import { readScenarioReport, renameAtomicWithRetry, validatePhysicalQueue } from "../src/workers/physical-daemon.mjs";
+import { validateSoakTargets } from "../src/workers/physical-soak.mjs";
 import { HyperVCoordinator } from "../src/workers/hyperv.mjs";
 import { PhysicalWindowsCoordinator } from "../src/workers/physical-windows.mjs";
 
@@ -119,6 +120,21 @@ test("physical daemon records leases heartbeats checkpoints resource floors and 
   assert.match(source, /Free physical memory fell below/);
   assert.match(source, /evidenceManifestSha256/);
   assert.match(source, /refuses to bind a candidate to a dirty worktree/);
+});
+
+test("physical soak validates targets and continuously checkpoints recoverable child batches", async () => {
+  assert.deepEqual(validateSoakTargets({ durationHours: "24", scenarioExecutions: "1000" }), { durationHours: 24, scenarioExecutions: 1000 });
+  assert.throws(() => validateSoakTargets({ durationHours: "0", scenarioExecutions: "1000" }), /duration/);
+  assert.throws(() => validateSoakTargets({ durationHours: "24", scenarioExecutions: "0" }), /scenario target/);
+  const source = await readFile(new URL("../src/workers/physical-soak.mjs", import.meta.url), "utf8");
+  assert.match(source, /physical-soak-lease\.v1/);
+  assert.match(source, /physical-soak-heartbeat\.v1/);
+  assert.match(source, /physical-soak-checkpoint\.v1/);
+  assert.match(source, /Date\.now\(\) < Date\.parse\(targetEndsAt\) \|\| scenarioExecutions < targets\.scenarioExecutions/);
+  assert.match(source, /Physical soak child binding does not match the immutable soak candidate/);
+  assert.match(source, /terminal\.results\.some\(\(result\) => result\.status !== "passed"\)/);
+  assert.match(source, /const trustedCheckpoint = matchesBinding\(previousCheckpoint\)/);
+  assert.match(source, /status = "stopped"/);
 });
 
 test("physical daemon retries only transient Windows atomic replace contention", async () => {

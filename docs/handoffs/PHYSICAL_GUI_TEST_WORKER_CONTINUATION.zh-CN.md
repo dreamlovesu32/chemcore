@@ -153,6 +153,11 @@ qualification 和 impact graph。不要复制另一套测试平台。
 - `npm run gui-physical-worker -- start|status|stop` 提供脱离 Codex 的连续后台队列。执行器
   具有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景检查点、
   低内存暂停、明确停止请求和 evidence manifest SHA-256。
+- `npm run gui-physical-soak -- start|status|stop` 在上述队列之上提供独立的长期协调器。同一
+  不可变候选的一轮结束后会立即启动下一轮，不依赖 Codex、目标模式或整点轮询；协调器
+  持有独立租约和 15 秒心跳，按轮保存 checkpoint，重启时只接受 commit、候选、源码闭包、
+  profile、queue 和目标完全一致的状态。任何产品失败立即停止且保留首次证据，只有终态才
+  交给外部事件唤醒器。
 - Computer Use 不属于正常执行循环；只允许在自动定位无法诊断的罕见校准问题中临时使用。
 
 机器本地启动示例：
@@ -165,5 +170,16 @@ npm run gui-physical-worker -- start `
 ```
 
 状态和停止命令使用相同的 `--state-root`。后台队列只接受干净工作区；启动后不得自动拉取
-代码或跨候选续跑。当前尚未完成重启后的 checkpoint 恢复验收、完整 25 场景资格、Office、
-最终安装包、复杂/large/xlarge、24 小时 soak 和 1,000 次展示门禁。
+代码或跨候选续跑。长期运行示例：
+
+```powershell
+npm run gui-physical-soak -- start `
+  --profile "$env:LOCALAPPDATA\ChemSema\gui-test\profiles\physical-current.json" `
+  --queue "$env:LOCALAPPDATA\ChemSema\gui-test\queues\soak-current-production.json" `
+  --state-root "$env:LOCALAPPDATA\ChemSema\gui-test\daemon-soak-current" `
+  --duration-hours 24 --scenario-executions 1000
+```
+
+`duration-hours` 与 `scenario-executions` 是同时满足的下限；只达到其中一个不会提前结束。
+当前尚未完成 supervisor 与子进程重启恢复的实机故障注入验收、Office、最终安装包、
+复杂/large/xlarge、24 小时 soak 和 1,000 次展示门禁。

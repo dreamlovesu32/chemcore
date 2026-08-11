@@ -111,6 +111,7 @@
     "regression:viewer-interactions": "node scripts/viewer-interaction-smoke.mjs",
     "gui-platform": "node packages/gui-test/src/cli.mjs",
     "gui-physical-worker": "node packages/gui-test/src/workers/physical-daemon.mjs",
+    "gui-physical-soak": "node packages/gui-test/src/workers/physical-soak.mjs",
     "gui-platform:test": "node --test packages/gui-test/tests/*.test.mjs",
     "check:legacy-redirects": "node scripts/check-legacy-redirects.mjs",
     "check:retired-name": "node scripts/check-retired-name.mjs",
