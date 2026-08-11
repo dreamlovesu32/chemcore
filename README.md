@@ -313,7 +313,9 @@ chemsema/
 - Rust stable with the MSVC toolchain on Windows
 - Node.js and npm
 - Python 3 for local static serving and some optional analysis scripts
-- `wasm-pack` is installed automatically by `npm run build:engine-wasm` when needed
+- the exact `wasm-pack` version declared in `tools/wasm-pack.json`; the build
+  fails closed on a missing or different version, and CI verifies the pinned
+  Windows archive SHA-256 before use
 - Windows is required for the desktop shell and Office/OLE integration paths
 
 ## Quick Start

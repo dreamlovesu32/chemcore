@@ -75,6 +75,7 @@ run(process.execPath, [
   "scripts/tests/public-cdxml-failure-ledger.test.mjs",
   "scripts/tests/public-cdxml-impact.test.mjs",
   "scripts/tests/public-cdxml-visual-gate.test.mjs",
+  "scripts/tests/wasm-pack-toolchain.test.mjs",
   "packages/gui-test/tests/protocol.test.mjs",
   "packages/gui-test/tests/runner.test.mjs",
   "packages/gui-test/tests/hyperv.test.mjs",

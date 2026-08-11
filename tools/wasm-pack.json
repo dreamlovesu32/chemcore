@@ -1,0 +1,10 @@
+{
+  "schema": "chemsema.toolchain.wasm-pack.v1",
+  "version": "0.15.0",
+  "releases": {
+    "windows-x64": {
+      "asset": "wasm-pack-v0.15.0-x86_64-pc-windows-msvc.tar.gz",
+      "sha256": "518dc51180c7bc864699c9279b3bc99025bc109123e0249a34ba34d130a509bf"
+    }
+  }
+}

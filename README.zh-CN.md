@@ -240,7 +240,8 @@ chemsema/
 - Rust stable，Windows 桌面路径需要 MSVC toolchain
 - Node.js 和 npm
 - Python 3，用于本地静态服务和部分可选分析脚本
-- `npm run build:engine-wasm` 会在需要时安装 `wasm-pack`
+- 使用 `tools/wasm-pack.json` 声明的精确 `wasm-pack` 版本；缺失或版本不同
+  时构建会失败关闭，CI 使用前还会校验锁定的 Windows 压缩包 SHA-256
 - 桌面 shell 与 Office/OLE 集成需要 Windows
 
 ## 快速开始
