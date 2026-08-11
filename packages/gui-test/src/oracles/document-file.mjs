@@ -114,6 +114,7 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       element: node?.element ?? null,
       atomicNumber: node?.atomicNumber ?? node?.atomic_number ?? null,
       charge: node?.charge ?? null,
+      numHydrogens: node?.numHydrogens ?? node?.num_hydrogens ?? null,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };
@@ -375,6 +376,11 @@ export function evaluateDocumentSymbolProperties(bytes, expected) {
       styleFill: style.fill ?? null,
       styleKind: style.kind ?? null,
       symbolStyle: object?.payload?.symbolStyle ?? null,
+      chemicalRole: object?.payload?.chemicalRole ?? null,
+      chargeDelta: object?.payload?.chargeDelta ?? null,
+      radicalDelta: object?.payload?.radicalDelta ?? null,
+      attachedAtomId: object?.payload?.attachedAtomId ?? null,
+      attachmentSource: object?.payload?.attachmentSource ?? null,
     };
   });
   const passed = observed.every((actual, index) => actual.found

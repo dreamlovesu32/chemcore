@@ -173,6 +173,7 @@ export class ProductionBlackBoxDriver {
       "editor.shape.properties",
       "editor.symbol.draw",
       "editor.symbol.properties",
+      "editor.symbol.atom-attachment",
       "editor.bracket.draw",
       "editor.bracket.properties",
       "editor.table.draw",

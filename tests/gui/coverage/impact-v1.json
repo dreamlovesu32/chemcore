@@ -25,6 +25,7 @@
     { "id": "source.scenario.core.ring.endpoint-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-endpoint-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.ring.vertex-bond-continuation-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-vertex-bond-continuation-persistence-production.json"] },
     { "id": "source.scenario.core.atom.element-label-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-element-label-persistence-production.json"] },
+    { "id": "source.scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-charge-symbol-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.chain.drag-count-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-drag-count-persistence-production.json"] },
     { "id": "source.scenario.core.chain.endpoint-attachment-continuation.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-endpoint-attachment-continuation-production.json"] },
     { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
@@ -60,6 +61,7 @@
     { "id": "component.document-io", "kind": "component" },
     { "id": "capability.editor.bond.draw", "kind": "capability" },
     { "id": "capability.editor.atom.element-label", "kind": "capability" },
+    { "id": "capability.editor.atom.charge-symbol-attachment", "kind": "capability" },
     { "id": "capability.editor.ring.insert", "kind": "capability" },
     { "id": "capability.editor.chain.draw", "kind": "capability" },
     { "id": "capability.editor.arrow.draw", "kind": "capability" },
@@ -105,6 +107,7 @@
     { "id": "oracle.ui-state", "kind": "oracle" },
     { "id": "scenario.core.bond.draw-single", "kind": "scenario" },
     { "id": "scenario.core.atom.element-label-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.bond.draw-single.production", "kind": "scenario" },
     { "id": "scenario.core.bond.ten-variant-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.six-planar-persistence.production", "kind": "scenario" },
@@ -153,6 +156,7 @@
     { "from": "source.runtime-dependencies", "to": "component.gui-runner", "reason": "Dependency lockfile and runtime package changes can affect platform execution." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single", "reason": "Runner changes invalidate scenario execution evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.element-label-persistence.production", "reason": "Runner, guarded palette targeting, native save, and exact document-node oracle changes invalidate element-label evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom-link oracle changes invalidate charge-attachment evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single.production", "reason": "Runner changes invalidate production desktop scenario evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.ten-variant-persistence.production", "reason": "Runner, guarded bond-tool input, native save, and exact document-oracle changes invalidate the production variant matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.history.undo-redo-bond.production", "reason": "Runner changes invalidate production keyboard scenario evidence." },
@@ -472,6 +476,14 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.element-label-persistence.production", "reason": "The physical driver opens the periodic palette, applies nitrogen at the measured endpoint, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.element-label-persistence.production", "reason": "The unique rendered node identity kills missing-label and wrong-target mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.element-label-persistence.production", "reason": "Exact node element, atomic number, charge, label fields, and topology kill semantic persistence mutants." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.atom.charge-symbol-attachment", "reason": "Charge-symbol placement, spatial atom linking, valence refresh, and label regeneration form one public editor capability." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "The charged target is terminal nitrogen created through the public Element palette." }
+    ,{ "from": "capability.editor.atom.charge-symbol-attachment", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "The production cell attaches the default positive symbol to nitrogen and verifies ammonium semantics." }
+    ,{ "from": "capability.editor.bond.draw", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "The target atom originates from a guarded public Single bond gesture." }
+    ,{ "from": "source.scenario.core.atom.charge-symbol-attachment-persistence.production", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "Changing the charge-attachment scenario invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "The physical driver draws the bond, applies nitrogen, creates the charge symbol at the measured endpoint, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "Distinct node and symbol identities kill missing-label and missing-symbol mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "Exact formal charge, hydrogen count, NH3 label, symbol chemistry deltas, attached atom, and link provenance kill detached-charge and stale-valence mutants." }
     ,{ "from": "component.editor-interaction", "to": "capability.editor.chain.draw", "reason": "The shared editor interaction path owns public variable-length chain dragging and preview commitment." }
     ,{ "from": "capability.editor.chain.draw", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The production cell covers drag-derived chain length, zigzag commitment, and exact persistence." }
     ,{ "from": "source.scenario.core.chain.drag-count-persistence.production", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "Changing the chain production scenario invalidates its evidence." }

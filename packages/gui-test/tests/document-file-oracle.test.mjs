@@ -66,10 +66,10 @@ test("saved-document node oracle kills element, charge, implicit-hydrogen-label,
   const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
     { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 2, label: { text: "NH2", sourceText: "NH2", meta: { implicitHydrogenLabel: { source: "shortcut", userEdited: false } } } },
   ] } } } }));
-  const expected = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 0, labelText: "NH2", labelSourceText: "NH2" }];
+  const expected = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 2, labelText: "NH2", labelSourceText: "NH2" }];
   assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
   for (const mutant of [
-    { element: "C" }, { atomicNumber: 6 }, { charge: 1 }, { labelText: "N" }, { labelText: "NH" }, { labelSourceText: "N" },
+    { element: "C" }, { atomicNumber: 6 }, { charge: 1 }, { numHydrogens: 3 }, { labelText: "N" }, { labelText: "NH" }, { labelSourceText: "N" },
   ]) {
     assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], ...mutant }]).passed, false);
   }
@@ -254,6 +254,28 @@ test("saved-document symbol oracle checks exact kind and both persisted color su
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], kind: "plus" }]).passed, false);
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], payloadFill: "#000000" }]).passed, false);
   assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...expected[0], styleFill: "#000000" }]).passed, false);
+});
+
+test("saved-document atom and symbol oracles kill detached charge and stale-hydrogen mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({
+    styles: { style_obj_symbol_1: { kind: "symbol", fill: "#000000" } },
+    resources: { mol: { type: "molecule_fragment2d", data: { nodes: [{
+      id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 3,
+      label: { text: "NH3", sourceText: "NH3" },
+    }] } } },
+    entities: { scene: [{
+      id: "obj_symbol_1", type: "symbol", styleRef: "style_obj_symbol_1",
+      payload: { kind: "circle-plus", fill: "#000000", symbolStyle: "default", chemicalRole: "charge", chargeDelta: 1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
+    }] },
+  }));
+  const nodeExpected = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 3, labelText: "NH3", labelSourceText: "NH3" }];
+  const symbolExpected = [{ id: "obj_symbol_1", kind: "circle-plus", payloadFill: "#000000", styleFill: "#000000", styleKind: "symbol", symbolStyle: "default", chemicalRole: "charge", chargeDelta: 1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" }];
+  assert.equal(evaluateDocumentNodeProperties(bytes, nodeExpected).passed, true);
+  assert.equal(evaluateDocumentSymbolProperties(bytes, symbolExpected).passed, true);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...nodeExpected[0], numHydrogens: 2 }]).passed, false);
+  assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...symbolExpected[0], attachedAtomId: "n_1" }]).passed, false);
+  assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...symbolExpected[0], chargeDelta: 0 }]).passed, false);
+  assert.equal(evaluateDocumentSymbolProperties(bytes, [{ ...symbolExpected[0], attachmentSource: "explicit" }]).passed, false);
 });
 
 test("saved-document bracket oracle checks paired group membership and visible side properties", () => {
