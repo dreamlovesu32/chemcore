@@ -4,9 +4,9 @@
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
 登记场景：**27**
 
-当前产品候选：`cea5f3522ac36743fb15e32e922a59d616efd91ebcc7c99d0e9e9736ba8f9b9b`（源码闭包 `2cd1a01b55b773db8bd2d16d032f4dac36a241646a3d53452859d2a74cf6326a`）
+当前产品候选：`7714f687f6e74bd1df479c4bd1db61cf45b5a808755e6979eb3a4a25b957a03a`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**27/27 passed，0 failed，0 missing，0 diagnostics**；完整 GUI 功能矩阵仍未完成，本文总体状态不变
+当前源码闭包已登记场景资格：**26/27 passed，0 failed，1 pending，0 diagnostics**；26 个 production 物理场景已闭合，浏览器单键基线正在等待独立后台批次，完整 GUI 功能矩阵仍未完成，本文总体状态不变
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -43,11 +43,11 @@
 | ✅ | 内容寻址候选 | 可执行文件与源码闭包哈希绑定，源码或二进制漂移时拒绝运行 |
 | ✅ | 原生 Windows 对话框 | 保存/打开使用真实 UIA 与键盘输入，保存文件经 SHA-256 回传 |
 | ✅ | 独立文件 oracle | 已支持化学计数及 Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 精确属性 |
-| 🟡 | 独立前端状态 oracle | 已用当前候选实机通过焦点归属、键盘焦点环、`:hover`、禁用态、受限计算样式、选择覆盖层/对象几何、控制点像素尺寸、实际 viewport 与 `devicePixelRatio`；已增加待新候选实机验证的字体变化后文本紧边界和键选择框 12 CSS px 最小可操作尺寸断言；尚缺完整键盘 `:focus-visible` 顺序、全部光标/主题/DPI/窗口尺寸矩阵 |
+| 🟡 | 独立前端状态 oracle | 已用当前候选实机通过焦点归属、上下文菜单结束后的画布焦点恢复、键盘焦点环、`:hover`、禁用态、受限计算样式、字体变化后文本紧边界、键选择框 12 CSS px 最小可操作尺寸、双选择框 16 个 6×6 CSS px 控制点、实际 viewport 与 `devicePixelRatio`；尚缺完整键盘 `:focus-visible` 顺序、全部光标/主题/DPI/窗口尺寸矩阵 |
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；新增长期 supervisor，在一轮结束后立即续接下一轮，按轮 checkpoint，且必须同时满足时长和执行次数目标，不依赖 Codex/目标模式/整点轮询；当前 24 场景无人值守批次及前端 2 场景已通过并纳入 27/27 资格，尚需完成 supervisor/子进程重启故障注入和终态事件唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；当前候选 26 场景物理批次已通过，终态事件已连续驱动失败修复和完成续接；尚需完成浏览器基线后台续接、supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -91,11 +91,11 @@
 
 ## 4. 已登记的 27 个场景
 
-所有 27 个场景均已实现并进入 registry，并已由当前不可变 production 候选取得单候选 27/27 资格。这只证明当前 registry 闭包，不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖；后续新增场景仍必须产生新证据，不能把本次绿色资格冒充最终产品资格。
+所有 27 个场景均已实现并进入 registry。当前不可变候选已取得 26 个 production 物理场景的完整证据；浏览器单键基线仍待本轮独立后台结果，因此当前不得声明单候选 27/27 资格。这一 registry 闭包即使最终全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
-| ✅ | `core.bond.draw-single` | 浏览器公开输入绘制单键基线 |
+| 🟡 | `core.bond.draw-single` | 浏览器公开输入绘制单键基线；当前候选后台批次待完成 |
 | ✅ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
 | ✅ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
 | ✅ | `core.selection.clipboard-delete-multi-bond.production` | 多键选择、复制粘贴、删除、历史 |
@@ -123,14 +123,14 @@
 | ✅ | `core.frontend.focus-hover-disabled.production` | 真实点击后的焦点归属、焦点环、hover、disabled 样式与 150% DPI |
 | ✅ | `core.frontend.selection-geometry.production` | 真实绘制/框选后的选择框、控制点、画布焦点/hover 与缩放几何 |
 
-当前候选的剩余 production 批次 `physical-current-impact-remaining-production-20260811-1786432745932` 已无人值守连续通过 24/24；24 份报告、24 个 manifest 和 190 个证据对象（192,057,841 bytes）已独立复算一致。与前端 2 场景及浏览器基线合并后，正式 qualification 为 27/27 passed，211 个 artifact hashes 全部验证，qualification SHA-256 为 `7b322d35950d85357975f7f1d8f6ef62e45fdbb7353c9972381440be96199607`。资格文件位于仓库外 `%LOCALAPPDATA%\ChemSema\gui-test\qualification-current-9d4adab-r2\qualification.json`。过程中保留并修复了 action budget、Delete/方向键 SendInput、Windows 原子状态替换竞争等首次失败。
+当前候选的 production 物理批次 `impact-11c5030-production-1786444842194` 已无人值守连续通过 26/26；26 份报告、26 个 manifest 和 204 个证据对象（209,052,037 bytes）已独立复算一致，完成状态、checkpoint、queue 顺序、提交、候选、profile 与全部 SHA-256 绑定均一致。完成审计 SHA-256 为 `f9ff74b12ce68716bbb7cfcc7df8126286db7762ade36113bd75aa4e6c0f81a2`。浏览器基线尚未并入当前候选资格，因此当前没有新的 27/27 qualification。
 
-当前候选的前端批次 `physical-frontend-150-percent-20260811-1786432325957` 已通过 2/2。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；Zoom in hover 背景为 `rgb(238, 243, 248)`；Tab 后 Zoom out 为唯一焦点，outline 为 `auto/0.666667px`；Save 为 disabled，cursor `default`、opacity `0.35`。真实绘制和框选后有 1 个选择框、8 个 6×6 CSS px resize handle，画布同时满足 focused、focus-within 和 hover，active element 为 `viewer-container`。2 份报告、2 份 manifest 和 14 个证据对象已独立复算；报告 SHA-256 分别为 `60b814ece8c734ac5ea3a7c85caec4124c1a2dab64a72ee37293a29361413f11`、`a0c9632ccd1d6eaefceb0b29e10d420d1582cbfac8d929b7b1a1dd54cb46dddc`，manifest SHA-256 分别为 `a4683637e0be1a0f2379c9d5b2963f4753ce30c6651289b1d3c61d875d3129e1`、`859240a2dd85fea032cd63420be58c96d49cb86c67dc956207dcced93991d842`。此前发现的画布焦点滞留和 1.5 CSS px 手柄问题已修复并由当前候选回归关闭；PowerShell 空样式、单元素数组和 CDP 大小写键设施失败的原始证据仍保留。
+当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前为 86/86、audit 27 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前为 95/95、audit 27 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
 - 当前 registry 的 27 场景已有单候选完整资格；这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
@@ -140,7 +140,7 @@
 
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
-1. 🟡 **当前缺陷族与 oracle 收口**：验证字体变化后文本几何重算、键选择框的屏幕像素下限、轨道模板迁移的精确几何，并补齐轨道/括号归一化前的语义检查点；完成终态事件唤醒验收。
+1. 🟡 **当前缺陷族与 oracle 收口**：完成当前候选浏览器单键基线与 27/27 qualification；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
 2. **化学绘制主干**：11 种键、原子/标签/电荷、环、Chain、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
