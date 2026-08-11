@@ -327,6 +327,7 @@
                   "radicalCount": { "type": "integer", "minimum": 0, "maximum": 16 },
                   "isotopeMass": { "type": "integer", "minimum": 1, "maximum": 32767 },
                   "isotopicAbundance": { "enum": ["unspecified", "any", "natural", "enriched", "deficient", "nonnatural"] },
+                  "atomRadical": { "enum": ["none", "singlet", "doublet", "triplet"] },
                   "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }
                 }

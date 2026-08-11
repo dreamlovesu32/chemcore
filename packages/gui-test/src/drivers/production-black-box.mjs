@@ -57,6 +57,7 @@ export const productionBlackBoxCapabilities = Object.freeze([
   "editor.atom.implicit-hydrogens",
   "editor.atom.isotope",
   "editor.atom.isotopic-abundance",
+  "editor.atom.radical",
   "document.save-as",
   "document.open",
   "document.close-discard",
