@@ -97,6 +97,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.query-reaction-value-history-persistence.production",
+    "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-value-matrix.production",
@@ -194,6 +195,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
       "scenario.core.atom.query-reaction-value-history-persistence.production",
+      "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-value-matrix.production",
@@ -291,6 +293,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.query-reaction-value-history-persistence.production",
+    "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-value-matrix.production",
@@ -376,6 +379,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.periodic-representative-value-matrix.production",
     "scenario.core.atom.plus-symbol-attachment-persistence.production",
     "scenario.core.atom.query-reaction-value-history-persistence.production",
+    "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
     "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
     "scenario.core.atom.radical-value-matrix.production",
@@ -456,6 +460,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.periodic-representative-value-matrix.production",
       "scenario.core.atom.plus-symbol-attachment-persistence.production",
       "scenario.core.atom.query-reaction-value-history-persistence.production",
+      "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
       "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
       "scenario.core.atom.radical-value-matrix.production",
@@ -550,6 +555,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-number-visibility-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-stereo-value-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-query-reaction-value-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-ring-bond-count-value-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
@@ -598,8 +604,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 51);
-  assert.equal(result.summary.scenarios, 81);
+  assert.equal(result.summary.entries, 52);
+  assert.equal(result.summary.scenarios, 82);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -1051,6 +1057,25 @@ test("the atom-query reaction matrix kills missing values, swapped enums, broken
     [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, reactionChange: true, reactionStereo: "retention", showAtomQuery: true, labelText: "CH4", labelSourceText: "CH4" }],
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query ring-count matrix kills skipped values, swapped enums, broken history, stale indicators, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-ring-bond-count-value-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-ring-bond-count"));
+  for (const value of ["unspecified", "no-ring-bonds", "as-drawn", "simple-ring", "fusion", "spiro-or-higher"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`ring-bond-count:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated ring-bond-count checked state for ${value}`);
+  }
+  for (const id of ["set-no-ring-bonds", "set-as-drawn", "set-simple-ring", "set-fusion", "set-spiro-or-higher", "set-final-spiro-or-higher"]) {
+    assert.equal(scenario.actions.find((action) => action.id === id).completion.text, "R", `missing exact R indicator for ${id}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "set-ring-count-unspecified").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "undo-ring-count-unspecified").completion.text, "R");
+  assert.equal(scenario.actions.find((action) => action.id === "redo-ring-count-unspecified").completion.value, 1);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-ring-query-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, ringBondCount: "spiro-or-higher", labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-ring-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
 });
 
 test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {

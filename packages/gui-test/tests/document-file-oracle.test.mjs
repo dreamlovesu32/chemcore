@@ -213,6 +213,23 @@ test("saved-document node oracle kills missing, wrong, hidden, and display-only 
   assert.equal(evaluateDocumentNodeProperties(displayOnly, expected).passed, false);
 });
 
+test("saved-document node oracle kills missing, wrong, and display-only atom-query ring-bond-count mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: { ringBondCount: "spiro-or-higher" }, label: { text: "CH4", sourceText: "CH4" } },
+  ] } } } }));
+  const expected = [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, ringBondCount: "spiro-or-higher", labelText: "CH4", labelSourceText: "CH4" }];
+  assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], ringBondCount: "fusion" }]).passed, false);
+  const missing = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: {}, label: { text: "CH4", sourceText: "CH4" } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(missing, expected).passed, false);
+  const displayOnly = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: {}, label: { text: "CH4", sourceText: "CH4", meta: { ringBondCount: "spiro-or-higher" } } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(displayOnly, expected).passed, false);
+});
+
 test("saved-document arrow oracle checks exact public CCJS properties", () => {
   const bytes = Buffer.from(JSON.stringify({
     styles: { style_red: { stroke: "#ff0000" } },

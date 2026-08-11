@@ -2,11 +2,11 @@
 
 最后更新：2026-08-12
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**81**
+登记场景：**82**
 
 当前产品候选：`0994e9403d37e1075a60ce0b12703553b6fdff307c2696ee624058e63d68ac8a`（源码闭包 `432608574f57f7a1e96e8f8f1d3db1ae70b92b99cd122f238f8d229f81519a78`）
 
-当前源码闭包已登记场景资格：**80/81 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen、Bond Reaction Participation、自由原子规范化、Isotope、Radical 与 Atom Number 的首次失败证据永久保留。全部 118 个周期表值及 Atom Properties 的 Isotope、Isotopic Abundance、Radical、Atom Number、Stereochemistry 现已取得独立实机证据。当前影响图选择相邻且尚无 physical coverage 的 Atom Query Reaction Change/Reaction Stereo 全值、历史、显隐与持久化闭包，不重复任何已通过值域。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**81/82 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen、Bond Reaction Participation、自由原子规范化、Isotope、Radical 与 Atom Number 的首次失败证据永久保留。全部 118 个周期表值及 Atom Properties 的 Isotope、Isotopic Abundance、Radical、Atom Number、Stereochemistry，以及 Atom Query 的 Reaction Change/Reaction Stereo 现已取得独立实机证据。当前影响图选择相邻且尚无 physical coverage 的 Atom Query Ring Bond Count 全值、历史、indicator 与持久化闭包，不重复任何已通过值域。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -56,7 +56,7 @@
 
 | 状态 | 功能族 | 已有真实覆盖 | 明确剩余 |
 |---|---|---|---|
-| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen/Oxygen Element、全部八种 Charge/Electron symbol→atom、implicit-hydrogen Automatic/Hide、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、三种 wedge 端点反转、全部公开 bond tool 中心替换/循环、全部 118 个周期表值及 Isotope/Isotopic Abundance/Radical/Atom Number/Stereochemistry 已取得真实 OS 输入与精确持久化证据 | 当前 Atom Query 的 Reaction Change/Reaction Stereo 全值、历史与显隐待实机证据；其余 Atom Query、混合选择与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
+| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen/Oxygen Element、全部八种 Charge/Electron symbol→atom、implicit-hydrogen Automatic/Hide、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、三种 wedge 端点反转、全部公开 bond tool 中心替换/循环、全部 118 个周期表值及 Isotope/Isotopic Abundance/Radical/Atom Number/Stereochemistry、Atom Query Reaction Change/Reaction Stereo 已取得真实 OS 输入与精确持久化证据 | 当前 Atom Query Ring Bond Count 全值、历史与 indicator 待实机证据；其余 Atom Query、混合选择与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
 | 🟡 | Arrow | 多对象属性、锁定混合、属性持久化 | 全部直接绘制预设、所有 head/curve/no-go/color 值、组合/大文档 |
 | 🟡 | Text | 新建、既有编辑、多行、主要样式、行距、取消、历史、持久化 | 局部选区、全部字体/字号/对齐/行距边界、IME/composition、Formula、端点标签、锁定/组合/大文档 |
 | 🟡 | Shape | 四种 kind、五种代表样式、批量样式、历史、持久化 | 全颜色/Faded、控制点、缩放/旋转、锁定/组合/剪贴板、格式与大文档 |
@@ -89,9 +89,9 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 81 个场景
+## 4. 已登记的 82 个场景
 
-所有 81 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 80/81 reusable passed；三种 wedge 端点反转、所有公开 bond tool 的中心替换/循环、全部 118 个周期表值、Isotope、Isotopic Abundance、Radical、Atom Number 与 Stereochemistry 均已通过，影响图接着选择 Atom Query 的 Reaction Change/Reaction Stereo 全值、历史、显隐与持久化闭包。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 82 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 81/82 reusable passed；三种 wedge 端点反转、所有公开 bond tool 的中心替换/循环、全部 118 个周期表值、Isotope、Isotopic Abundance、Radical、Atom Number、Stereochemistry 与 Atom Query Reaction Change/Reaction Stereo 均已通过，影响图接着选择 Atom Query Ring Bond Count 全值、历史、indicator 与持久化闭包。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -139,7 +139,8 @@
 | ✅ | `core.atom.radical-value-matrix.production` | 在公开 Atom Properties > Radical 菜单遍历 None、Singlet、Doublet、Triplet，逐次验证重新生成的 checked state，并精确保存最终 Triplet enum 与修复后的 `CH2` 公式；独立后台实机证据已通过 |
 | ✅ | `core.atom.number-visibility-persistence.production` | 在公开 Atom Properties 菜单设置 Atom Number `17`，隐藏/显示、编辑为 `42`、清除，再设置为 `17`；逐次验证 annotation 与菜单状态，并精确保存 `atomNumber="17"`、`showAtomNumber=true`；修复 targeted text contract 后的独立后台实机证据已通过 |
 | ✅ | `core.atom.stereo-value-history-persistence.production` | 在公开 Atom Properties > Stereo Descriptor 菜单遍历 Calculated/unset、R、S、r、s 与 Other 自定义值，验证 checked state、精确 annotation、取消不入历史、undo/redo、隐藏/显示，并最终精确保存 `cipStereo="R"`、`showAtomStereo=true`；独立后台实机证据已通过 |
-| 🟡 | `core.atom.query-reaction-value-history-persistence.production` | 在公开 Atom Query 菜单遍历 No Change/Changed 与 Unspecified/Inversion/Retention，验证 regenerated checked state、精确 `C`/`CT` indicator、undo/redo、隐藏/显示，并最终精确保存 `reactionChange=true`、`reactionStereo="retention"`、`showAtomQuery=true`；当前影响选择批次待独立实机证据 |
+| ✅ | `core.atom.query-reaction-value-history-persistence.production` | 在公开 Atom Query 菜单遍历 No Change/Changed 与 Unspecified/Inversion/Retention，验证 regenerated checked state、精确 `C`/`CT` indicator、undo/redo、隐藏/显示，并最终精确保存 `reactionChange=true`、`reactionStereo="retention"`、`showAtomQuery=true`；独立后台实机证据已通过 |
+| 🟡 | `core.atom.query-ring-bond-count-value-history-persistence.production` | 在公开 Atom Query > Ring Bond Count 菜单遍历 Unspecified、No Ring Bonds、As Drawn、Simple Ring、Fusion、Spiro or Higher，验证 regenerated checked state、精确 `R` indicator、undo/redo，并最终精确保存 `ringBondCount="spiro-or-higher"`；当前影响选择批次待独立实机证据 |
 | ✅ | `core.atom.charge-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，以公开 Charge/Electron Symbol 工具附着默认正电荷；精确持久化 +1 formal charge、三个隐式氢、`NH3` 标签、symbol chemistry delta、目标 atom ID 与 auto-link 来源的修复批次已通过 |
 | ✅ | `core.atom.negative-charge-symbol-attachment-persistence.production` | 从真实单键端点与 Oxygen Element 状态继续，在 Secondary toolbar 选择 Circle minus 并附着；精确持久化 -1 formal charge、零隐式氢、`O` 标签、symbol chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
 | ✅ | `core.atom.radical-cation-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Radical cation 并附着；精确持久化 +1 formal charge、两个隐式氢、`NH2` 标签、radical count 1、双 chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
@@ -303,15 +304,17 @@ Atom Number targeted-text 修复批次 `impact-395f36f-atom-number-targeted-text
 
 Atom Stereochemistry 批次 `impact-77f8a19-atom-stereochemistry-production-1786488087524` 已通过：49/49 actions、4/4 oracles、0 diagnostics，Calculated/unset、R、S、r、s、自定义、取消不入历史、undo/redo、显隐及最终 `cipStereo="R"`、`showAtomStereo=true` 文件语义全部闭合。终态、heartbeat、checkpoint、报告、manifest SHA-256 分别为 `b68616eb2142ac45c9afcd25c68171ae486c09b9bafb602155aa45d77ef84fff`、`1ab65693b58bd4d1f356c184f1ee9ffb2eab37f8f6ab4fa1468dd1203aad5ea5`、`5e3776cb08077ce2f50deea956e96b976bf770b740d9d71d4cc5092552b47712`、`3ff50263971b7221e7581cbc1be1a13ca7f54f53ce2bf4d9e9d328d0158711eb`、`9fbdced6c97ed16328d2e628212bdefa122b21092ad2e4b4c26d32dd523d5a7d`；9 个 sample-retention 证据对象共 9,376,474 bytes 全部独立复算一致。终态提交 `77f8a19299585e1d545fff3a3bc3c7a393d6dc40`、候选、源码闭包、profile 与 queue 哈希均匹配；影响图只推进到相邻且尚未覆盖的 Atom Query reaction 闭包。
 
+Atom Query reaction 批次 `impact-66dff04-atom-query-reaction-production-1786488644423` 已通过：49/49 actions、4/4 oracles、0 diagnostics，No Change/Changed、Unspecified/Inversion/Retention、undo/redo、query indicator 显隐及最终 `reactionChange=true`、`reactionStereo="retention"`、`showAtomQuery=true` 文件语义全部闭合。终态、heartbeat、checkpoint、报告、manifest SHA-256 分别为 `1d5525c5e3af3b7aaf7d6570eeb9ab3334e0f2f4bd37921664f6cf993529e09e`、`029269700e532393c8b30970e365dd72b0f94d81d0622f3094dec8e1b36c1ee3`、`1ea52b2a95ffd9bb9824342028082abd0e914ea0cda3869d789deec5bf765da6`、`9fe5fb7b5d26114a0d3317143bb3586bf4271a6937497ff08ba1214d98469e10`、`fc7a702845f422b3da62f99c36d1f89310f3463792342328d3f8548dceb0300d`；9 个 sample-retention 证据对象共 9,387,387 bytes 全部独立复算一致。终态提交 `66dff04c0a22321ca58e7951c9615a1f024b809d`、候选、源码闭包、profile 与 queue 哈希均匹配；影响图只推进到相邻且尚未覆盖的 Atom Query Ring Bond Count 闭包。
+
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 81 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 82 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 41 场景已有单候选完整资格；后续独立修复/扩展闭包均保留候选身份并已通过。当前 81 场景 registry 保留全部首次 test/oracle/product 失败；所有公开 bond tool 的中心替换/循环、三种 wedge 反转、全部 118 个周期表值及 Atom Properties 的 Isotope、Isotopic Abundance、Radical、Atom Number、Stereochemistry 已通过，Atom Query Reaction Change/Reaction Stereo 全值、历史、显隐与持久化闭包进入下一独立批次。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 41 场景已有单候选完整资格；后续独立修复/扩展闭包均保留候选身份并已通过。当前 82 场景 registry 保留全部首次 test/oracle/product 失败；所有公开 bond tool 的中心替换/循环、三种 wedge 反转、全部 118 个周期表值及 Atom Properties 的 Isotope、Isotopic Abundance、Radical、Atom Number、Stereochemistry 与 Atom Query Reaction Change/Reaction Stereo 已通过，Atom Query Ring Bond Count 全值、历史、indicator 与持久化闭包进入下一独立批次。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序

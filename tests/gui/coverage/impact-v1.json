@@ -45,6 +45,7 @@
     { "id": "source.scenario.core.atom.number-visibility-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-number-visibility-persistence-production.json"] },
     { "id": "source.scenario.core.atom.stereo-value-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-stereo-value-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.query-reaction-value-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-query-reaction-value-history-persistence-production.json"] },
+    { "id": "source.scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-query-ring-bond-count-value-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.periodic-representative-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-representative-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-common-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-common-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-noble-lanthanide-free-placement-production.json"] },
@@ -115,6 +116,7 @@
     { "id": "capability.editor.atom.number", "kind": "capability" },
     { "id": "capability.editor.atom.stereochemistry", "kind": "capability" },
     { "id": "capability.editor.atom.query-reaction", "kind": "capability" },
+    { "id": "capability.editor.atom.query-ring-bond-count", "kind": "capability" },
     { "id": "capability.editor.atom.implicit-hydrogen-visibility", "kind": "capability" },
     { "id": "capability.editor.atom.charge-symbol-attachment", "kind": "capability" },
     { "id": "capability.editor.ring.insert", "kind": "capability" },
@@ -168,6 +170,7 @@
     { "id": "scenario.core.atom.number-visibility-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.stereo-value-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.query-reaction-value-history-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-representative-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-common-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "scenario" },
@@ -261,6 +264,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.number-visibility-persistence.production", "reason": "Runner, atom-property dialogs, annotation visibility checks, native save, and exact atom-number oracle changes invalidate atom-number evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.stereo-value-history-persistence.production", "reason": "Runner, atom-property dialogs, nested stereo menus, history, annotation visibility, native save, and exact atom-stereo oracle changes invalidate atom-stereo evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.query-reaction-value-history-persistence.production", "reason": "Runner, nested Atom Query menus, history, query-indicator visibility, native save, and exact node-property oracle changes invalidate atom-query reaction evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "reason": "Runner, nested Atom Query menus, history, query-indicator rendering, native save, and exact ring-bond-count oracle changes invalidate atom-query ring-count evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the representative periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the common-value periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the noble/lanthanide matrix." },
@@ -907,5 +911,12 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.query-reaction-value-history-persistence.production", "reason": "The physical driver uses real right-click menus, nested reaction choices, guarded history keys, query-indicator visibility commands, and native Save As." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.query-reaction-value-history-persistence.production", "reason": "Exact C/CT query indicators, regenerated checked states, undo/redo, and hide/show transitions kill missing-value, swapped-enum, stale-menu, stale-render, broken-history, and inverted-visibility mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.query-reaction-value-history-persistence.production", "reason": "Exact reactionChange=true, reactionStereo=retention, and showAtomQuery=true plus Carbon CH4 and one-object counts kill lost-value, wrong-enum, hidden-final, display-only, label-rewrite, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.atom.query-ring-bond-count", "reason": "Atom Query nested ring-count choices, history, query-indicator rendering, and persistence form one public editor capability." }
+    ,{ "from": "capability.editor.atom.query-reaction", "to": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "reason": "The adjacent completed Atom Query reaction closure supplies the trusted standalone Carbon, nested Atom Query, history, indicator, and native-save checkpoint without repeating reaction values." }
+    ,{ "from": "capability.editor.atom.query-ring-bond-count", "to": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "reason": "The production cell traverses all six public ring-bond-count states, proves regenerated checked state and history, and persists final Spiro or Higher semantics." }
+    ,{ "from": "source.scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "to": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "reason": "Changing the atom-query ring-count value, history, indicator, and persistence cell invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "reason": "The physical driver uses real right-click menus, every nested ring-count choice, guarded history keys, and native Save As." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "reason": "Regenerated checked states plus exact R appearance, removal, undo, and redo kill skipped-value, swapped-enum, stale-menu, stale-render, and broken-history mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.query-ring-bond-count-value-history-persistence.production", "reason": "Exact ringBondCount=spiro-or-higher plus Carbon CH4 and one-object counts kill lost-value, wrong-enum, display-only, label-rewrite, collapsed-object, and accidental-bond mutants." }
   ]
 }
