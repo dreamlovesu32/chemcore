@@ -80,6 +80,25 @@ test("an exact bond identity selector resolves the collective logical center acr
   );
 });
 
+test("an exact node identity selector resolves one logical atom across isotope label fragments", async () => {
+  const fragments = [
+    { tag: "text", name: "CH4", visible: true, disabled: false, rect: [661, 491, 686, 508] },
+    { tag: "text", name: "2", visible: true, disabled: false, rect: [656, 485, 661, 493] },
+  ];
+  const driver = new ProductionBlackBoxDriver({ coordinator: {
+    async cdpBridge() { return { scopeCount: null, matches: fragments }; },
+  } });
+  const exact = { strategy: "selector", value: '[data-node-id="n_1"]' };
+  assert.deepEqual((await driver.resolve(exact)).match, {
+    ...fragments[0],
+    rect: [656, 485, 686, 508],
+  });
+  await assert.rejects(
+    driver.resolve({ strategy: "selector", value: '[data-role="document-text"]' }),
+    /resolved to 2 visible actionable elements/,
+  );
+});
+
 test("production black-box driver maps semantic CDP targets to guarded OS input", async () => {
   let bonds = 0;
   let stopCount = 0;

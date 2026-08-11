@@ -883,6 +883,11 @@ test("the isotope value matrix kills missing presets, swapped masses, disconnect
   assert.equal(scenario.actions.some((action) => action.target?.value?.includes("isotope:__prompt__")), true);
   assert.equal(scenario.actions.find((action) => action.id === "type-custom-isotope-17").text, "17");
   assert.equal(
+    scenario.actions.filter((action) => action.id.startsWith("open-") && action.id.endsWith("-menu") && action.button === "right")
+      .every((action) => action.target.strategy === "selector" && action.target.value === '[data-node-id="n_1"]'),
+    true,
+  );
+  assert.equal(
     scenario.actions.find((action) => action.id === "clear-to-natural-isotope").target.value,
     '.canvas-context-menu:not([hidden]) [data-canvas-context-value="isotope:"]',
   );

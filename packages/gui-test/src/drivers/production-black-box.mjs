@@ -73,9 +73,9 @@ export const productionBlackBoxCapabilities = Object.freeze([
   "desktop.production",
 ]);
 
-const exactBondIdentitySelector = /\[\s*data-bond-id\s*=\s*(?:"[^"]+"|'[^']+'|[A-Za-z0-9_.:-]+)\s*\]/;
+const exactChemicalIdentitySelector = /\[\s*data-(?:bond|node)-id\s*=\s*(?:"[^"]+"|'[^']+'|[A-Za-z0-9_.:-]+)\s*\]/;
 
-function collectiveLogicalBondMatch(matches) {
+function collectiveLogicalMatch(matches) {
   const left = Math.min(...matches.map((match) => match.rect[0]));
   const top = Math.min(...matches.map((match) => match.rect[1]));
   const right = Math.max(...matches.map((match) => match.rect[2]));
@@ -84,12 +84,14 @@ function collectiveLogicalBondMatch(matches) {
 }
 
 function canonicalActionableMatches(target, matches) {
-  if (target.strategy === "selector" && exactBondIdentitySelector.test(target.value) && matches.length > 1) {
-    // A logical bond can render as multiple SVG lines or polygons. An exact
-    // bond identity still names one semantic target. Use the collective bounds
-    // so renderer reordering or a leading dash cannot move the physical click
-    // away from the logical center; other locators stay strict.
-    return [collectiveLogicalBondMatch(matches)];
+  if (target.strategy === "selector" && exactChemicalIdentitySelector.test(target.value) && matches.length > 1) {
+    // A logical bond can render as multiple lines or polygons, and a logical
+    // atom label can render as separate element, hydrogen, isotope, charge, or
+    // radical text primitives. An exact chemical identity still names one
+    // semantic target. Use collective bounds so renderer ordering and fragment
+    // insertion cannot move or ambiguate the physical click; other locators
+    // stay strict.
+    return [collectiveLogicalMatch(matches)];
   }
   return matches;
 }
