@@ -308,6 +308,15 @@ test("coverage audit binds every registered source and scenario", async () => {
   const invalidResult = await auditCoverage({ registry, scenarios: invalidScenarios, scenarioPaths });
   assert.equal(invalidResult.valid, false);
   assert.match(invalidResult.errors.join("\n"), /must reserve 15000 ms for production input transport/);
+
+  const wrongToolStateScenarios = structuredClone(scenarios);
+  const chainActivation = wrongToolStateScenarios
+    .find((scenario) => scenario.id === "core.chain.drag-count-persistence.production")
+    .actions.find((action) => action.id === "activate-chain-tool");
+  chainActivation.completion.selector = 'button[data-tool="chain"].is-selected';
+  const wrongToolStateResult = await auditCoverage({ registry, scenarios: wrongToolStateScenarios, scenarioPaths });
+  assert.equal(wrongToolStateResult.valid, false);
+  assert.match(wrongToolStateResult.errors.join("\n"), /must use is-active for a primary data-tool completion/);
 });
 
 test("the planar ring matrix kills missing and wrong-member-count tool mutants", async () => {
@@ -347,7 +356,9 @@ test("the chair and benzene matrix kills conformer omission and aromatic-order m
 
 test("the chain matrix kills fixed-length and off-by-one drag-count mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "chain-drag-count-persistence-production.json"));
+  const activation = scenario.actions.find((action) => action.id === "activate-chain-tool");
   const drag = scenario.actions.find((action) => action.id === "drag-four-bond-chain");
+  assert.equal(activation.completion.selector, 'button[data-tool="chain"].is-active');
   assert.ok(Math.abs((drag.to.x - drag.from.x) - 0.145) < Number.EPSILON);
   assert.equal(drag.completion.value, 4);
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {

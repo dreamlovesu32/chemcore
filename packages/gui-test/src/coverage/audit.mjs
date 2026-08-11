@@ -38,6 +38,13 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
       if (!candidateActionBudgetIsValid(action.budgetMs, action.completion?.timeoutMs)) {
         errors.push(`Scenario ${scenario.id} action ${action.id} must reserve ${candidateActionTransportReserveMs} ms for production input transport.`);
       }
+      const selector = action.completion?.selector;
+      if (typeof selector === "string" && selector.includes(".is-selected") && selector.includes("[data-tool=")) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must use is-active for a primary data-tool completion.`);
+      }
+      if (typeof selector === "string" && selector.includes(".is-active") && selector.includes("[data-secondary-value=")) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must use is-selected for a secondary data-secondary-value completion.`);
+      }
     }
   }
   for (const entry of registry.entries.filter((candidate) => candidate.status === "gap")) {
