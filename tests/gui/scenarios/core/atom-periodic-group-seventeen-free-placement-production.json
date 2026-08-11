@@ -1,0 +1,45 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.atom.periodic-group-seventeen-free-placement.production",
+  "title": "Place the remaining Group 17 atoms directly through the public Element palette",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Existing periodic evidence cannot kill missing period-six or period-seven Group 17 buttons, their mapping, or their implicit-hydrogen label semantics.",
+  "capabilities": ["gui.public-input", "editor.atom.element", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 66,
+  "actions": [
+    { "id": "open-element-palette-for-astatine", "type": "click", "target": { "strategy": "selector", "value": ".quick-palette-toggle-element[data-quick-palette-mode=\"element\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette.is-open[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-astatine", "type": "click", "target": { "strategy": "selector", "value": ".periodic-element-button[data-element-symbol=\"At\"][data-element-atomic-number=\"85\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette:not(.is-open)[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "place-astatine", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.35, "y": 0.49 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_1\"]", "attribute": "data-node-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-element-palette-for-tennessine", "type": "click", "target": { "strategy": "selector", "value": ".quick-palette-toggle-element[data-quick-palette-mode=\"element\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette.is-open[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-tennessine", "type": "click", "target": { "strategy": "selector", "value": ".periodic-element-button[data-element-symbol=\"Ts\"][data-element-atomic-number=\"117\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette:not(.is-open)[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "place-tennessine", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.65, "y": 0.49 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_2\"]", "attribute": "data-node-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "two-group-seventeen-atoms-rendered", "kind": "dom-distinct-count", "selector": "[data-node-id]", "attribute": "data-node-id", "operator": "eq", "value": 2 },
+    { "id": "saved-group-seventeen-counts", "kind": "document-counts", "expected": { "nodes": 2, "bonds": 0, "molecules": 2, "objects": 2 } },
+    { "id": "saved-group-seventeen-semantics", "kind": "document-node-properties", "expected": [
+      { "id": "n_1", "element": "At", "atomicNumber": 85, "charge": 0, "numHydrogens": 1, "labelText": "AtH", "labelSourceText": "AtH" },
+      { "id": "n_2", "element": "Ts", "atomicNumber": 117, "charge": 0, "numHydrogens": 1, "labelText": "TsH", "labelSourceText": "TsH" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.atom.element", "editor.atom.free-placement", "editor.atom.label", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["atom", "molecule"],
+    "cardinalities": ["2"],
+    "states": ["blank-document", "periodic-palette-open", "astatine", "tennessine", "saved-document"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["atom.element", "atom.atomic-number", "atom.charge", "atom.identity", "atom.free-placement", "atom.implicit-hydrogen"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

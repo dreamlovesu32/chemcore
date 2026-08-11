@@ -44,6 +44,7 @@
     { "id": "source.scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-noble-lanthanide-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-alkali-alkaline-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-fifteen-sixteen-free-placement-production.json"] },
+    { "id": "source.scenario.core.atom.periodic-group-seventeen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-seventeen-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-group-thirteen-fourteen-free-placement-production.json"] },
     { "id": "source.scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-implicit-hydrogen-visibility-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-charge-symbol-attachment-persistence-production.json"] },
@@ -145,6 +146,7 @@
     { "id": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "kind": "scenario" },
     { "id": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.charge-symbol-attachment-persistence.production", "kind": "scenario" },
@@ -222,6 +224,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the noble/lanthanide matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-alkali-alkaline-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 1/2 column matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 15/16 column matrix." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the remaining Group 17 matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the Group 13/14 column matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production", "reason": "Runner, nested context-menu targeting, guarded history input, native save, and exact hydrogen-override oracle changes invalidate hydrogen-visibility evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.charge-symbol-attachment-persistence.production", "reason": "Runner, guarded palette/symbol targeting, native save, and exact atom-link oracle changes invalidate charge-attachment evidence." },
@@ -761,5 +764,10 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "reason": "The physical driver selects each new Group 15/16 value, places it on blank canvas, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "reason": "Eight exact standalone identities kill dropped placement, duplicate-object, and bonded-only mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production", "reason": "Zero bonds, eight normalized molecule objects, exact As/Sb/Bi/Mc/Se/Te/Po/Lv persistence, and Group 15 H3 versus Group 16 H2 valence labels kill cross-column swaps, late-row truncation, bare-symbol, wrong-valence, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "reason": "The production cell covers the remaining untested Group 17 values At and Ts without repeating the passing F/Cl/Br/I values." }
+    ,{ "from": "source.scenario.core.atom.periodic-group-seventeen-free-placement.production", "to": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "reason": "Changing the remaining Group 17 free-placement cell invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "reason": "The physical driver selects At and Ts, places both on blank canvas, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "reason": "Two exact standalone identities kill dropped placement, duplicate-object, and bonded-only mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.periodic-group-seventeen-free-placement.production", "reason": "Zero bonds, two normalized molecule objects, exact At/Ts persistence, and H1 valence labels kill row truncation, swapped values, bare-symbol, wrong-valence, collapsed-object, and accidental-bond mutants." }
   ]
 }
