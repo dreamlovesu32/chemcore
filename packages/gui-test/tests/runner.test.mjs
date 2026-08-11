@@ -607,6 +607,15 @@ test("coverage audit binds every registered source and scenario", async () => {
   assert.equal(wrongToolStateResult.valid, false);
   assert.match(wrongToolStateResult.errors.join("\n"), /must use is-active for a primary data-tool completion/);
 
+  const explicitUncheckedMenuScenarios = structuredClone(scenarios);
+  const hiddenAtomNumberMenu = explicitUncheckedMenuScenarios
+    .find((scenario) => scenario.id === "core.atom.number-visibility-persistence.production")
+    .actions.find((action) => action.id === "open-hidden-number-menu");
+  hiddenAtomNumberMenu.completion.selector = '.canvas-context-menu:not([hidden]) [data-canvas-context-value="show-atom-number:true"][aria-checked="false"]';
+  const explicitUncheckedMenuResult = await auditCoverage({ registry, scenarios: explicitUncheckedMenuScenarios, scenarioPaths });
+  assert.equal(explicitUncheckedMenuResult.valid, false);
+  assert.match(explicitUncheckedMenuResult.errors.join("\n"), /must identify an unchecked canvas-menu toggle by its inverse command value; unchecked menuitems omit aria-checked/);
+
   const ambiguousSecondaryScenarios = structuredClone(scenarios);
   const ringChoice = ambiguousSecondaryScenarios
     .find((scenario) => scenario.id === "core.ring.bond-fusion-persistence.production")
@@ -959,6 +968,10 @@ test("the atom-number cell kills disconnected-dialog, inverted-visibility, stale
   assert.equal(scenario.actions.find((action) => action.id === "open-edit-atom-number-dialog").target.name, "Edit Atom Number…");
   assert.equal(scenario.actions.find((action) => action.id === "clear-atom-number").target.name, "Clear Atom Number");
   assert.equal(scenario.actions.find((action) => action.id === "hide-atom-number").completion.value, 1);
+  assert.equal(
+    scenario.actions.find((action) => action.id === "open-hidden-number-menu").completion.selector,
+    '.canvas-context-menu:not([hidden]) [data-canvas-context-value="show-atom-number:true"]:not([aria-checked])',
+  );
   assert.equal(scenario.actions.find((action) => action.id === "show-atom-number").completion.text, "17");
   assert.equal(scenario.actions.find((action) => action.id === "apply-edited-atom-number-42").completion.text, "42");
   assert.equal(scenario.actions.find((action) => action.id === "apply-final-atom-number-17").completion.text, "17");
