@@ -74,6 +74,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
+    "scenario.core.chain.endpoint-attachment-continuation.production",
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
@@ -121,6 +122,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
+      "scenario.core.chain.endpoint-attachment-continuation.production",
       "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
@@ -167,6 +169,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
+    "scenario.core.chain.endpoint-attachment-continuation.production",
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
@@ -200,6 +203,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
+    "scenario.core.chain.endpoint-attachment-continuation.production",
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.orbital.seven-template-properties-history.production",
@@ -232,6 +236,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.bond.ten-variant-persistence.production",
       "scenario.core.bracket.three-kind-properties-history.production",
       "scenario.core.chain.drag-count-persistence.production",
+      "scenario.core.chain.endpoint-attachment-continuation.production",
       "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
@@ -268,6 +273,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-chair-benzene-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-drag-count-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "chain-endpoint-attachment-continuation-production.json"),
     join(guiTestsDir, "scenarios", "core", "undo-redo-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json"),
     join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json"),
@@ -298,7 +304,7 @@ test("coverage audit binds every registered source and scenario", async () => {
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
   assert.equal(result.summary.entries, 40);
-  assert.equal(result.summary.scenarios, 31);
+  assert.equal(result.summary.scenarios, 32);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -370,6 +376,25 @@ test("the chain matrix kills fixed-length and off-by-one drag-count mutants", as
   assert.deepEqual(
     scenario.oracles.find((oracle) => oracle.id === "saved-chain-single-bond-semantics").expected.map(({ id, order }) => [id, order]),
     [["b_6", 1], ["b_7", 1], ["b_8", 1], ["b_9", 1]],
+  );
+});
+
+test("the continued-chain matrix kills endpoint-miss and disconnected-chain mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "chain-endpoint-attachment-continuation-production.json"));
+  const baseDrag = scenario.actions.find((action) => action.id === "drag-base-four-bond-chain");
+  const continuedDrag = scenario.actions.find((action) => action.id === "drag-continued-four-bond-chain-from-endpoint");
+  assert.equal(baseDrag.completion.value, 4);
+  assert.equal(continuedDrag.completion.value, 8);
+  assert.ok(Math.abs((continuedDrag.to.x - continuedDrag.from.x) - 0.145) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
+    nodes: 9,
+    bonds: 8,
+    molecules: 1,
+    objects: 1,
+  });
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-continued-chain-single-bond-semantics").expected.map(({ id, order }) => [id, order]),
+    [["b_14", 1], ["b_15", 1], ["b_16", 1], ["b_17", 1]],
   );
 });
 

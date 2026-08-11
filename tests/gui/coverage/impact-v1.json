@@ -21,6 +21,7 @@
     { "id": "source.scenario.core.ring.six-planar-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-six-planar-persistence-production.json"] },
     { "id": "source.scenario.core.ring.chair-benzene-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-chair-benzene-persistence-production.json"] },
     { "id": "source.scenario.core.chain.drag-count-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-drag-count-persistence-production.json"] },
+    { "id": "source.scenario.core.chain.endpoint-attachment-continuation.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-endpoint-attachment-continuation-production.json"] },
     { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
     { "id": "source.scenario.core.selection.clipboard-delete-multi-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/multi-bond-clipboard-delete-production.json"] },
     { "id": "source.scenario.core.selection.clipboard-delete-mixed-bond-arrow.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/mixed-bond-arrow-clipboard-production.json"] },
@@ -102,6 +103,7 @@
     { "id": "scenario.core.ring.six-planar-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.chair-benzene-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.chain.drag-count-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.chain.endpoint-attachment-continuation.production", "kind": "scenario" },
     { "id": "scenario.core.history.undo-redo-bond.production", "kind": "scenario" },
     { "id": "scenario.core.selection.clipboard-delete-multi-bond.production", "kind": "scenario" },
     { "id": "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production", "kind": "scenario" },
@@ -442,5 +444,10 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The physical driver activates Chain, performs a guarded drag, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The exact distinct-bond count kills off-by-one and fixed-length chain mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The saved CCJS is independently checked for exact connected topology and single-bond semantics." }
+    ,{ "from": "capability.editor.chain.draw", "to": "scenario.core.chain.endpoint-attachment-continuation.production", "reason": "The continued-chain cell covers attachment to an existing endpoint instead of creating a disconnected second molecule." }
+    ,{ "from": "source.scenario.core.chain.endpoint-attachment-continuation.production", "to": "scenario.core.chain.endpoint-attachment-continuation.production", "reason": "Changing the endpoint-continuation production scenario invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.chain.endpoint-attachment-continuation.production", "reason": "The physical driver performs both guarded chain drags and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.chain.endpoint-attachment-continuation.production", "reason": "The exact eight-bond count kills dropped-continuation and extra-bond mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.chain.endpoint-attachment-continuation.production", "reason": "Nine nodes, eight bonds, and one molecule kill endpoint-miss mutants that create a disconnected chain." }
   ]
 }
