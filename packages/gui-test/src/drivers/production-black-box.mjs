@@ -4,7 +4,7 @@ import { gunzipSync } from "node:zlib";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
 import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
-import { HyperVCoordinator } from "../workers/hyperv.mjs";
+import { createWorkerCoordinator } from "../workers/create.mjs";
 
 const defaultProfilePath = join(guiTestsDir, "environments", "windows-gui-worker-current.json");
 
@@ -97,7 +97,7 @@ export class ProductionBlackBoxDriver {
     this.scenarioProfile = profile;
     if (!this.coordinator) {
       this.workerProfile = await readValidatedDocument(this.profilePath);
-      this.coordinator = new HyperVCoordinator(this.workerProfile);
+      this.coordinator = createWorkerCoordinator(this.workerProfile);
     }
   }
 
@@ -517,10 +517,12 @@ export class ProductionBlackBoxDriver {
   }
 
   async environment() {
+    const physical = this.workerProfile?.kind === "physical-windows";
     return {
-      platform: "windows-hyperv",
+      platform: physical ? "windows-physical" : "windows-hyperv",
       workerProfile: this.workerProfile?.id || null,
-      vmId: this.startReceipt?.vmId || null,
+      vmId: physical ? null : this.startReceipt?.vmId || null,
+      machineIdSha256: physical ? this.startReceipt?.machineIdSha256 || null : null,
       candidateSha256: this.installReceipt?.candidate?.sha256 || null,
       notes: [...this.environmentNotes],
       profile: this.scenarioProfile,

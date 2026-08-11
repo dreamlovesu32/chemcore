@@ -13,7 +13,7 @@ import { assertValidDocument, readValidatedDocument } from "./protocol/validate.
 import { evaluateQualification } from "./qualification/evaluate.mjs";
 import { verifyQualificationEvidence } from "./qualification/verify-evidence.mjs";
 import { runScenario } from "./runner/run-scenario.mjs";
-import { HyperVCoordinator } from "./workers/hyperv.mjs";
+import { createWorkerCoordinator } from "./workers/create.mjs";
 
 async function jsonFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -88,11 +88,11 @@ async function impact(paths, options) {
 
 async function worker(args, options) {
   const [operation] = args;
-  if (!operation || !["host-attest", "reset", "start", "guest-attest", "prepare-guest", "install-agent", "configure-autologon", "configure-desktop-baseline", "install-candidate", "launch-candidate", "dismiss-known-blocker", "activate-candidate", "start-cdp-agent", "stop-cdp-agent", "uia-query", "cdp-state", "input-click", "input-drag", "input-key", "input-text", "agent-attest-service", "agent-attest-interactive", "stop"].includes(operation)) {
+  if (!operation || !["host-attest", "reset", "start", "guest-attest", "prepare-guest", "install-agent", "configure-autologon", "configure-desktop-baseline", "install-candidate", "launch-candidate", "dismiss-known-blocker", "activate-candidate", "start-input-agent", "stop-input-agent", "start-cdp-agent", "stop-cdp-agent", "uia-query", "cdp-state", "input-click", "input-drag", "input-key", "input-text", "agent-attest-service", "agent-attest-interactive", "stop"].includes(operation)) {
     throw new Error("worker requires a supported worker operation.");
   }
   const profile = await readValidatedDocument(resolve(options.profile || join(guiTestsDir, "environments", "windows-gui-worker-current.json")));
-  const coordinator = new HyperVCoordinator(profile);
+  const coordinator = createWorkerCoordinator(profile);
   let result;
   switch (operation) {
     case "host-attest": result = await coordinator.attestHost(); break;
@@ -107,6 +107,8 @@ async function worker(args, options) {
     case "launch-candidate": result = await coordinator.launchCandidate(); break;
     case "dismiss-known-blocker": result = await coordinator.dismissKnownBlocker(); break;
     case "activate-candidate": result = await coordinator.activateCandidate(); break;
+    case "start-input-agent": result = await coordinator.startInputAgent(); break;
+    case "stop-input-agent": result = await coordinator.stopInputAgent(); break;
     case "start-cdp-agent": result = await coordinator.startCdpAgent(); break;
     case "stop-cdp-agent": result = await coordinator.stopCdpAgent(); break;
     case "uia-query": result = options.id
@@ -142,7 +144,7 @@ async function run(path, options) {
     : driverName === "playwright-browser"
       ? new PlaywrightBrowserDriver()
       : driverName === "production-black-box"
-        ? new ProductionBlackBoxDriver()
+        ? new ProductionBlackBoxDriver({ profilePath: options["worker-profile"] ? resolve(options["worker-profile"]) : undefined })
       : null;
   if (!driver) {
     throw new Error(`Driver ${driverName} is not implemented.`);
@@ -199,7 +201,7 @@ Usage:
   npm run gui-platform -- validate <json> [...json]
   npm run gui-platform -- audit
   npm run gui-platform -- impact <changed-path> [...changed-path] [--graph path]
-  npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|install-agent|configure-autologon|install-candidate|launch-candidate|dismiss-known-blocker|activate-candidate|start-cdp-agent|stop-cdp-agent|uia-query|input-click|input-drag|input-key|input-text|agent-attest-service|agent-attest-interactive|stop> [--profile path]
+  npm run gui-platform -- worker <host-attest|start|guest-attest|prepare-guest|install-agent|configure-autologon|install-candidate|launch-candidate|dismiss-known-blocker|activate-candidate|start-input-agent|stop-input-agent|start-cdp-agent|stop-cdp-agent|uia-query|input-click|input-drag|input-key|input-text|agent-attest-service|agent-attest-interactive|stop> [--profile path]
   npm run gui-platform -- worker uia-query (--name accessible-name | --id automation-id [--control-type type]) [--scope-name name]
   npm run gui-platform -- worker input-click --x 100 --y 100 [--modifiers Shift,Control]
   npm run gui-platform -- worker input-text --text value

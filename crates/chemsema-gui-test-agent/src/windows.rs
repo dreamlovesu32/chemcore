@@ -1,10 +1,9 @@
-use crate::{
-    AgentAttestation, ForegroundProcess, InputGuard, AGENT_PROTOCOL, AUTHORIZED_ACCOUNT_SUFFIX,
-};
+use crate::{AgentAttestation, ForegroundProcess, InputGuard, AGENT_PROTOCOL};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::path::PathBuf;
 use std::ptr::{null, null_mut};
+use std::sync::OnceLock;
 use std::thread;
 use std::time::Duration;
 use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, FALSE, POINT, RECT, TRUE};
@@ -24,6 +23,9 @@ use windows_sys::Win32::System::Threading::{
     QueryFullProcessImageNameW, TerminateProcess, PROCESS_QUERY_LIMITED_INFORMATION,
     PROCESS_TERMINATE,
 };
+use windows_sys::Win32::UI::HiDpi::{
+    SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
     KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
@@ -42,6 +44,22 @@ fn last_error(context: &str) -> String {
     format!("{context} failed with Windows error {}", unsafe {
         GetLastError()
     })
+}
+
+fn enable_physical_pixel_coordinates() -> Result<(), String> {
+    static DPI_AWARENESS: OnceLock<Result<(), String>> = OnceLock::new();
+    DPI_AWARENESS
+        .get_or_init(|| {
+            if unsafe {
+                SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
+            } == 0
+            {
+                Err(last_error("SetProcessDpiAwarenessContext"))
+            } else {
+                Ok(())
+            }
+        })
+        .clone()
 }
 
 fn wide_string(buffer: &[u16], length: usize) -> String {
@@ -225,6 +243,7 @@ fn foreground_process() -> Result<Option<ForegroundProcess>, String> {
 }
 
 pub fn attest() -> Result<AgentAttestation, String> {
+    enable_physical_pixel_coordinates()?;
     let process_id = unsafe { GetCurrentProcessId() };
     let mut session_id = 0u32;
     if unsafe { ProcessIdToSessionId(process_id, &mut session_id) } == 0 {
@@ -536,7 +555,10 @@ fn validate_point(attestation: &AgentAttestation, x: i32, y: i32) -> Result<(), 
         .ok_or_else(|| "no foreground window is available".to_string())?
         .rect;
     if x < rect[0] || y < rect[1] || x >= rect[2] || y >= rect[3] {
-        return Err("input point is outside the authorized foreground window".to_string());
+        return Err(format!(
+            "input point ({x},{y}) is outside the authorized foreground window [{},{},{},{}]",
+            rect[0], rect[1], rect[2], rect[3]
+        ));
     }
     Ok(())
 }
@@ -663,11 +685,12 @@ pub fn activate(guard: &InputGuard) -> Result<AgentAttestation, String> {
 }
 
 pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
+    const DEDICATED_GUEST_ACCOUNT_SUFFIX: &str = "\\chemsema-test";
     let before = attest()?;
     if !before
         .account
         .to_ascii_lowercase()
-        .ends_with(AUTHORIZED_ACCOUNT_SUFFIX)
+        .ends_with(DEDICATED_GUEST_ACCOUNT_SUFFIX)
         || before.session_id == 0
         || before.input_desktop.as_deref() != Some("Default")
     {

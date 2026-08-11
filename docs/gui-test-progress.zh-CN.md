@@ -3,8 +3,8 @@
 最后更新：2026-08-11  
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
 登记场景：**25**  
-当前候选：`94e5c602dd6297b5e78fe1ee7893fb311c252c62ab99a80ecb15dd9e6226bca6`  
-当前候选完整资格：**1/25 通过，24/25 缺失，整体为失败**
+当前候选：`11bb7b20b2988b9cb9db856bc3398000b0bdbedeeaa39a6a04babfef2199133c`
+当前候选完整资格：**2/25 有通过证据，23/25 缺失，整体为失败**
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -36,13 +36,15 @@
 |---|---|---|
 | ✅ | 版本化场景、运行报告、证据与资格 Schema | 场景、run、artifact、qualification 均严格校验 |
 | ✅ | 隔离 production 真实输入 | Hyper-V 专用桌面、真实鼠标键盘、UIA/CDP 观测，不占 host 前台 |
-| ✅ | 资源上限 | 聚合门禁不超过 10 CPU unit、30 GiB；当前 VM 为 8 vCPU、4–20 GiB |
+| ✅ | 专用物理 Windows 真实输入 | 独立 `physical-windows` adapter 使用当前专用机账户、真实 `SendInput`、UIA/CDP 分离观察、账户/会话/PID/可执行文件/前台窗口逐动作 fail-closed；不由 Computer Use 陪跑 |
+| ✅ | 资源上限 | Hyper-V 保留原聚合门禁；物理机由本地 profile 和心跳动态记录资源，低于安全内存余量时暂停，不以固定 10 CPU/30 GiB 限制替代机器健康 |
 | ✅ | 内容寻址候选 | 可执行文件与源码闭包哈希绑定，源码或二进制漂移时拒绝运行 |
 | ✅ | 原生 Windows 对话框 | 保存/打开使用真实 UIA 与键盘输入，保存文件经 SHA-256 回传 |
 | ✅ | 独立文件 oracle | 已支持化学计数及 Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 精确属性 |
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 已实现单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；尚缺重启后续跑与独立短任务验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -86,12 +88,12 @@
 
 ## 4. 已登记的 25 个场景
 
-所有 25 个场景均已实现并进入 registry；这只表示场景存在，不表示对应功能族已完整覆盖。当前候选只有色谱场景具备本候选的通过证据，其余 24 个必须按影响闭包重新资格化，不能借用已失效候选的绿色结果。
+所有 25 个场景均已实现并进入 registry；这只表示场景存在，不表示对应功能族已完整覆盖。当前物理机候选只有保存/重开场景具备本候选的通过证据，其余 24 个必须按影响闭包重新资格化，不能借用旧 Hyper-V 或旧物理候选的绿色结果。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
 | ⬜ | `core.bond.draw-single` | 浏览器公开输入绘制单键基线 |
-| ⬜ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
+| ✅ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
 | ⬜ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
 | ⬜ | `core.selection.clipboard-delete-multi-bond.production` | 多键选择、复制粘贴、删除、历史 |
 | ⬜ | `core.selection.clipboard-delete-mixed-bond-arrow.production` | 分子/Arrow 混合剪贴板、删除、历史 |
@@ -113,16 +115,25 @@
 | ⬜ | `core.bracket.three-kind-properties-history.production` | 三种 Bracket、可见侧、层级与持久化 |
 | ⬜ | `core.table.structure-border-history.production` | Table 结构、对齐、边框、历史与持久化 |
 | ⬜ | `core.orbital.seven-template-properties-history.production` | 七种 Orbital、几何迁移、属性与持久化 |
-| ✅ | `core.chromatography.tlc-gel-mark-color-history.production` | TLC/Gel、内部颜色、标记拖动、历史与持久化 |
-| ⬜ | `core.document.save-open-roundtrip.production` | 原生保存、独立校验、重开与继续编辑 |
+| ⬜ | `core.chromatography.tlc-gel-mark-color-history.production` | TLC/Gel、内部颜色、标记拖动、历史与持久化 |
+| ✅ | `core.document.save-open-roundtrip.production` | 原生保存、独立校验、重开与继续编辑 |
 
-最新色谱通过：run `32dfb9e7-5301-443d-821e-5e7f8f495b40`，23/23 动作、3/3 oracle、0 诊断，evidence key `f55b0142255084f8a3df86011851ba658c28bc9e408ef56c84fda1da8d3acd1a`。`qualification-current-25-incomplete.json` 明确保持失败：通过 1、缺失 24。
+当前物理候选单键通过：run `5ce59224-903e-4100-945d-3a1ba551af51`，2/2 动作、2/2 oracle、0 诊断，evidence key `f710b7a4581405d0efedf602c99d7e9f75cd9e55a131315c130d886cb627a2ea`。保存/重开通过：run `3bc715ef-1851-47f7-bd54-a3cf3cdd8541`，17/17 动作、3/3 oracle、0 诊断，evidence key `0b32fddce406dd9edd4f2604450fc9288eff707b104a2fc8ba76f59a05e89030`。证据包含最终截图、完整 DOM、状态、性能 trace/摘要、WebView 日志、保存的 CCJS 和独立检查报告。较早候选保留了 `Get-FileHash` 模块自动加载失败和 150% DPI 坐标空间不一致两次失败；前者改为 .NET SHA-256，后者改为 Per-Monitor-V2 DPI awareness，后续通过不删除原失败。当前尚未生成覆盖此物理候选全部 25 场景的 qualification，整体继续保持失败。
+
+## 4.1 物理工作节点第一阶段记录
+
+- 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；旧 ChemCore 仓库按日期完整归档，用户化学文档未删除。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台 72/72（增加物理节点测试后为 80/80）、audit 25 场景/0 gap/0 warning、`CI=true npm run verify` 通过。
+- 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
+- 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
+- `core.bond.draw-single.production` 和 `core.document.save-open-roundtrip.production` 已在同一当前候选通过；其余 23 个场景没有当前候选证据。
+- 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、后台进程脱离本 Codex 任务的独立验收、每小时 Codex 检查、提交/PR/CI、重启续跑。
 
 ## 5. 下一阶段执行顺序
 
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
-1. ✅ **色谱纵向单元**：production 场景、独立文件 oracle、失败保留、25 场景资格红灯和全仓门禁均已完成，并纳入本次本地提交。
+1. 🟡 **物理节点第一阶段收口**：完成最终候选单键重跑、NSIS 安装/文件关联、干净提交与 PR/CI、后台独立验收、每小时检查和重启 checkpoint 续跑。
 2. **化学绘制主干**：11 种键、原子/标签/电荷、环、Chain、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。

@@ -34,8 +34,8 @@ GitHub `dreamlovesu32/chemsema` 的 `main` 分支为唯一来源；测试机不�
   每晚、里程碑和发布前仍保留相应的完整门禁。
 - 所有证据内容寻址并校验 SHA-256；缺失、截断、候选混合、诊断非空或环境不合格都必须
   fail closed。
-- 整台工作机聚合预算不超过 10 个逻辑 CPU 和 30 GiB 内存。若物理机资源不足则降低
-  并发，不得交换到失控或绕过预算。
+- 资源预算由机器本地 profile 声明并持续观测，不再固定为 10 CPU/30 GiB；允许充分使用
+  专用机资源，但必须保留安全余量，检测到低内存、失去响应或资源失控时暂停队列。
 - 24 小时 soak 的实际持续时间不得缩短；1000 次展示流程必须是真实完整执行，不得用
   推算代替。
 
@@ -85,8 +85,8 @@ Remove-Item Env:CI -ErrorAction SilentlyContinue
 
 物理 worker 至少需要：
 
-1. 独立本地测试账户；凭据只存 Windows Credential Manager 或受 ACL 保护的机器外部
-   文件，仓库和证据中不得出现明文；
+1. 本机按当前专用机政策使用已登录的真实 Windows 账户，不创建额外测试账户，也不配置
+   无密码自动登录；profile 必须精确绑定 `DOMAIN\\User` 和交互会话，凭据不得进入仓库或证据；
 2. 固定且解锁的交互式控制台会话，固定 DPI、分辨率、主题、语言区域、字体、WebView2
    版本和电源策略；屏幕锁定、会话切换、RDP 改变桌面尺寸或检测到非测试输入时立即
    fail closed；
@@ -136,3 +136,34 @@ qualification 和 impact graph。不要复制另一套测试平台。
 - 不把测试机上的实验修改直接提交到 `main`；使用独立分支、验证和PR；
 - 不在测试运行过程中自动拉取新提交；一个运行 manifest 始终绑定一个候选哈希；
 - 不因为物理机没有Hyper-V而删除现有Hyper-V能力；两种worker可以长期并存。
+
+## 2026-08-11 本机已落地状态
+
+- `physical-windows` 已作为独立 worker kind 落地，与 `hyper-v` 通过 factory 明确分流；物理
+  profile 保存在 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`，不提交
+  机器名、账户和机器标识。
+- 输入由持久 Rust agent 通过 Windows `SendInput` 完成；每次输入精确验证当前账户、会话、
+  候选 PID、内容寻址可执行文件、前台窗口和有界 run root。UIA 与 CDP 只负责定位和观察。
+- 输入 agent 使用 Per-Monitor-V2 DPI awareness，使 Windows 原生对话框的 UIA 物理像素、
+  `GetWindowRect` 和 `SetCursorPos` 使用同一坐标空间。
+- 候选 `11bb7b20b2988b9cb9db856bc3398000b0bdbedeeaa39a6a04babfef2199133c`
+  已在本机通过单键真实 click/drag，以及 17 动作的保存/关闭/重开/继续编辑场景；后者
+  独立 CCJS oracle 为 3/3 通过，evidence key 为
+  `0b32fddce406dd9edd4f2604450fc9288eff707b104a2fc8ba76f59a05e89030`。
+- `npm run gui-physical-worker -- start|status|stop` 提供脱离 Codex 的连续后台队列。执行器
+  具有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景检查点、
+  低内存暂停、明确停止请求和 evidence manifest SHA-256。
+- Computer Use 不属于正常执行循环；只允许在自动定位无法诊断的罕见校准问题中临时使用。
+
+机器本地启动示例：
+
+```powershell
+npm run gui-physical-worker -- start `
+  --profile "$env:LOCALAPPDATA\\ChemSema\\gui-test\\profiles\\physical-current.json" `
+  --queue "$env:LOCALAPPDATA\\ChemSema\\gui-test\\queues\\current.json" `
+  --state-root "$env:LOCALAPPDATA\\ChemSema\\gui-test\\daemon"
+```
+
+状态和停止命令使用相同的 `--state-root`。后台队列只接受干净工作区；启动后不得自动拉取
+代码或跨候选续跑。当前尚未完成重启后的 checkpoint 恢复验收、完整 25 场景资格、Office、
+最终安装包、复杂/large/xlarge、24 小时 soak 和 1,000 次展示门禁。

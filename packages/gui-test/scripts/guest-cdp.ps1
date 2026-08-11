@@ -16,6 +16,18 @@ $script:TraceActive = $false
 $MaximumArtifactBytes = 64 * 1024 * 1024
 $TraceCategories = 'devtools.timeline,disabled-by-default-devtools.timeline,blink.user_timing,v8.execute,loading,latencyInfo,renderer.scheduler'
 
+function Get-Sha256Hex([string]$Path) {
+  $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+  $algorithm = [Security.Cryptography.SHA256]::Create()
+  try {
+    $hash = $algorithm.ComputeHash($stream)
+    return ($hash | ForEach-Object { $_.ToString('x2') }) -join ''
+  } finally {
+    $algorithm.Dispose()
+    $stream.Dispose()
+  }
+}
+
 function Write-CdpResult([object]$Value) {
   $Value | ConvertTo-Json -Depth 12 -Compress
 }
@@ -577,7 +589,7 @@ try {
         if ($payload.bytes.Length -gt (64 * 1024 * 1024)) { throw "Artifact $($payload.name) exceeds 64 MiB." }
         $path = Join-Path $artifactRoot $payload.name
         [IO.File]::WriteAllBytes($path, $payload.bytes)
-        $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        $hash = Get-Sha256Hex $path
         $exported += [ordered]@{
           name = $payload.name
           mediaType = $payload.mediaType
