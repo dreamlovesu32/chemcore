@@ -323,6 +323,7 @@
                   "atomicNumber": { "type": "integer", "minimum": 1, "maximum": 118 },
                   "charge": { "type": "integer", "minimum": -16, "maximum": 16 },
                   "numHydrogens": { "type": "integer", "minimum": 0, "maximum": 32 },
+                  "radicalCount": { "type": "integer", "minimum": 0, "maximum": 16 },
                   "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }
                 }
@@ -495,7 +496,7 @@
                   "styleFill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
                   "styleKind": { "const": "symbol" },
                   "symbolStyle": { "type": "string", "minLength": 1, "maxLength": 64 },
-                  "chemicalRole": { "enum": ["charge", "radical", "lone-pair"] },
+                  "chemicalRole": { "enum": ["charge", "radical", "radical-cation", "radical-anion", "lone-pair"] },
                   "chargeDelta": { "type": "integer", "minimum": -16, "maximum": 16 },
                   "radicalDelta": { "type": "integer", "minimum": 0, "maximum": 16 },
                   "attachedAtomId": { "$ref": "#/$defs/id" },

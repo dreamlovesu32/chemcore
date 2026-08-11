@@ -76,6 +76,19 @@ test("saved-document node oracle kills element, charge, implicit-hydrogen-label,
   assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], id: "n_missing" }]).passed, false);
 });
 
+test("saved-document node oracle kills missing and wrong radical-count mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 2, meta: { radicalCount: 1 }, label: { text: "NH2", sourceText: "NH2" } },
+  ] } } } }));
+  const expected = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 2, radicalCount: 1, labelText: "NH2", labelSourceText: "NH2" }];
+  assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], radicalCount: 0 }]).passed, false);
+  const missing = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 2, label: { text: "NH2", sourceText: "NH2" } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(missing, expected).passed, false);
+});
+
 test("saved-document arrow oracle checks exact public CCJS properties", () => {
   const bytes = Buffer.from(JSON.stringify({
     styles: { style_red: { stroke: "#ff0000" } },

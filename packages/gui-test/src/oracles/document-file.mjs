@@ -115,6 +115,7 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       atomicNumber: node?.atomicNumber ?? node?.atomic_number ?? null,
       charge: node?.charge ?? null,
       numHydrogens: node?.numHydrogens ?? node?.num_hydrogens ?? null,
+      radicalCount: node?.meta?.radicalCount ?? null,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };
