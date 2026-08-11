@@ -122,7 +122,7 @@
 
 ## 4.1 物理工作节点第一阶段记录
 
-- 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；旧 ChemCore 仓库按日期完整归档，用户化学文档未删除。
+- 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
 - 全新依赖基线：`npm ci` 0 漏洞、GUI 平台 72/72（增加物理节点测试后为 80/80）、audit 25 场景/0 gap/0 warning、`CI=true npm run verify` 通过。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
