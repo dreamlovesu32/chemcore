@@ -502,18 +502,19 @@ pub(super) fn render_selected_fragment_content(
             if items.is_empty() {
                 continue;
             }
+            if items.len() == 1 {
+                push_selection_item_box(out, items[0]);
+                if !component.complete {
+                    push_selection_bond_dot(out, items[0].center);
+                }
+                continue;
+            }
             if component.complete {
                 let group_bounds = items.iter().skip(1).fold(items[0].bounds, |mut acc, item| {
                     acc.include_bounds(item.bounds);
                     acc
                 });
                 push_selection_box(out, group_bounds, RenderRole::SelectionBox);
-                continue;
-            }
-            if items.len() == 1 {
-                let item = items[0];
-                push_selection_item_box(out, item);
-                push_selection_bond_dot(out, item.center);
                 continue;
             }
             let group_bounds = items.iter().skip(1).fold(items[0].bounds, |mut acc, item| {
