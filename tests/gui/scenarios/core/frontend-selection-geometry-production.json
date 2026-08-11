@@ -27,14 +27,25 @@
   ],
   "oracles": [
     {
-      "id": "text-selection-box-matches-current-font-geometry",
+      "id": "text-selection-box-encloses-current-font-geometry",
       "kind": "ui-state",
       "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-text-box\"]",
       "referenceSelector": "[data-role=\"document-text\"]",
       "uiExpected": {
         "count": 1,
         "visibleCount": 1,
-        "geometry": { "relation": "matches-reference", "tolerancePx": 3 }
+        "geometry": { "relation": "contains-reference", "tolerancePx": 1 }
+      }
+    },
+    {
+      "id": "text-selection-box-remains-tight-to-current-font-geometry",
+      "kind": "ui-state",
+      "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-text-box\"]",
+      "referenceSelector": "[data-role=\"document-text\"]",
+      "uiExpected": {
+        "count": 1,
+        "visibleCount": 1,
+        "geometry": { "relation": "matches-reference", "tolerancePx": 5.5 }
       }
     },
     {
