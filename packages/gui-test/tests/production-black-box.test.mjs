@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import { evaluateUiState, uiStateRequest } from "../src/oracles/ui-state.mjs";
@@ -46,6 +46,18 @@ test("bond selection boxes retain a centered minimum interactive size", () => {
     selectionRectWithMinimumSize({ kind: "rect", role: "selection-bond", x: 10, y: 20, width: 30, height: 4 }, 12),
     { kind: "rect", role: "selection-bond", x: 10, y: 16, width: 30, height: 12 },
   );
+});
+
+test("production driver advertises every capability required by registered production scenarios", async () => {
+  const scenarioRoot = join(guiTestsDir, "scenarios", "core");
+  const driverCapabilities = new Set(new ProductionBlackBoxDriver({ coordinator: {} }).capabilities());
+  const scenarioFiles = (await readdir(scenarioRoot)).filter((name) => name.endsWith(".json"));
+  for (const name of scenarioFiles) {
+    const scenario = await readValidatedDocument(join(scenarioRoot, name));
+    if (!scenario.drivers.includes("production-black-box")) continue;
+    const missing = scenario.capabilities.filter((capability) => !driverCapabilities.has(capability));
+    assert.deepEqual(missing, [], `${scenario.id} requires unadvertised production capabilities`);
+  }
 });
 
 test("production black-box driver maps semantic CDP targets to guarded OS input", async () => {
