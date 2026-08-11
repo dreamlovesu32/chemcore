@@ -2,11 +2,11 @@
 
 最后更新：2026-08-11  
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**30**
+登记场景：**31**
 
 当前产品候选：`7714f687f6e74bd1df479c4bd1db61cf45b5a808755e6979eb3a4a25b957a03a`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**29/30 passed，0 failed，1 pending，0 diagnostics**。扩展前的 29 场景 registry 已取得不可变的 29/29 qualification；影响图下一项双 Chair 与 Benzene production 持久化矩阵正在等待独立后台批次。完整 GUI 功能矩阵仍未完成，本文总体状态不变
+当前源码闭包已登记场景资格：**30/31 passed，0 failed，1 pending，0 diagnostics**。扩展前的 30 场景 registry 已取得不可变的 30/30 qualification；影响图下一项可变长度 Chain 拖拽与持久化矩阵正在等待独立后台批次。完整 GUI 功能矩阵仍未完成，本文总体状态不变
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；当前候选 26 场景物理批次、浏览器基线、十键 Bond 与六种平面环矩阵均已通过，终态事件已连续驱动失败修复和完成续接；新增双 Chair 与 Benzene production 矩阵待后台续接，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；当前候选 26 场景物理批次、浏览器基线、十键 Bond、六种平面环及 Chair/Benzene 矩阵均已通过，终态事件已连续驱动失败修复和完成续接；新增可变长度 Chain production 矩阵待后台续接，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -65,7 +65,7 @@
 | 🟡 | Table | 插入、2×2→3×3、对齐、边框、历史、持久化 | 全部增删位置、内容、清空/适应、全部对齐/边组合/颜色、锁定/剪贴板/格式/大文档 |
 | 🟡 | Orbital | 七种模板、双向几何迁移、批量模板/样式/相位、历史、持久化 | 全颜色、全部 style×phase、原子/标签附着、变换、组合、格式与大文档 |
 | 🟡 | TLC/Gel Chromatography | 两种板、12 泳道、批量颜色、斑点/条带移动、历史、精确文件校验 | 泳道/标记增删、多标记、TLC 开关全值、凝胶标签/宽高/可见性/范围/单位、格式与大文档 |
-| 🟡 | Rings、Chain、Template Library | 六种平面环已取得真实点击、精确拓扑与持久化证据；双 Chair 与 Benzene 矩阵已登记待跑 | Chair/Benzene production 证据、连接、继续绘制、Chain、每种公开库模板、属性、历史、持久化、搜索/库切换 |
+| 🟡 | Rings、Chain、Template Library | 六种平面环、双 Chair 与 Benzene 已取得真实输入、精确拓扑与持久化证据；四键可变长度 Chain 矩阵已登记待跑 | Chain production 证据、环/链连接与继续绘制、其他长度/相位、每种公开库模板、属性、历史、其他格式、搜索/库切换 |
 | ⬜ | Biology-assisted drawing | 产品含 10 个 family、24 种公开 kind | 每种对象实际绘制、全部专有属性/控制柄、组合、保存、格式与规模矩阵 |
 | 🟡 | Selection/Group/Lock/Clipboard | `0/1/2/many`、区域/追加、混合、嵌套组、锁定部分适用、跨文档粘贴 | 重叠/隐藏/视口外、所有对象族、套索、排序/对齐/分布、跨 group、系统/Office 边界、大文档 |
 | 🟡 | 文档生命周期 | CCJS Save As/Open/继续编辑、dirty close | 多标签、覆盖/权限/磁盘满、autosave/journal/crash recovery、所有格式、large/xlarge |
@@ -89,9 +89,9 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 30 个场景
+## 4. 已登记的 31 个场景
 
-所有 30 个场景均已实现并进入 registry。当前不可变候选已取得前 29 个场景的完整 qualification；随后按影响与功能缺口新增双 Chair 与 Benzene production 持久化场景，因此当前 30 场景 registry 为 29/30，新增场景待独立后台证据。这一 registry 闭包即使最终全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 31 个场景均已实现并进入 registry。当前不可变候选已取得前 30 个场景的完整 qualification；随后按影响与功能缺口新增可变长度 Chain production 持久化场景，因此当前 31 场景 registry 为 30/31，新增场景待独立后台证据。这一 registry 闭包即使最终全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -99,7 +99,8 @@
 | ✅ | `core.bond.draw-single.production` | production 真实 OS 输入绘制单键 |
 | ✅ | `core.bond.ten-variant-persistence.production` | 十种非单键工具的真实 OS 输入、精确 CCJS 阶数/线型/粗细/楔键语义 |
 | ✅ | `core.ring.six-planar-persistence.production` | 六种公开平面环的真实 OS 点击、累计拓扑、原生保存与精确节点/键/分子计数 |
-| 🟡 | `core.ring.chair-benzene-persistence.production` | 双 Chair 与 Benzene 的真实 OS 点击、精确分量计数及交替芳香键级持久化；后台批次待完成 |
+| ✅ | `core.ring.chair-benzene-persistence.production` | 双 Chair 与 Benzene 的真实 OS 点击、精确分量计数及交替芳香键级持久化 |
+| 🟡 | `core.chain.drag-count-persistence.production` | Chain 工具的真实 OS 可变长度拖拽、四键之字形提交、原生保存与精确连通拓扑；后台批次待完成 |
 | ✅ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
 | ✅ | `core.selection.clipboard-delete-multi-bond.production` | 多键选择、复制粘贴、删除、历史 |
 | ✅ | `core.selection.clipboard-delete-mixed-bond-arrow.production` | 分子/Arrow 混合剪贴板、删除、历史 |
@@ -128,7 +129,7 @@
 
 当前候选的 production 物理批次 `impact-11c5030-production-1786444842194` 已无人值守连续通过 26/26；26 份报告、26 个 manifest 和 204 个证据对象（209,052,037 bytes）已独立复算一致，完成审计 SHA-256 为 `f9ff74b12ce68716bbb7cfcc7df8126286db7762ade36113bd75aa4e6c0f81a2`。浏览器批次 `impact-af6ed1f-browser-1786445716424` 也已通过，7 个证据对象（9,841,659 bytes）及状态、heartbeat、checkpoint、提交、候选、profile、queue 和全部 SHA-256 均复算一致；完成审计 SHA-256 为 `20b42ace3898e03cd8f9bd80347326d2f7042f88bc753ce78b6efab1ca1e20c4`。
 
-上述 27 份报告和 27 个 manifest 已合并为不可变 qualification `9810802f-541d-4a5f-9871-5fca59b2676c`：27/27 passed、0 failed、0 missing、0 diagnostics，211 个证据对象共 218,893,696 bytes 全部复算通过；qualification SHA-256 为 `ea597b18a6a2c219019edc73b441ebdd6527fa89e2d709cd5254eb70fd9a0742`。十键 Bond 批次 `impact-f56a237-bonds-production-1786446644922` 随后通过：报告 SHA-256 `df0ffd6f5fd846790c02b3b6c6da9e1097127d6df65678d70cbfed87e80288c9`，manifest SHA-256 `6b7abbed9a945eabbb3edc15d7ec7e07bcdbd37f2547b0ddc062e2088e6ed2b7`，9 个证据对象共 8,165,367 bytes 全部复算一致。六种平面环批次 `impact-0ef5551-rings-production-1786447434009` 也已通过：报告 SHA-256 `28e71f948efe090e1a85a92d224a940df2040d6e00edede0c58002e5fda854d4`，manifest SHA-256 `639cb10c6b625c9253afe01b57fa35cdceac5a415624aa7f47895881107dac78`，9 个证据对象共 7,785,406 bytes 全部复算一致。29 份报告现已合并为不可变 qualification `2997d45a-0976-4756-a551-53ef8b156cce`：29/29 passed、0 failed、0 missing、0 diagnostics，229 个证据对象共 234,844,469 bytes；qualification SHA-256 为 `b1f85f121446dc830614496724a73c74c9861d6833fd1e1ffa49f1622612c011`。随后扩展 registry 的第 30 个场景不追溯改写这份 qualification。
+上述 27 份报告和 27 个 manifest 已合并为不可变 qualification `9810802f-541d-4a5f-9871-5fca59b2676c`：27/27 passed、0 failed、0 missing、0 diagnostics，211 个证据对象共 218,893,696 bytes 全部复算通过；qualification SHA-256 为 `ea597b18a6a2c219019edc73b441ebdd6527fa89e2d709cd5254eb70fd9a0742`。十键 Bond 批次 `impact-f56a237-bonds-production-1786446644922` 随后通过：报告 SHA-256 `df0ffd6f5fd846790c02b3b6c6da9e1097127d6df65678d70cbfed87e80288c9`，manifest SHA-256 `6b7abbed9a945eabbb3edc15d7ec7e07bcdbd37f2547b0ddc062e2088e6ed2b7`，9 个证据对象共 8,165,367 bytes 全部复算一致。六种平面环批次 `impact-0ef5551-rings-production-1786447434009` 也已通过：报告 SHA-256 `28e71f948efe090e1a85a92d224a940df2040d6e00edede0c58002e5fda854d4`，manifest SHA-256 `639cb10c6b625c9253afe01b57fa35cdceac5a415624aa7f47895881107dac78`，9 个证据对象共 7,785,406 bytes 全部复算一致。Chair/Benzene 批次 `impact-c80b1d1-chair-benzene-production-1786447798935` 随后通过：报告 SHA-256 `c1f009686b020e337e9a8d1b199b6e28a2a255cc3156efd858eeefb87a8e651b`，manifest SHA-256 `2ae0c2c70800b98c55b92709748f2ab0bbd90572d0fa4231f17c4102ac126946`，9 个证据对象共 7,556,403 bytes 全部复算一致。30 份报告现已合并为不可变 qualification `d2ddab7c-a5d6-4e28-81b5-0f7cd0dacb0d`：30/30 passed、0 failed、0 missing、0 diagnostics，238 个证据对象共 242,400,872 bytes；qualification SHA-256 为 `b10599dc2f5f34e581ad2b523f65a92c29fef6459e6f4607aec45ec02cb71b8a`。随后扩展 registry 的第 31 个场景不追溯改写这份 qualification。
 
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
@@ -138,7 +139,7 @@
 - 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前新增 Bond 语义 mutation 回归，audit 28 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 29 场景已有单候选完整资格；当前 30 场景 registry 的新增双 Chair 与 Benzene production 场景待跑。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 30 场景已有单候选完整资格；当前 31 场景 registry 的新增可变长度 Chain production 场景待跑。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
@@ -146,7 +147,7 @@
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
 1. 🟡 **当前缺陷族与 oracle 收口**：27/27 qualification 已完成；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
-2. 🟡 **化学绘制主干**：十种非单键工具和六种平面环精确语义批次已完成；当前先跑双 Chair 与 Benzene，再推进原子/标签/电荷、Chain、Template Library、反应连接与属性。
+2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair 与 Benzene 精确语义批次已完成；当前先跑可变长度 Chain，再推进原子/标签/电荷、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
 5. **文档与外部边界**：多标签、所有格式、恢复、系统剪贴板、Office、文件关联。
@@ -158,7 +159,7 @@
 
 本清单不是一次性说明：
 
-- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 30 个场景 ID，漏项直接失败。
+- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 31 个场景 ID，漏项直接失败。
 - 每完成一个对象族或发现新的公开缺口，必须同时更新第 3 节状态和“明确剩余”，不能只在长架构文档末尾追加段落。
 - 每产生新候选或 qualification，必须更新页首候选哈希、通过/缺失/失败数和最新证据。
 - 每个本地测试提交必须让本文反映该提交后的真实状态；不得把“场景通过”写成“功能族完成”。

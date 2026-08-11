@@ -163,6 +163,7 @@ export class ProductionBlackBoxDriver {
       "gui.public-input",
       "editor.bond.draw",
       "editor.ring.insert",
+      "editor.chain.draw",
       "editor.arrow.draw",
       "editor.arrow.properties",
       "editor.text.create",

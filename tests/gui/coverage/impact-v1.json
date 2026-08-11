@@ -20,6 +20,7 @@
     { "id": "source.scenario.core.bond.ten-variant-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/bond-ten-variant-persistence-production.json"] },
     { "id": "source.scenario.core.ring.six-planar-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-six-planar-persistence-production.json"] },
     { "id": "source.scenario.core.ring.chair-benzene-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-chair-benzene-persistence-production.json"] },
+    { "id": "source.scenario.core.chain.drag-count-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-drag-count-persistence-production.json"] },
     { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
     { "id": "source.scenario.core.selection.clipboard-delete-multi-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/multi-bond-clipboard-delete-production.json"] },
     { "id": "source.scenario.core.selection.clipboard-delete-mixed-bond-arrow.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/mixed-bond-arrow-clipboard-production.json"] },
@@ -53,6 +54,7 @@
     { "id": "component.document-io", "kind": "component" },
     { "id": "capability.editor.bond.draw", "kind": "capability" },
     { "id": "capability.editor.ring.insert", "kind": "capability" },
+    { "id": "capability.editor.chain.draw", "kind": "capability" },
     { "id": "capability.editor.arrow.draw", "kind": "capability" },
     { "id": "capability.editor.arrow.properties", "kind": "capability" },
     { "id": "capability.editor.text.create", "kind": "capability" },
@@ -99,6 +101,7 @@
     { "id": "scenario.core.bond.ten-variant-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.six-planar-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.chair-benzene-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.chain.drag-count-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.history.undo-redo-bond.production", "kind": "scenario" },
     { "id": "scenario.core.selection.clipboard-delete-multi-bond.production", "kind": "scenario" },
     { "id": "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production", "kind": "scenario" },
@@ -433,5 +436,11 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.ring.chair-benzene-persistence.production", "reason": "The physical driver performs template choices, canvas insertions, and native save through guarded OS input." }
     ,{ "from": "oracle.dom", "to": "scenario.core.ring.chair-benzene-persistence.production", "reason": "Cumulative distinct bond identities prove both conformers and benzene committed." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.ring.chair-benzene-persistence.production", "reason": "The saved CCJS is independently checked for exact component counts and alternating benzene bond orders." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.chain.draw", "reason": "The shared editor interaction path owns public variable-length chain dragging and preview commitment." }
+    ,{ "from": "capability.editor.chain.draw", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The production cell covers drag-derived chain length, zigzag commitment, and exact persistence." }
+    ,{ "from": "source.scenario.core.chain.drag-count-persistence.production", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "Changing the chain production scenario invalidates its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The physical driver activates Chain, performs a guarded drag, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The exact distinct-bond count kills off-by-one and fixed-length chain mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The saved CCJS is independently checked for exact connected topology and single-bond semantics." }
   ]
 }
