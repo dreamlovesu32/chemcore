@@ -76,7 +76,7 @@ test("saved-document node oracle kills element, charge, implicit-hydrogen-label,
   assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], id: "n_missing" }]).passed, false);
 });
 
-test("saved-document node oracle kills missing and wrong radical-count mutants", () => {
+test("saved-document node oracle normalizes omitted zero and kills wrong radical-count mutants", () => {
   const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
     { id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 2, meta: { radicalCount: 1 }, label: { text: "NH2", sourceText: "NH2" } },
   ] } } } }));
@@ -87,6 +87,12 @@ test("saved-document node oracle kills missing and wrong radical-count mutants",
     { id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 2, label: { text: "NH2", sourceText: "NH2" } },
   ] } } } }));
   assert.equal(evaluateDocumentNodeProperties(missing, expected).passed, false);
+  const canonicalZero = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 2, radicalCount: 0, labelText: "NH2", labelSourceText: "NH2" }];
+  assert.equal(evaluateDocumentNodeProperties(missing, canonicalZero).passed, true);
+  const explicitNull = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 2, meta: { radicalCount: null }, label: { text: "NH2", sourceText: "NH2" } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(explicitNull, canonicalZero).passed, false);
 });
 
 test("saved-document arrow oracle checks exact public CCJS properties", () => {

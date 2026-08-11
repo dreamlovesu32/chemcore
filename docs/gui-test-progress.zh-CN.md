@@ -6,7 +6,7 @@
 
 当前产品候选：`7714f687f6e74bd1df479c4bd1db61cf45b5a808755e6979eb3a4a25b957a03a`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**41/42 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。Electron→Nitrogen 批次已通过，重建的不可变 41/41 qualification 也已通过；六元环 Bond 融合、Element 及正电荷附着的 locator/oracle 首次失败证据永久保留。影响图下一项只扩展独立 Lone pair 分支：以公开 Lone pair 附着 terminal Nitrogen，要求精确保持 `N/0/H2`、radical count 0、零 chemistry delta 与 atom/link 身份；不重复任何已通过电荷或单电子场景。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**41/42 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。Electron→Nitrogen 批次已通过，重建的不可变 41/41 qualification 也已通过；六元环 Bond 融合、Element、正电荷及 Lone pair 的 locator/oracle 首次失败证据永久保留。Lone pair 首批已证明产品正确保持 `N/0/H2`、`NH2`、零 chemistry delta 与 atom/link 身份，失败来自 oracle 未把省略的 canonical 零 radical count 归一为 `0`；当前仅重启这一修复闭包。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；Electron 附着与重建的 41/41 qualification 已通过。六元环 Bond 融合、Element 及正电荷附着的首次 test/oracle 失败证据均保留；当前只运行影响图新增的 Lone pair→Nitrogen 附着场景，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；Electron 附着与重建的 41/41 qualification 已通过。六元环 Bond 融合、Element、正电荷及 Lone pair 的首次 test/oracle 失败证据均保留；当前只重启 Lone pair 的零 radical count oracle 修复闭包，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -109,7 +109,7 @@
 | ✅ | `core.atom.radical-cation-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Radical cation 并附着；精确持久化 +1 formal charge、两个隐式氢、`NH2` 标签、radical count 1、双 chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
 | ✅ | `core.atom.radical-anion-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Radical anion 并附着；精确持久化 -1 formal charge、零隐式氢、`N` 标签、radical count 1、双 chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
 | ✅ | `core.atom.electron-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Electron 并附着；精确持久化中性 formal charge、一个隐式氢、`NH` 标签、radical count 1、radical chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
-| 🟡 | `core.atom.lone-pair-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Lone pair 并附着；要求精确保持中性 formal charge、两个隐式氢、`NH2` 标签、radical count 0、零 chemistry delta、目标 atom ID 与 auto-link 来源，当前待独立后台证据 |
+| 🟡 | `core.atom.lone-pair-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Lone pair 并附着；首批产品结果已正确保持中性 formal charge、两个隐式氢、`NH2` 标签、零 chemistry delta、目标 atom ID 与 auto-link 来源，但 oracle 错把 canonical 省略的零 radical count 当成 `null` 失败；首次证据保留，当前待修复闭包证据 |
 | ✅ | `core.chain.drag-count-persistence.production` | Chain 工具的真实 OS 可变长度拖拽、四键之字形提交、原生保存与精确连通拓扑 |
 | ✅ | `core.chain.endpoint-attachment-continuation.production` | 从已存在端点继续真实 OS Chain 拖拽，要求八键仍为单一九节点分子并精确持久化 |
 | ✅ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
@@ -163,6 +163,8 @@ Radical cation→Nitrogen 附着批次 `impact-9c2853b-atom-radical-cation-attac
 Radical anion→Nitrogen 附着批次 `impact-0f32f0d-atom-radical-anion-attachment-production-1786454854879` 已通过：13/13 actions、6/6 oracles、0 diagnostics；报告 SHA-256 `f9bfcce145567f4907f1cc35f380f6f99b18be049c0917ae3da6479835c2f96c`，manifest SHA-256 `92b8ff090a12fd53a81c1d4449af2ae59cb92383a8c946d092013a5de96b0c70`，9 个证据对象共 7,667,810 bytes 全部复算一致。40 份当前报告已合并为不可变 qualification `e38ef34a-dab9-4477-9c72-a4b0c99d76dc`：40/40 passed、0 failed、0 missing、0 diagnostics，328 个证据对象共 317,917,854 bytes，qualification SHA-256 为 `3ee3c68e1af45eb9de527b469f1067b9ce0ef17d257471918a61796cde946a0a`。
 
 Electron→Nitrogen 附着批次 `impact-df5db12-atom-electron-attachment-production-1786455340323` 已通过：13/13 actions、6/6 oracles、0 diagnostics；报告 SHA-256 `8168f20d2040d4af72547cacb8c243f3c1b50f711e4577c0d2dacc8b9072c0f4`，manifest SHA-256 `28b3537040ce4092a7cb1c91493369beba638de6e73337dac75cd81aacadf340`，9 个证据对象共 7,662,891 bytes 全部复算一致。41 份当前报告已合并为不可变 qualification `c396b930-d682-4a97-982a-081069da0dc1`：41/41 passed、0 failed、0 missing、0 diagnostics，337 个证据对象共 325,580,745 bytes，qualification SHA-256 为 `b184d1b6d4dd048e2ad4b8e443db4ccc4320b06eac8a981db19c8366054286aa`。
+
+Lone pair→Nitrogen 首批 `impact-0b349a2-atom-lone-pair-attachment-production-1786455781632` 完成 13/13 actions，拓扑、DOM 与保存均通过，产品精确持久化 `N/0/H2/NH2`、Lone pair `chargeDelta=0`、`radicalDelta=0`、`attachedAtomId=n_2` 与 auto-link；ChemSema CLI 独立 detail 也确认相同 node、symbol 及 atom-symbol Link。失败仅来自 Node oracle specification：canonical 零 radical count 不写 `meta.radicalCount`，检查器却把省略值报告为 `null` 并拒绝预期 `0`。失败报告 SHA-256 `ee27b026f0c788db522828f79f9dcb7fa0bcf939a203f8de48c951aa936a4ee4`，manifest SHA-256 `1e42396f0904db1d3251670fac31054d6882edf12c6fe97bbc29af4e16073f60`，9 个 failure-retention 证据对象共 7,674,637 bytes 全部复算一致。通用 oracle 现只把字段缺失归一为语义零，同时以显式 `null`、错误非零和缺失 node mutants 证明仍会 fail closed。
 
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
