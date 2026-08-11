@@ -17,6 +17,15 @@ const now = () => new Date().toISOString();
 
 function sha256(bytes) { return createHash("sha256").update(bytes).digest("hex"); }
 
+export async function readScenarioReport(path, { read = readFile } = {}) {
+  try {
+    return await read(path);
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 function parseOptions(args) {
   const options = {};
   const positional = [];
@@ -187,7 +196,16 @@ async function runDaemon(options) {
       await persist();
       const exitCode = await new Promise((resolveExit, reject) => { currentChild.once("error", reject); currentChild.once("close", (code) => resolveExit(code ?? 1)); });
       currentChild = null;
-      const reportBytes = await readFile(reportPath);
+      const reportBytes = await readScenarioReport(reportPath);
+      if (!reportBytes) {
+        status = "paused-failure";
+        failure = {
+          message: `Scenario ${scenario.id} exited with code ${exitCode} without producing a run report.`,
+          receipt: { scenarioId: scenario.id, status: "missing-report", exitCode, reportPath, stderrPath: paths.stderr },
+        };
+        await persist();
+        break;
+      }
       const report = JSON.parse(reportBytes.toString("utf8"));
       const manifestPath = join(paths.evidence, "records", report.evidenceKey, report.runId, "artifact-manifest.json");
       const manifestBytes = await readFile(manifestPath);

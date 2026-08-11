@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { createWorkerCoordinator } from "../src/workers/create.mjs";
-import { renameAtomicWithRetry, validatePhysicalQueue } from "../src/workers/physical-daemon.mjs";
+import { readScenarioReport, renameAtomicWithRetry, validatePhysicalQueue } from "../src/workers/physical-daemon.mjs";
 import { HyperVCoordinator } from "../src/workers/hyperv.mjs";
 import { PhysicalWindowsCoordinator } from "../src/workers/physical-windows.mjs";
 
@@ -131,4 +131,14 @@ test("physical daemon retries only transient Windows atomic replace contention",
     }),
     /bad path/,
   );
+});
+
+test("physical daemon preserves a missing child report as the primary paused failure", async () => {
+  const missing = Object.assign(new Error("not found"), { code: "ENOENT" });
+  assert.equal(await readScenarioReport("missing.json", { read: async () => { throw missing; } }), null);
+  await assert.rejects(readScenarioReport("blocked.json", { read: async () => { throw Object.assign(new Error("denied"), { code: "EACCES" }); } }), /denied/);
+  const source = await readFile(new URL("../src/workers/physical-daemon.mjs", import.meta.url), "utf8");
+  assert.match(source, /status = "paused-failure"/);
+  assert.match(source, /status: "missing-report"/);
+  assert.match(source, /without producing a run report/);
 });
