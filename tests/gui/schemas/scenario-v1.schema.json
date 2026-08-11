@@ -288,7 +288,7 @@
       "required": ["id", "kind"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["dom-count", "dom-distinct-count", "ui-state", "no-unexpected-diagnostics", "document-counts", "document-bond-properties", "document-arrow-properties", "document-text-properties", "document-shape-properties", "document-orbital-properties", "document-chromatography-properties", "document-symbol-properties", "document-bracket-properties", "document-table-properties"] },
+        "kind": { "enum": ["dom-count", "dom-distinct-count", "ui-state", "no-unexpected-diagnostics", "document-counts", "document-bond-properties", "document-node-properties", "document-arrow-properties", "document-text-properties", "document-shape-properties", "document-orbital-properties", "document-chromatography-properties", "document-symbol-properties", "document-bracket-properties", "document-table-properties"] },
         "selector": { "type": "string", "minLength": 1, "maxLength": 2048 },
         "referenceSelector": { "type": "string", "minLength": 1, "maxLength": 2048 },
         "uiExpected": { "$ref": "#/$defs/uiExpected" },
@@ -306,6 +306,25 @@
                 "bonds": { "type": "integer", "minimum": 0 },
                 "molecules": { "type": "integer", "minimum": 0 },
                 "objects": { "type": "integer", "minimum": 0 }
+              }
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "element", "atomicNumber", "charge", "labelText", "labelSourceText"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/id" },
+                  "element": { "type": "string", "minLength": 1, "maxLength": 3 },
+                  "atomicNumber": { "type": "integer", "minimum": 1, "maximum": 118 },
+                  "charge": { "type": "integer", "minimum": -16, "maximum": 16 },
+                  "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
+                  "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }
+                }
               }
             },
             {
@@ -572,6 +591,10 @@
         },
         {
           "if": { "properties": { "kind": { "const": "document-bond-properties" } } },
+          "then": { "required": ["expected"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "document-node-properties" } } },
           "then": { "required": ["expected"] }
         },
         {

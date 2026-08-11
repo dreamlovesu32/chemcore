@@ -24,6 +24,7 @@
     { "id": "source.scenario.core.ring.bond-fusion-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-bond-fusion-persistence-production.json"] },
     { "id": "source.scenario.core.ring.endpoint-attachment-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-endpoint-attachment-persistence-production.json"] },
     { "id": "source.scenario.core.ring.vertex-bond-continuation-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/ring-vertex-bond-continuation-persistence-production.json"] },
+    { "id": "source.scenario.core.atom.element-label-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-element-label-persistence-production.json"] },
     { "id": "source.scenario.core.chain.drag-count-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-drag-count-persistence-production.json"] },
     { "id": "source.scenario.core.chain.endpoint-attachment-continuation.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/chain-endpoint-attachment-continuation-production.json"] },
     { "id": "source.scenario.core.history.undo-redo-bond.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/undo-redo-bond-production.json"] },
@@ -58,6 +59,7 @@
     { "id": "component.editor-interaction", "kind": "component" },
     { "id": "component.document-io", "kind": "component" },
     { "id": "capability.editor.bond.draw", "kind": "capability" },
+    { "id": "capability.editor.atom.element-label", "kind": "capability" },
     { "id": "capability.editor.ring.insert", "kind": "capability" },
     { "id": "capability.editor.chain.draw", "kind": "capability" },
     { "id": "capability.editor.arrow.draw", "kind": "capability" },
@@ -102,6 +104,7 @@
     { "id": "oracle.document-file", "kind": "oracle" },
     { "id": "oracle.ui-state", "kind": "oracle" },
     { "id": "scenario.core.bond.draw-single", "kind": "scenario" },
+    { "id": "scenario.core.atom.element-label-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.bond.draw-single.production", "kind": "scenario" },
     { "id": "scenario.core.bond.ten-variant-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.ring.six-planar-persistence.production", "kind": "scenario" },
@@ -149,6 +152,7 @@
     { "from": "source.gui-browser-driver", "to": "driver.playwright-browser", "reason": "Browser driver changes affect browser scenarios only." },
     { "from": "source.runtime-dependencies", "to": "component.gui-runner", "reason": "Dependency lockfile and runtime package changes can affect platform execution." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single", "reason": "Runner changes invalidate scenario execution evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.element-label-persistence.production", "reason": "Runner, guarded palette targeting, native save, and exact document-node oracle changes invalidate element-label evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.draw-single.production", "reason": "Runner changes invalidate production desktop scenario evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.bond.ten-variant-persistence.production", "reason": "Runner, guarded bond-tool input, native save, and exact document-oracle changes invalidate the production variant matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.history.undo-redo-bond.production", "reason": "Runner changes invalidate production keyboard scenario evidence." },
@@ -461,6 +465,13 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.ring.vertex-bond-continuation-persistence.production", "reason": "The physical driver creates the attached ring, reactivates Single bond, drags from its measured outer vertex, and saves through the native dialog." }
     ,{ "from": "oracle.dom", "to": "scenario.core.ring.vertex-bond-continuation-persistence.production", "reason": "Exactly eight distinct rendered bonds kill dropped-continuation and accidental extra-bond mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.ring.vertex-bond-continuation-persistence.production", "reason": "Eight nodes, eight bonds, one molecule, one object, and exact single-bond semantics kill vertex-miss and disconnected-continuation mutants." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.atom.element-label", "reason": "Element palette placement and endpoint mutation are public editor interactions." }
+    ,{ "from": "capability.editor.atom.element-label", "to": "scenario.core.atom.element-label-persistence.production", "reason": "The production cell selects nitrogen from the public periodic palette and applies it to a GUI-drawn endpoint." }
+    ,{ "from": "capability.editor.bond.draw", "to": "scenario.core.atom.element-label-persistence.production", "reason": "The target atom must originate from a real public Single bond gesture." }
+    ,{ "from": "source.scenario.core.atom.element-label-persistence.production", "to": "scenario.core.atom.element-label-persistence.production", "reason": "Changing the element-label scenario invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.element-label-persistence.production", "reason": "The physical driver opens the periodic palette, applies nitrogen at the measured endpoint, and saves through the native dialog." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.element-label-persistence.production", "reason": "The unique rendered node identity kills missing-label and wrong-target mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.element-label-persistence.production", "reason": "Exact node element, atomic number, charge, label fields, and topology kill semantic persistence mutants." }
     ,{ "from": "component.editor-interaction", "to": "capability.editor.chain.draw", "reason": "The shared editor interaction path owns public variable-length chain dragging and preview commitment." }
     ,{ "from": "capability.editor.chain.draw", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "The production cell covers drag-derived chain length, zigzag commitment, and exact persistence." }
     ,{ "from": "source.scenario.core.chain.drag-count-persistence.production", "to": "scenario.core.chain.drag-count-persistence.production", "reason": "Changing the chain production scenario invalidates its evidence." }

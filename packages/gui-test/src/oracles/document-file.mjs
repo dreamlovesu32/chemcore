@@ -95,6 +95,34 @@ export function evaluateDocumentBondProperties(bytes, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentNodeProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const resources = document?.resources && typeof document.resources === "object"
+    ? Object.values(document.resources)
+    : [];
+  const nodes = resources.flatMap((resource) => Array.isArray(resource?.data?.nodes) ? resource.data.nodes : []);
+  const observed = expected.map((entry) => {
+    const node = nodes.find((candidate) => candidate?.id === entry.id);
+    return {
+      id: entry.id,
+      found: !!node,
+      element: node?.element ?? null,
+      atomicNumber: node?.atomicNumber ?? node?.atomic_number ?? null,
+      charge: node?.charge ?? null,
+      labelText: node?.label?.text ?? null,
+      labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
+    };
+  });
+  const passed = observed.every((actual, index) => actual.found
+    && Object.entries(expected[index]).every(([name, value]) => name === "id" || actual[name] === value));
+  return { passed, observed };
+}
+
 export function evaluateDocumentArrowProperties(bytes, expected) {
   let document;
   try {

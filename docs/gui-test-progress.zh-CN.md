@@ -2,11 +2,11 @@
 
 最后更新：2026-08-11  
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**35**
+登记场景：**36**
 
 当前产品候选：`7714f687f6e74bd1df479c4bd1db61cf45b5a808755e6979eb3a4a25b957a03a`（源码闭包 `f2d88eb180cd08f87a91606e283b923e55cec361b8b96c46f83939caa524c90d`）
 
-当前源码闭包已登记场景资格：**34/35 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。六元环端点附着批次与重建的不可变 34/34 qualification 已通过；首次六元环 Bond 融合运行的 test-locator 失败证据永久保留。现按影响图新增且只排队从环顶点继续单键的场景。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**35/36 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。环顶点单键续画批次与重建的不可变 35/35 qualification 已通过；首次六元环 Bond 融合运行的 test-locator 失败证据永久保留。现按影响图新增且只排队 Element/原子标签持久化场景。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -42,12 +42,12 @@
 | ✅ | 资源上限 | Hyper-V 保留原聚合门禁；物理机由本地 profile 和心跳动态记录资源，低于安全内存余量时暂停，不以固定 10 CPU/30 GiB 限制替代机器健康 |
 | ✅ | 内容寻址候选 | 可执行文件与源码闭包哈希绑定，源码或二进制漂移时拒绝运行 |
 | ✅ | 原生 Windows 对话框 | 保存/打开使用真实 UIA 与键盘输入，保存文件经 SHA-256 回传 |
-| ✅ | 独立文件 oracle | 已支持化学计数及 Bond、Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 精确属性；Bond oracle 会杀死错误阶数、线型、粗细和楔键立体语义 |
+| ✅ | 独立文件 oracle | 已支持化学计数及 Node、Bond、Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 精确属性；Node oracle 会杀死错误元素、原子序数、电荷及标签语义，Bond oracle 会杀死错误阶数、线型、粗细和楔键立体语义 |
 | 🟡 | 独立前端状态 oracle | 已用当前候选实机通过焦点归属、上下文菜单结束后的画布焦点恢复、键盘焦点环、`:hover`、禁用态、受限计算样式、字体变化后文本紧边界、键选择框 12 CSS px 最小可操作尺寸、双选择框 16 个 6×6 CSS px 控制点、实际 viewport 与 `devicePixelRatio`；尚缺完整键盘 `:focus-visible` 顺序、全部光标/主题/DPI/窗口尺寸矩阵 |
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；六元环端点附着与重建的 34/34 qualification 已通过。六元环 Bond 融合首次 test-locator 失败证据保留；当前只排队新增的环顶点单键续画场景，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；环顶点单键续画与重建的 35/35 qualification 已通过。六元环 Bond 融合首次 test-locator 失败证据保留；当前只排队新增的 Element/原子标签场景，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -56,7 +56,7 @@
 
 | 状态 | 功能族 | 已有真实覆盖 | 明确剩余 |
 |---|---|---|---|
-| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、四键 Chain、Chain 端点续画及环与既有 Bond 融合已取得真实 OS 输入与精确持久化证据 | 元素/标签/电荷/氢、环端点附着与继续绘制、模板、端点反转、双键位置循环、立体化学、反应语义、全部属性与格式 |
+| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、四键 Chain、Chain 端点续画、环融合/端点附着/顶点续画已取得真实 OS 输入与精确持久化证据；Nitrogen Element/标签场景已登记 | Element/标签场景待实机证据；其他元素、电荷/氢、模板、端点反转、双键位置循环、立体化学、反应语义、全部属性与格式 |
 | 🟡 | Arrow | 多对象属性、锁定混合、属性持久化 | 全部直接绘制预设、所有 head/curve/no-go/color 值、组合/大文档 |
 | 🟡 | Text | 新建、既有编辑、多行、主要样式、行距、取消、历史、持久化 | 局部选区、全部字体/字号/对齐/行距边界、IME/composition、Formula、端点标签、锁定/组合/大文档 |
 | 🟡 | Shape | 四种 kind、五种代表样式、批量样式、历史、持久化 | 全颜色/Faded、控制点、缩放/旋转、锁定/组合/剪贴板、格式与大文档 |
@@ -65,7 +65,7 @@
 | 🟡 | Table | 插入、2×2→3×3、对齐、边框、历史、持久化 | 全部增删位置、内容、清空/适应、全部对齐/边组合/颜色、锁定/剪贴板/格式/大文档 |
 | 🟡 | Orbital | 七种模板、双向几何迁移、批量模板/样式/相位、历史、持久化 | 全颜色、全部 style×phase、原子/标签附着、变换、组合、格式与大文档 |
 | 🟡 | TLC/Gel Chromatography | 两种板、12 泳道、批量颜色、斑点/条带移动、历史、精确文件校验 | 泳道/标记增删、多标记、TLC 开关全值、凝胶标签/宽高/可见性/范围/单位、格式与大文档 |
-| 🟡 | Rings、Chain、Template Library | 六种平面环、双 Chair、Benzene、四键可变长度 Chain、Chain 端点附着续画、六元环 Bond 融合及端点附着已取得真实输入、精确拓扑与持久化证据；从环顶点继续单键已登记 | 环顶点继续绘制 production 证据、其他长度/相位、每种公开库模板、属性、历史、其他格式、搜索/库切换 |
+| 🟡 | Rings、Chain、Template Library | 六种平面环、双 Chair、Benzene、四键可变长度 Chain、Chain 端点附着续画、六元环 Bond 融合、端点附着及环顶点续画已取得真实输入、精确拓扑与持久化证据 | 其他长度/相位、每种公开库模板、属性、历史、其他格式、搜索/库切换 |
 | ⬜ | Biology-assisted drawing | 产品含 10 个 family、24 种公开 kind | 每种对象实际绘制、全部专有属性/控制柄、组合、保存、格式与规模矩阵 |
 | 🟡 | Selection/Group/Lock/Clipboard | `0/1/2/many`、区域/追加、混合、嵌套组、锁定部分适用、跨文档粘贴 | 重叠/隐藏/视口外、所有对象族、套索、排序/对齐/分布、跨 group、系统/Office 边界、大文档 |
 | 🟡 | 文档生命周期 | CCJS Save As/Open/继续编辑、dirty close | 多标签、覆盖/权限/磁盘满、autosave/journal/crash recovery、所有格式、large/xlarge |
@@ -89,9 +89,9 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 35 个场景
+## 4. 已登记的 36 个场景
 
-所有 35 个场景均已实现并进入 registry。当前不可变候选已取得前 34 个场景的完整 qualification；随后按影响与功能缺口新增从六元环顶点继续单键的 production 场景，因此当前 registry 为 34/35，新增场景待独立后台证据。这一 registry 闭包即使最终全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 36 个场景均已实现并进入 registry。当前不可变候选已取得前 35 个场景的完整 qualification；随后按影响与功能缺口新增 Element/原子标签 production 场景，因此当前 registry 为 35/36，新增场景待独立后台证据。这一 registry 闭包即使最终全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -102,7 +102,8 @@
 | ✅ | `core.ring.chair-benzene-persistence.production` | 双 Chair 与 Benzene 的真实 OS 点击、精确分量计数及交替芳香键级持久化 |
 | ✅ | `core.ring.bond-fusion-persistence.production` | 先真实绘制单键，再于键中点插入六元环，要求共享键去重并持久化为单一六节点环；首次 test-locator 失败证据保留，修复后的精确闭包已通过 |
 | ✅ | `core.ring.endpoint-attachment-persistence.production` | 在已绘制单键的精确端点插入六元环，要求共享一个节点并持久化为 7 节点、7 键、单分子；独立后台实机证据与文件 oracle 已通过 |
-| 🟡 | `core.ring.vertex-bond-continuation-persistence.production` | 从已附着六元环的精确外侧顶点继续拖出单键，要求共享环顶点并持久化为 8 节点、8 键、单分子；待独立后台实机证据 |
+| ✅ | `core.ring.vertex-bond-continuation-persistence.production` | 从已附着六元环的精确外侧顶点继续拖出单键，要求共享环顶点并持久化为 8 节点、8 键、单分子；独立后台实机证据与文件 oracle 已通过 |
+| 🟡 | `core.atom.element-label-persistence.production` | 在 GUI 绘制的单键端点通过公开周期表选择 Nitrogen，要求渲染唯一原子标签并精确持久化元素、原子序数、中性电荷、显示/源标签与拓扑；待独立后台实机证据 |
 | ✅ | `core.chain.drag-count-persistence.production` | Chain 工具的真实 OS 可变长度拖拽、四键之字形提交、原生保存与精确连通拓扑 |
 | ✅ | `core.chain.endpoint-attachment-continuation.production` | 从已存在端点继续真实 OS Chain 拖拽，要求八键仍为单一九节点分子并精确持久化 |
 | ✅ | `core.history.undo-redo-bond.production` | 单键撤销/重做 |
@@ -137,6 +138,8 @@
 
 六元环端点附着批次 `impact-b2f18ab-ring-endpoint-production-1786450363071` 已通过：10/10 actions、3/3 oracles、0 diagnostics；报告 SHA-256 `7766b621ef38e7f8d1566b2c584c6d4f2c3d16eee57157f1112aba963680bf1d`，manifest SHA-256 `52d06ec3e045c4d5a20f9e907423aa358c6485d3410b9d04d2c56461a0468287`，9 个证据对象共 7,472,199 bytes 全部复算一致。34 份当前报告已合并为不可变 qualification `99fce458-faf1-4a38-a0b4-9336ae9c61f8`：34/34 passed、0 failed、0 missing、0 diagnostics，274 个证据对象共 272,190,133 bytes，qualification SHA-256 为 `e218f96a8de621eafd7018c6a936ef39bb93d07ac1fa0ddfba588f5b9f07e5e9`。
 
+环顶点单键续画批次 `impact-587995c-ring-vertex-continuation-production-1786450892866` 已通过：12/12 actions、4/4 oracles、0 diagnostics；报告 SHA-256 `e98d5d9085b8f2a883ee8097d104bc81f253df7f826fbca0f935c896cfc5aec3`，manifest SHA-256 `077ac9d56c408a095bc73a317a47ef376305372d6e16f5a5179a3209b05e93fc`，9 个证据对象共 7,539,901 bytes 全部复算一致。35 份当前报告已合并为不可变 qualification `ce0eedc8-83e4-4cd2-b25c-5a4bd1629584`：35/35 passed、0 failed、0 missing、0 diagnostics，283 个证据对象共 279,730,034 bytes，qualification SHA-256 为 `adb2eed00f75251590b5328a78a28a0abdf0285ac597a17a5a28abf68e45fe82`。
+
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
@@ -145,7 +148,7 @@
 - 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前新增 Bond 语义 mutation 回归，audit 28 场景/0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 34 场景已有单候选完整资格；当前 35 场景 registry 保留六元环 Bond 融合的首次 test-locator 失败，六元环端点附着已通过，新增环顶点单键续画场景待证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 35 场景已有单候选完整资格；当前 36 场景 registry 保留六元环 Bond 融合的首次 test-locator 失败，环顶点单键续画已通过，新增 Element/原子标签场景待证据。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序
@@ -153,7 +156,7 @@
 执行顺序是有限的，不再按“想到一个测一个”推进：
 
 1. 🟡 **当前缺陷族与 oracle 收口**：27/27 qualification 已完成；继续补齐轨道模板迁移、轨道/括号归一化前语义检查点，以及 supervisor/子进程重启故障注入。
-2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、可变长度 Chain、Chain 端点续画、六元环 Bond 融合与端点附着精确语义批次已完成；当前先跑环顶点单键续画，再推进原子/标签/电荷、Template Library、反应连接与属性。
+2. 🟡 **化学绘制主干**：十种非单键工具、六种平面环、双 Chair、Benzene、可变长度 Chain、Chain 端点续画、六元环 Bond 融合、端点附着与环顶点续画精确语义批次已完成；当前先跑 Element/原子标签，再推进电荷/氢、Template Library、反应连接与属性。
 3. **补齐已开工对象族值域**：Arrow、Text、Shape、Symbol、Bracket、Table、Orbital、Chromatography 的公开值和 `0/1/2/many`。
 4. **Biology 与其他专用对象**：24 个 biology kind、plasmid、Image/Spectrum/Geometry/Constraint/Annotation/Stoichiometry。
 5. **文档与外部边界**：多标签、所有格式、恢复、系统剪贴板、Office、文件关联。
@@ -165,7 +168,7 @@
 
 本清单不是一次性说明：
 
-- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 35 个场景 ID，漏项直接失败。
+- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 36 个场景 ID，漏项直接失败。
 - 每完成一个对象族或发现新的公开缺口，必须同时更新第 3 节状态和“明确剩余”，不能只在长架构文档末尾追加段落。
 - 每产生新候选或 qualification，必须更新页首候选哈希、通过/缺失/失败数和最新证据。
 - 每个本地测试提交必须让本文反映该提交后的真实状态；不得把“场景通过”写成“功能族完成”。

@@ -69,6 +69,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.locked-mixed-properties.production",
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.atom.element-label-persistence.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
     "scenario.core.bond.ten-variant-persistence.production",
@@ -120,6 +121,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.locked-mixed-properties.production",
       "scenario.core.arrow.multi-property-history.production",
       "scenario.core.arrow.property-matrix-persistence.production",
+      "scenario.core.atom.element-label-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
       "scenario.core.bond.ten-variant-persistence.production",
@@ -171,6 +173,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.locked-mixed-properties.production",
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.atom.element-label-persistence.production",
     "scenario.core.bond.draw-single.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
@@ -210,6 +213,7 @@ test("impact selection follows the transitive source to scenario closure", async
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/document-file.mjs"]), [
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.atom.element-label-persistence.production",
     "scenario.core.bond.ten-variant-persistence.production",
     "scenario.core.bracket.three-kind-properties-history.production",
     "scenario.core.chain.drag-count-persistence.production",
@@ -244,6 +248,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.locked-mixed-properties.production",
       "scenario.core.arrow.multi-property-history.production",
       "scenario.core.arrow.property-matrix-persistence.production",
+      "scenario.core.atom.element-label-persistence.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
       "scenario.core.bond.ten-variant-persistence.production",
@@ -291,6 +296,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "ring-bond-fusion-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-endpoint-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "ring-vertex-bond-continuation-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-element-label-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-drag-count-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "chain-endpoint-attachment-continuation-production.json"),
     join(guiTestsDir, "scenarios", "core", "undo-redo-bond-production.json"),
@@ -322,8 +328,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 40);
-  assert.equal(result.summary.scenarios, 35);
+  assert.equal(result.summary.entries, 41);
+  assert.equal(result.summary.scenarios, 36);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -436,6 +442,20 @@ test("the ring vertex continuation matrix kills vertex-miss and disconnected-bon
     scenario.oracles.find((oracle) => oracle.id === "saved-ring-vertex-continuation-single-bond-semantics").expected.map(({ id, order }) => [id, order]),
     [["b_16", 1]],
   );
+});
+
+test("the element-label matrix kills wrong-palette, wrong-target, and node-semantic mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-element-label-persistence-production.json"));
+  const palette = scenario.actions.find((action) => action.id === "open-element-palette");
+  const nitrogen = scenario.actions.find((action) => action.id === "choose-nitrogen");
+  const apply = scenario.actions.find((action) => action.id === "apply-nitrogen-to-target-endpoint");
+  assert.equal(palette.completion.selector, '.quick-palette.is-open[data-mode="element"]');
+  assert.equal(nitrogen.target.value, '.periodic-element-button[data-element-symbol="N"][data-element-atomic-number="7"]');
+  assert.ok(Math.abs(apply.at.x - 0.37257) < Number.EPSILON);
+  assert.equal(apply.completion.selector, '[data-node-id="n_2"]');
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-node-properties").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, labelText: "N", labelSourceText: "N" },
+  ]);
 });
 
 test("the chain matrix kills fixed-length and off-by-one drag-count mutants", async () => {

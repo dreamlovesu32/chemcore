@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateDocumentArrowProperties, evaluateDocumentBondProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentBondProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentNodeProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, validationLevelForDocumentBytes } from "../src/oracles/document-file.mjs";
 
 const validReports = {
   inspect: {
@@ -60,6 +60,20 @@ test("saved-document bond oracle kills order, line-style, weight, and stereo mut
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[1], mainLineStyle: "dashed" }]).passed, false);
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[2], stereoKind: "hashed-wedge" }]).passed, false);
   assert.equal(evaluateDocumentBondProperties(bytes, [{ ...expected[2], wideEnd: "begin" }]).passed, false);
+});
+
+test("saved-document node oracle kills element, atomic-number, charge, and label mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, label: { text: "N", sourceText: "N" } },
+  ] } } } }));
+  const expected = [{ id: "n_2", element: "N", atomicNumber: 7, charge: 0, labelText: "N", labelSourceText: "N" }];
+  assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
+  for (const mutant of [
+    { element: "C" }, { atomicNumber: 6 }, { charge: 1 }, { labelText: "C" }, { labelSourceText: "C" },
+  ]) {
+    assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], ...mutant }]).passed, false);
+  }
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], id: "n_missing" }]).passed, false);
 });
 
 test("saved-document arrow oracle checks exact public CCJS properties", () => {
