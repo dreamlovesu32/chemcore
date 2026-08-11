@@ -74,6 +74,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.element-label-persistence.production",
     "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
     "scenario.core.atom.isotope-preset-value-matrix.production",
+    "scenario.core.atom.isotopic-abundance-value-matrix.production",
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -166,6 +167,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.element-label-persistence.production",
       "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
       "scenario.core.atom.isotope-preset-value-matrix.production",
+      "scenario.core.atom.isotopic-abundance-value-matrix.production",
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -258,6 +260,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.element-label-persistence.production",
     "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
     "scenario.core.atom.isotope-preset-value-matrix.production",
+    "scenario.core.atom.isotopic-abundance-value-matrix.production",
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -338,6 +341,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.atom.element-label-persistence.production",
     "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
     "scenario.core.atom.isotope-preset-value-matrix.production",
+    "scenario.core.atom.isotopic-abundance-value-matrix.production",
     "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
     "scenario.core.atom.minus-symbol-attachment-persistence.production",
     "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -413,6 +417,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.atom.element-label-persistence.production",
       "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
       "scenario.core.atom.isotope-preset-value-matrix.production",
+      "scenario.core.atom.isotopic-abundance-value-matrix.production",
       "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
       "scenario.core.atom.minus-symbol-attachment-persistence.production",
       "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
@@ -520,6 +525,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-radical-anion-symbol-attachment-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-element-label-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-isotope-preset-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-isotopic-abundance-value-matrix-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
@@ -568,8 +574,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 46);
-  assert.equal(result.summary.scenarios, 76);
+  assert.equal(result.summary.entries, 47);
+  assert.equal(result.summary.scenarios, 77);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -896,6 +902,24 @@ test("the isotope value matrix kills missing presets, swapped masses, disconnect
     [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, isotopeMass: 13, labelText: "CH4", labelSourceText: "CH4" }],
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-isotopic-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the isotopic-abundance matrix kills missing values, swapped mappings, stale checked state, and lost persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-isotopic-abundance-value-matrix-production.json"));
+  const values = ["unspecified", "any", "natural", "enriched", "deficient", "nonnatural"];
+  assert.deepEqual(
+    values.map((value) => scenario.actions.some((action) => action.target?.value?.includes(`isotopic-abundance:${value}`) || action.completion?.selector?.includes(`isotopic-abundance:${value}`))),
+    values.map(() => true),
+  );
+  for (const value of values) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`isotopic-abundance:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated checked state for ${value}`);
+  }
+  assert.equal(scenario.actions.filter((action) => action.target?.name === "Isotopic Abundance").length, 5);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-abundance-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, isotopicAbundance: "nonnatural", labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-abundance-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
 });
 
 test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {

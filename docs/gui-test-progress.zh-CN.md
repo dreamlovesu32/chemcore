@@ -2,11 +2,11 @@
 
 最后更新：2026-08-12
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**76**
+登记场景：**77**
 
-当前产品候选：`f5ed7f23b07d0d1b9e67bcbb8119b5de9838bdae983acdc4051d1c2caba80320`（源码闭包 `e9ddd5b915320ccf434aeb186106f38c1816314e38cc0ed1d92492e2052e1c1e`）
+当前产品候选：`2af477b2b827188020520059f10911ee8e854dc2c733d3bedc263665aa2571ce`（源码闭包 `38a525a417237d7beb590ba9c9c1e8036513b0a9df9bb99728406653efedd445`）
 
-当前源码闭包已登记场景资格：**75/76 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen、Bond Reaction Participation 与自由原子规范化的首次失败证据永久保留。Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、Double Bond Left/Right/Center、全部 wedge 反转、全部公开 bond tool 中心替换，以及全部 118 个周期表值现已取得独立实机证据。当前影响图转入 Atom Properties，选择尚无 physical coverage 的 isotope preset/custom/clear/persistence 闭包，不重复已通过的周期表值矩阵。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**76/77 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen、Bond Reaction Participation、自由原子规范化与 Isotope 的首次失败证据永久保留。全部 118 个周期表值与 Atom Properties Isotope preset/custom/clear/persistence 现已取得独立实机证据。当前影响图选择直接相邻且尚无 physical coverage 的 Isotopic Abundance 六值闭包，不重复已通过的周期表或 isotope 场景。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -89,9 +89,9 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 76 个场景
+## 4. 已登记的 77 个场景
 
-所有 76 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 75/76 reusable passed；三种 wedge 端点反转、所有公开 bond tool 的中心替换/循环，以及全部 118 个周期表值均已通过，影响图接着选择 Atom Properties 的 isotope 值域与 custom/clear 边界。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 77 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 76/77 reusable passed；三种 wedge 端点反转、所有公开 bond tool 的中心替换/循环、全部 118 个周期表值与 Isotope 值域均已通过，影响图接着选择 Atom Properties 的 Isotopic Abundance 六值闭包。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -134,7 +134,8 @@
 | ✅ | `core.atom.periodic-actinide-remaining-free-placement.production` | 不重复已通过的 Ac/Th/Pa/U，直接放置 Np、Pu、Am、Cm、Bk、Cf、Es、Fm、Md、No、Lr 十一个自由原子，要求零键、十一个独立规范化 molecule object、连续 identity、零隐式氢与裸标签精确持久化；独立后台实机证据已通过 |
 | ✅ | `core.atom.periodic-period-seven-transition-free-placement.production` | 不重复前三个周期的已通过 transition 值，直接放置 Rf、Db、Sg、Bh、Hs、Mt、Ds、Rg、Cn 九个自由原子，要求零键、九个独立规范化 molecule object、连续 identity、零隐式氢与裸标签精确持久化；独立后台实机证据已通过 |
 | ✅ | `core.atom.periodic-carbon-free-placement.production` | 显式选择最后一个未覆盖的公开 Carbon 按钮，不借用 bond 工具默认碳语义，在空白画布放置单个自由原子并要求零键、独立 molecule object、atomic number 6 与 `CH4`/四隐式氢精确持久化；独立后台实机证据已通过，全部 118 个周期表值闭合 |
-| 🟡 | `core.atom.isotope-preset-value-matrix.production` | 在公开 Atom Properties > Isotope 菜单遍历 Natural、2、3、13、14、15、18，使用 Other 对话框输入 17，验证清除恢复 Natural、每次重新生成的 checked state，并最终精确保存 `13C` isotope mass；当前影响选择批次待独立实机证据 |
+| ✅ | `core.atom.isotope-preset-value-matrix.production` | 在公开 Atom Properties > Isotope 菜单遍历 Natural、2、3、13、14、15、18，使用 Other 对话框输入 17，验证清除恢复 Natural、每次重新生成的 checked state，并最终精确保存 `13C` isotope mass |
+| 🟡 | `core.atom.isotopic-abundance-value-matrix.production` | 在公开 Atom Properties > Isotopic Abundance 菜单遍历 Unspecified、Any、Natural、Enriched、Deficient、Nonnatural，逐次验证重新生成的 checked state，并精确保存最终 Nonnatural enum；当前影响选择批次待独立实机证据 |
 | ✅ | `core.atom.charge-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，以公开 Charge/Electron Symbol 工具附着默认正电荷；精确持久化 +1 formal charge、三个隐式氢、`NH3` 标签、symbol chemistry delta、目标 atom ID 与 auto-link 来源的修复批次已通过 |
 | ✅ | `core.atom.negative-charge-symbol-attachment-persistence.production` | 从真实单键端点与 Oxygen Element 状态继续，在 Secondary toolbar 选择 Circle minus 并附着；精确持久化 -1 formal charge、零隐式氢、`O` 标签、symbol chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
 | ✅ | `core.atom.radical-cation-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Radical cation 并附着；精确持久化 +1 formal charge、两个隐式氢、`NH2` 标签、radical count 1、双 chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
@@ -284,15 +285,17 @@ Isotope 首次批次 `impact-d424bd4-atom-isotope-values-production-178648229904
 
 Isotope 第二次批次 `impact-3b04fda-atom-isotope-logical-target-fix-production-1786482620432` 的失败证据同样永久保留：报告与 manifest SHA-256 为 `3fb431051e6c24290598a5e17365d2bdcfd2411175bca91233b21f8c679cb177`、`e0e8154e15fc11fdf85a7c2e8d9e03a3a5d9cfb70314efe0a153c9d3858f6ee1`，7 个证据对象共 8,677,652 bytes 全部独立复算一致。前一 locator 修复已使真实路径通过 23 个 action；新失败分类为 product CSS stacking：向左打开的第三级 Isotope submenu 与根菜单后续的 Atom Query 项重叠，缺少独立 stacking level 导致真实 isotope 15 点击被后绘制的根菜单项截获。所有 `.canvas-context-submenu` 现建立明确 `z-index: 1` stacking context，使嵌套菜单始终位于祖先菜单后续兄弟项之上；CSS mutant regression 会阻止该规则被删除。
 
+Isotope 第三次批次 `impact-a83c9cc-atom-isotope-submenu-stacking-fix-production-1786483040497` 已通过：49/49 actions、4/4 oracles、0 diagnostics，精确持久化单个 `13C/CH4` Carbon 与 isotope mass 13。报告 SHA-256 `3acbfb38c3b189bf6e930495a5aa9a9e73f180a80d1303137b1e3ec2cca9f57e`，manifest SHA-256 `97d4e0ed75fbb2b08cbb838b314f1d687b5b197ca2fd9a47dfc3cf2d46d7271d`，9 个证据对象共 9,286,384 bytes 全部独立复算一致；终态、heartbeat、checkpoint、提交 `a83c9cc60ebf3ae8c193dc91d0629aa3b1fd572f`、候选、源码闭包、profile 与 queue 哈希均匹配。影响图因此只推进到相邻 Isotopic Abundance 六值闭包。
+
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
 
 - 正式仓库由 GitHub 全新克隆，最低可信基线 `dc9d8a78b1f7ebfcc42b7077ec49f842650fef20` 已验证；退役项目仓库按日期完整归档，用户化学文档未删除。
-- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 76 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
+- 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 77 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 41 场景已有单候选完整资格；后续独立修复/扩展闭包均保留候选身份并已通过。当前 76 场景 registry 保留全部首次 test/oracle/product 失败；所有公开 bond tool 的中心替换/循环、三种 wedge 反转及全部 118 个周期表值已通过，Atom Properties isotope 值域进入下一独立批次。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 41 场景已有单候选完整资格；后续独立修复/扩展闭包均保留候选身份并已通过。当前 77 场景 registry 保留全部首次 test/oracle/product 失败；所有公开 bond tool 的中心替换/循环、三种 wedge 反转、全部 118 个周期表值与 Atom Properties Isotope 已通过，Isotopic Abundance 六值闭包进入下一独立批次。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序

@@ -132,6 +132,19 @@ test("saved-document node oracle kills missing, cleared, and wrong isotope-mass 
   assert.equal(evaluateDocumentNodeProperties(cleared, expected).passed, false);
 });
 
+test("saved-document node oracle kills missing, defaulted, and wrong isotopic-abundance mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: { isotopicAbundance: "nonnatural" }, label: { text: "CH4", sourceText: "CH4" } },
+  ] } } } }));
+  const expected = [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, isotopicAbundance: "nonnatural", labelText: "CH4", labelSourceText: "CH4" }];
+  assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], isotopicAbundance: "enriched" }]).passed, false);
+  const defaulted = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: {}, label: { text: "CH4", sourceText: "CH4" } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(defaulted, expected).passed, false);
+});
+
 test("saved-document arrow oracle checks exact public CCJS properties", () => {
   const bytes = Buffer.from(JSON.stringify({
     styles: { style_red: { stroke: "#ff0000" } },

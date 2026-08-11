@@ -1,0 +1,70 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.atom.isotopic-abundance-value-matrix.production",
+  "title": "Exercise every public atom isotopic-abundance value and exact persistence",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "No physical production cell could kill missing isotopic-abundance values, swapped enum mappings, stale checked state, or abundance metadata lost on save.",
+  "capabilities": ["gui.public-input", "editor.atom.element", "editor.atom.isotopic-abundance", "editor.context-menu", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 17,
+  "actions": [
+    { "id": "open-element-palette-for-carbon", "type": "click", "target": { "strategy": "selector", "value": ".quick-palette-toggle-element[data-quick-palette-mode=\"element\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette.is-open[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-carbon", "type": "click", "target": { "strategy": "selector", "value": ".periodic-element-button[data-element-symbol=\"C\"][data-element-atomic-number=\"6\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette:not(.is-open)[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "place-carbon", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.5, "y": 0.5 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_1\"]", "attribute": "data-node-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-unspecified-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:unspecified\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-any", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-abundance-for-any", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Isotopic Abundance", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Isotopic Abundance\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-abundance-any", "type": "click", "target": { "strategy": "selector", "value": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:any\"]" }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-any-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:any\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-natural", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-abundance-for-natural", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Isotopic Abundance", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Isotopic Abundance\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-abundance-natural", "type": "click", "target": { "strategy": "selector", "value": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:natural\"]" }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-natural-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:natural\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-enriched", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-abundance-for-enriched", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Isotopic Abundance", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Isotopic Abundance\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-abundance-enriched", "type": "click", "target": { "strategy": "selector", "value": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:enriched\"]" }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-enriched-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:enriched\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-deficient", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-abundance-for-deficient", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Isotopic Abundance", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Isotopic Abundance\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-abundance-deficient", "type": "click", "target": { "strategy": "selector", "value": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:deficient\"]" }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-deficient-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:deficient\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-atom-properties-for-nonnatural", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Atom Properties", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Atom Properties\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-abundance-for-nonnatural", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Isotopic Abundance", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Isotopic Abundance\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-abundance-nonnatural", "type": "click", "target": { "strategy": "selector", "value": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:nonnatural\"]" }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-final-nonnatural-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_1\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"isotopic-abundance:nonnatural\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-final-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "one-abundance-carbon-rendered", "kind": "dom-distinct-count", "selector": "[data-node-id]", "attribute": "data-node-id", "operator": "eq", "value": 1 },
+    { "id": "saved-abundance-carbon-counts", "kind": "document-counts", "expected": { "nodes": 1, "bonds": 0, "molecules": 1, "objects": 1 } },
+    { "id": "saved-abundance-carbon-semantics", "kind": "document-node-properties", "expected": [
+      { "id": "n_1", "element": "C", "atomicNumber": 6, "charge": 0, "numHydrogens": 4, "isotopicAbundance": "nonnatural", "labelText": "CH4", "labelSourceText": "CH4" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.atom.element", "editor.atom.isotopic-abundance", "editor.context-menu", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["atom", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "abundance-unspecified", "abundance-any", "abundance-natural", "abundance-enriched", "abundance-deficient", "abundance-nonnatural", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["atom.element", "atom.atomic-number", "atom.isotopic-abundance", "atom.num-hydrogens", "atom.label-text"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}
