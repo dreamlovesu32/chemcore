@@ -2,11 +2,11 @@
 
 最后更新：2026-08-12
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
-登记场景：**54**
+登记场景：**55**
 
 当前产品候选：`351f7faef8aeb3c463f81a7492b286680194e744838444ac94a7db043597d1be`（源码闭包 `a8c745ccb2bb94fe92f864ff5673569afa15aa305a51962f682812ab8183f215`）
 
-当前源码闭包已登记场景资格：**53/54 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen 与 Bond Reaction Participation 的首次失败证据永久保留。Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、Double Bond Left/Right/Center 及 Solid wedge 端点反转现已取得独立实机证据；当前影响图选择 Single bond 工具的公开中心点击 single→Left→Center→Right 循环与精确最终持久化闭包。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**54/55 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen 与 Bond Reaction Participation 的首次失败证据永久保留。Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、Double Bond Left/Right/Center、Solid wedge 端点反转及 Single 工具中心点击循环现已取得独立实机证据；当前影响图选择 Dashed-solid double 工具的 Right→Center→Left 中心点击循环与精确线型/位置持久化闭包。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -47,7 +47,7 @@
 | ✅ | 失败证据保留 | 首次失败、截图、DOM、日志、trace、保存文件和 manifest 不被后续通过覆盖 |
 | ✅ | 性能 trace 与动作分阶段计时 | 区分定位、输入、产品完成、原生窗口消失、回传和最终状态 |
 | ✅ | fail-closed 资格汇总 | 缺失、候选混用、证据哈希错误、先失败后通过均保持红灯 |
-| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；41/41 qualification 及后续独立修复/扩展闭包均已通过。首次 test/oracle/product 失败证据均保留；当前选择 Single bond 中心点击循环精确影响批次，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
+| 🟡 | 脱离 Codex 的连续后台队列 | 单批执行器已有单实例租约、15 秒心跳、PID 清单、提交/候选/profile/queue 哈希绑定、逐场景 checkpoint、资源暂停、停止请求和 evidence manifest 哈希；41/41 qualification 及后续独立修复/扩展闭包均已通过。首次 test/oracle/product 失败证据均保留；当前选择 Dashed-solid double 中心点击循环精确影响批次，且仍需 supervisor/子进程重启故障注入和长期终态唤醒验收 |
 | 🟡 | 精确影响选择与证据复用 | 已有 source→component→capability→scenario 传递图；仍需覆盖全部源文件、生成物、安装包和环境轮换 |
 | ⬜ | 自动场景生成、模型探索与失败收缩 | generator/model/shrinker 尚未形成正式可执行闭环 |
 | ⬜ | 正式 CI 分层 | `gui-pr`、`gui-nightly`、demo/release qualification 尚未全部接入托管 CI |
@@ -56,7 +56,7 @@
 
 | 状态 | 功能族 | 已有真实覆盖 | 明确剩余 |
 |---|---|---|---|
-| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen Element/`NH2` 标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen Automatic/Hide、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置与楔键端点反转已取得真实 OS 输入与精确持久化证据 | Single bond 中心点击循环当前待实机证据；其他元素、其余氢值域、其他样式族中心点击循环、混合选择与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
+| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen Element/`NH2` 标签、全部八种 Charge/Electron symbol→atom、implicit-hydrogen Automatic/Hide、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、楔键端点反转与 Single 工具中心点击循环已取得真实 OS 输入与精确持久化证据 | Dashed-solid double 中心点击循环当前待实机证据；其他元素、其余氢值域、其余样式族中心点击循环、混合选择与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
 | 🟡 | Arrow | 多对象属性、锁定混合、属性持久化 | 全部直接绘制预设、所有 head/curve/no-go/color 值、组合/大文档 |
 | 🟡 | Text | 新建、既有编辑、多行、主要样式、行距、取消、历史、持久化 | 局部选区、全部字体/字号/对齐/行距边界、IME/composition、Formula、端点标签、锁定/组合/大文档 |
 | 🟡 | Shape | 四种 kind、五种代表样式、批量样式、历史、持久化 | 全颜色/Faded、控制点、缩放/旋转、锁定/组合/剪贴板、格式与大文档 |
@@ -89,9 +89,9 @@
 | ⬜ | 1,000 次展示资格 | 同一不可变最终候选连续 1,000 次正式展示流程零失败 |
 | ⬜ | 最终安装包资格 | 干净 VM 安装、冷启动、升级、卸载、重装、文件关联和回归闭包全部通过 |
 
-## 4. 已登记的 54 个场景
+## 4. 已登记的 55 个场景
 
-所有 54 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 53/54 reusable passed；影响图接着选择 Single bond 工具在同一逻辑键上的 single→Left double→Center→Right double 中心点击循环与最终 Right 语义持久化分支。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 55 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 54/55 reusable passed；Single bond 工具在同一逻辑键上的 single→Left double→Center→Right double 中心点击循环已通过，影响图接着选择 Dashed-solid double 的 Right→Center→Left 循环及最终线型/位置语义持久化分支。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -104,7 +104,8 @@
 | ✅ | `core.bond.visibility-value-matrix.production` | 在一个真实单键上分别以 Ring、Make and Change 与 Z 驱动 Query/Reaction/Stereo annotation，逐一显式选择三组 Inherit Document Setting、Show、Hide，检查每个 checked 状态及独立显隐，最终精确保存 `showQuery=false`、`showReaction=false`、`showStereo=true`；独立后台实机证据已通过 |
 | ✅ | `core.bond.double-placement-value-matrix.production` | 真实绘制 Double bond，经公开 `Bond Type > Double` 菜单遍历 Left、Right、Center 并检查每次重新生成的 checked 状态，最终精确保存 `double.placement=left`；修复逻辑 bond locator 后的独立后台证据已通过 |
 | ✅ | `core.bond.wedge-endpoint-reversal.production` | 真实绘制 Solid wedge，保持公开楔键工具激活并点击逻辑键中心，要求单一 bond identity 不变且最终精确保存 `stereo.kind=solid-wedge`、`wideEnd=begin`；独立后台证据已通过 |
-| 🟡 | `core.bond.center-click-cycle.production` | 真实绘制 Single bond，保持公开 Single 工具激活并在同一逻辑键中心连续点击三次，遍历 Left double、Center、Right double，要求 identity 不变且最终精确保存 `order=2`、`double.placement=right`；当前待独立后台证据 |
+| ✅ | `core.bond.center-click-cycle.production` | 真实绘制 Single bond，保持公开 Single 工具激活并在同一逻辑键中心连续点击三次，遍历 Left double、Center、Right double，要求 identity 不变且最终精确保存 `order=2`、`double.placement=right`；独立后台证据 `5655c226c7b36b266b8181b195befdafa68a5c4f5fd4a241836378bcac5ffd46` 已通过，9 个证据对象全部重哈希一致 |
+| 🟡 | `core.bond.dashed-double-center-click-cycle.production` | 真实绘制 Right Dashed-solid double，保持该公开工具激活并在同一逻辑键中心连续点击两次，遍历 Center 与 Left，要求 identity 不变且最终精确保存 `order=2`、`double.placement=left`、左线 dashed、主线/右线 solid；当前待独立后台证据 |
 | ✅ | `core.bond.reaction-participation-history-persistence.production` | 真实绘制单键，经公开 `Bond Query & Reaction > Reaction Participation` 菜单选择 Make and Change，检查选中态与 `Rxn` 注释、撤销/重做，并精确保存 `reactionParticipation=make-and-change`；产品增量 identity 修复后的独立后台闭包已通过 |
 | ✅ | `core.bond.reaction-participation-value-matrix.production` | 从真实单键逐一显式选择 Reaction Center、Unspecified、Make or Break、Change Type、Not Reaction Center、No Change 与 Unmapped，检查每个 checked 状态及 `Rxn` 显隐，最终精确保存 `reactionParticipation=unmapped`；独立后台实机证据已通过 |
 | ✅ | `core.ring.six-planar-persistence.production` | 六种公开平面环的真实 OS 点击、累计拓扑、原生保存与精确节点/键/分子计数 |
@@ -240,7 +241,7 @@ Solid wedge 端点反转批次 `impact-08c904e-bond-wedge-endpoint-reversal-prod
 
 本清单不是一次性说明：
 
-- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 54 个场景 ID，漏项直接失败。
+- 每新增、删除或重命名一个 registry 场景，必须同步修改“登记场景”数字和第 4 节表格；自动测试会逐个检查 55 个场景 ID，漏项直接失败。
 - 每完成一个对象族或发现新的公开缺口，必须同时更新第 3 节状态和“明确剩余”，不能只在长架构文档末尾追加段落。
 - 每产生新候选或 qualification，必须更新页首候选哈希、通过/缺失/失败数和最新证据。
 - 每个本地测试提交必须让本文反映该提交后的真实状态；不得把“场景通过”写成“功能族完成”。
