@@ -193,8 +193,12 @@ fn main() -> Result<(), String> {
                         path: &payload_path,
                     }],
                 )?;
-                output.sync_all().map_err(|error| error.to_string())?;
                 let write_ms = elapsed_ms(start);
+                // Measure the container writer itself. `sync_all` is still
+                // required before reopening the archive, but including a
+                // hosted runner's physical disk flush makes this gate measure
+                // storage scheduling rather than CCJZ attachment throughput.
+                output.sync_all().map_err(|error| error.to_string())?;
                 write_samples_ms.push(write_ms);
                 throughput_samples.push((size as f64 / (1u64 << 20) as f64) / (write_ms / 1000.0));
             }
