@@ -150,12 +150,19 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       unsaturatedBonds: node?.atomProperties?.unsaturatedBonds ?? node?.atom_properties?.unsaturated_bonds ?? "unspecified",
       queryTranslation: node?.atomProperties?.translation ?? "equal",
       abnormalValence: node?.atomProperties?.abnormalValence ?? node?.atom_properties?.abnormal_valence ?? false,
+      elementList: node?.atomProperties?.elementList ?? node?.atom_properties?.element_list ?? [],
+      elementListExcluded: node?.atomProperties?.elementListExcluded ?? node?.atom_properties?.element_list_excluded ?? false,
+      genericList: node?.atomProperties?.genericList ?? node?.atom_properties?.generic_list ?? [],
+      genericListExcluded: node?.atomProperties?.genericListExcluded ?? node?.atom_properties?.generic_list_excluded ?? false,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };
   });
   const passed = observed.every((actual, index) => actual.found
-    && Object.entries(expected[index]).every(([name, value]) => name === "id" || actual[name] === value));
+    && Object.entries(expected[index]).every(([name, value]) => name === "id"
+      || (Array.isArray(value)
+        ? Array.isArray(actual[name]) && JSON.stringify(actual[name]) === JSON.stringify(value)
+        : actual[name] === value)));
   return { passed, observed };
 }
 

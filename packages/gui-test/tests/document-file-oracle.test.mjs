@@ -281,6 +281,26 @@ test("saved-document node oracle kills missing, wrong, and display-only atom-que
   assert.equal(evaluateDocumentNodeProperties(displayOnly, expected).passed, false);
 });
 
+test("saved-document node oracle kills reordered, missing, exclusion, and display-only atom-query list mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: { elementList: [7, 8], elementListExcluded: true, genericList: ["R", "X"], genericListExcluded: true }, label: { text: "CH4", sourceText: "CH4" } },
+  ] } } } }));
+  const expected = [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, elementList: [7, 8], elementListExcluded: true, genericList: ["R", "X"], genericListExcluded: true, labelText: "CH4", labelSourceText: "CH4" }];
+  assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], elementList: [8, 7] }]).passed, false);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], genericList: ["X", "R"] }]).passed, false);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], elementListExcluded: false }]).passed, false);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], genericListExcluded: false }]).passed, false);
+  const missing = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: {}, label: { text: "CH4", sourceText: "CH4" } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(missing, expected).passed, false);
+  const displayOnly = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomProperties: {}, label: { text: "CH4", sourceText: "CH4", meta: { elementList: [7, 8], genericList: ["R", "X"] } } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(displayOnly, expected).passed, false);
+});
+
 test("saved-document arrow oracle checks exact public CCJS properties", () => {
   const bytes = Buffer.from(JSON.stringify({
     styles: { style_red: { stroke: "#ff0000" } },
