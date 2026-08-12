@@ -441,7 +441,7 @@ test("production world geometry targets are restricted to the rendered page", as
   assert.match(source, /\[data-layer="page-background"\]/);
 });
 
-test("production bond-endpoint targets resolve an exact logical endpoint and kill midpoint or opposite-end mutants", async () => {
+test("production bond-endpoint targets recover closed-polygon centerlines and kill clipped-edge or opposite-end mutants", async () => {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
   const endpointContract = (candidate) => (
@@ -449,13 +449,52 @@ test("production bond-endpoint targets resolve an exact logical endpoint and kil
     && /\^\(b_\[A-Za-z0-9\._-\]\{1,120\}\):\(start\|end\)\$/.test(candidate)
     && /\[data-role="document-bond"\]\[data-bond-id=/.test(candidate)
     && /sort\(\(left, right\) => right\.length - left\.length\)/.test(candidate)
-    && /getPointAtLength\(endpoint === 'start' \? 0 : length\)/.test(candidate)
+    && /element\.tagName\.toLowerCase\(\) === 'polygon'/.test(candidate)
+    && /element\.points\?\.numberOfItems >= 3/.test(candidate)
+    && /distanceSquared > farthest\.distanceSquared/.test(candidate)
+    && /candidate\.projection <= minimum \+ endpointBand/.test(candidate)
+    && /candidate\.projection >= maximum - endpointBand/.test(candidate)
+    && /firstToMinimum <= firstToMaximum \? minimumEnd : maximumEnd/.test(candidate)
+    && /point = endpoint === 'start' \? start : end/.test(candidate)
+    && /point \|\|= element\.getPointAtLength\(endpoint === 'start' \? 0 : length\)/.test(candidate)
     && /bondEndpointRect \|\| selectorGeometryRect \|\| renderedRect/.test(candidate)
   );
   assert.equal(endpointContract(source), true);
+  const helperSource = source
+    .match(/  const bondEndpointPointerRect = [\s\S]*?\n  };\n  const find/)[0]
+    .replace(/\n  const find$/, "");
+  class IdentityDomPoint {
+    constructor(x, y) { this.x = x; this.y = y; }
+    matrixTransform() { return this; }
+  }
+  const resolveBondEndpoint = new Function("DOMPoint", `${helperSource}\nreturn bondEndpointPointerRect;`)(IdentityDomPoint);
+  const clippedPolygonPoints = [
+    [-182.96703243671993, -7.3204702291928045],
+    [-171.02, -0.42264549667551754],
+    [-171.02, -1],
+    [-171.02, -1.5773545033244825],
+    [-182.4670214363569, -8.186489281821544],
+  ].map(([x, y]) => ({ x, y }));
+  const clippedPolygon = {
+    tagName: "polygon",
+    points: {
+      numberOfItems: clippedPolygonPoints.length,
+      getItem: (index) => clippedPolygonPoints[index],
+    },
+    getTotalLength: () => 50,
+    getScreenCTM: () => ({}),
+    getPointAtLength: () => { throw new Error("closed-path perimeter fallback must not run"); },
+  };
+  const startRect = resolveBondEndpoint(clippedPolygon, "start");
+  const endRect = resolveBondEndpoint(clippedPolygon, "end");
+  assert.ok((startRect.left + 0.5) < -182, "start remains on the label-clipped terminal side");
+  assert.ok(Math.abs((endRect.left + 0.5) - (-171.02)) < 1e-9, "end resolves the shared Carbon cross-section centroid");
+  assert.ok(Math.abs((endRect.top + 0.5) - (-1)) < 1e-9, "end resolves the shared Carbon centerline");
   for (const mutant of [
     source.replace("query.strategy === 'bond-endpoint'", "query.strategy === 'selector'"),
-    source.replace("endpoint === 'start' ? 0 : length", "length * 0.5"),
+    source.replace("element.tagName.toLowerCase() === 'polygon'", "false"),
+    source.replace("point = endpoint === 'start' ? start : end", "point = start"),
+    source.replace("point ||= element.getPointAtLength(endpoint === 'start' ? 0 : length)", "point = element.getPointAtLength(length * 0.5)"),
     source.replace("bondEndpointRect || selectorGeometryRect || renderedRect", "selectorGeometryRect || renderedRect"),
   ]) {
     assert.equal(endpointContract(mutant), false);

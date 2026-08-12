@@ -554,7 +554,48 @@ try {
       const length = element.getTotalLength();
       const matrix = element.getScreenCTM();
       if (!Number.isFinite(length) || length <= 0 || !matrix) return null;
-      const point = element.getPointAtLength(endpoint === 'start' ? 0 : length);
+      let point = null;
+      if (element.tagName.toLowerCase() === 'polygon' && element.points?.numberOfItems >= 3) {
+        const points = [...Array(element.points.numberOfItems)].map((_, index) => {
+          const item = element.points.getItem(index);
+          return { x: item.x, y: item.y };
+        });
+        let farthest = null;
+        for (let left = 0; left < points.length; left += 1) {
+          for (let right = left + 1; right < points.length; right += 1) {
+            const dx = points[right].x - points[left].x;
+            const dy = points[right].y - points[left].y;
+            const distanceSquared = dx * dx + dy * dy;
+            if (!farthest || distanceSquared > farthest.distanceSquared) {
+              farthest = { dx, dy, distanceSquared };
+            }
+          }
+        }
+        if (farthest?.distanceSquared > 0) {
+          const magnitude = Math.sqrt(farthest.distanceSquared);
+          const axis = { x: farthest.dx / magnitude, y: farthest.dy / magnitude };
+          const projected = points.map(candidate => ({
+            ...candidate,
+            projection: candidate.x * axis.x + candidate.y * axis.y,
+          }));
+          const minimum = Math.min(...projected.map(candidate => candidate.projection));
+          const maximum = Math.max(...projected.map(candidate => candidate.projection));
+          const endpointBand = Math.max(1e-6, (maximum - minimum) * 0.15);
+          const centroid = candidates => ({
+            x: candidates.reduce((sum, candidate) => sum + candidate.x, 0) / candidates.length,
+            y: candidates.reduce((sum, candidate) => sum + candidate.y, 0) / candidates.length,
+          });
+          const minimumEnd = centroid(projected.filter(candidate => candidate.projection <= minimum + endpointBand));
+          const maximumEnd = centroid(projected.filter(candidate => candidate.projection >= maximum - endpointBand));
+          const first = points[0];
+          const firstToMinimum = (first.x - minimumEnd.x) ** 2 + (first.y - minimumEnd.y) ** 2;
+          const firstToMaximum = (first.x - maximumEnd.x) ** 2 + (first.y - maximumEnd.y) ** 2;
+          const start = firstToMinimum <= firstToMaximum ? minimumEnd : maximumEnd;
+          const end = start === minimumEnd ? maximumEnd : minimumEnd;
+          point = endpoint === 'start' ? start : end;
+        }
+      }
+      point ||= element.getPointAtLength(endpoint === 'start' ? 0 : length);
       const clientPoint = new DOMPoint(point.x, point.y).matrixTransform(matrix);
       if (!Number.isFinite(clientPoint.x) || !Number.isFinite(clientPoint.y)) return null;
       return { left: clientPoint.x - 0.5, top: clientPoint.y - 0.5, right: clientPoint.x + 0.5, bottom: clientPoint.y + 0.5, width: 1, height: 1 };

@@ -4,7 +4,7 @@
   "title": "Toggle terminal and nonterminal Carbon labels, verify checked state and history, and persist explicit visibility",
   "risk": "critical",
   "owner": "editor-core",
-  "originatingDefect": "The first physical cell created disconnected bonds and attempted to locate hidden implicit Carbon through a nonexistent data-node-id primitive; it also exposed hard-coded unchecked Carbon-label menu values. The second cell expanded Atom Properties even though Carbon-label commands live in Atom Query.",
+  "originatingDefect": "The first physical cell created disconnected bonds and attempted to locate hidden implicit Carbon through a nonexistent data-node-id primitive; it also exposed hard-coded unchecked Carbon-label menu values. The second cell expanded Atom Properties even though Carbon-label commands live in Atom Query. The third cell treated a closed rendered bond polygon's perimeter end as its logical endpoint and clicked the terminal-label clipping edge instead of the shared Carbon.",
   "capabilities": ["gui.public-input", "editor.chain.draw", "editor.atom.carbon-label-visibility", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
   "drivers": ["production-black-box"],
   "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
