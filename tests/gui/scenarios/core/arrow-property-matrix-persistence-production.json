@@ -5,7 +5,7 @@
   "risk": "critical",
   "owner": "editor-core",
   "originatingDefect": "Existing-arrow variant, size, curve, and no-go controls were not reachable without leaving selection mode, while full-state updates could overwrite unrelated endpoints and color.",
-  "capabilities": ["gui.public-input", "editor.arrow.draw", "editor.arrow.properties", "editor.selection.select-all", "editor.context-menu", "document.save-as", "oracle.document-file", "desktop.production"],
+  "capabilities": ["gui.public-input", "editor.arrow.draw", "editor.arrow.properties", "editor.selection.select-all", "editor.context-menu", "document.save-as", "document.open", "document.roundtrip", "oracle.document-file", "desktop.production"],
   "drivers": ["production-black-box"],
   "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
   "seed": 16,
@@ -51,7 +51,14 @@
     { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
     { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
     { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
-    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 },
+    { "id": "close-saved-tab", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Close roundtrip.ccjs" }, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 0, "timeoutMs": 12000 }, "budgetMs": 30000 },
+    { "id": "open-native-open-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Open file" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 20000 }, "budgetMs": 40000 },
+    { "id": "focus-open-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-open-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-open-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-open", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1148", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "verify-reopened-property-menu", "type": "click", "target": { "strategy": "entity-id", "value": "obj_line_1" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"arrow-property\"][data-canvas-context-value=\"variant:curved-mirror\"][aria-checked=\"true\"], .canvas-context-menu:not([hidden]) [data-canvas-context-command=\"arrow-property\"][data-canvas-context-value=\"headSize:large\"][aria-checked=\"true\"], .canvas-context-menu:not([hidden]) [data-canvas-context-command=\"arrow-property\"][data-canvas-context-value=\"curve:120\"][aria-checked=\"true\"], .canvas-context-menu:not([hidden]) [data-canvas-context-command=\"arrow-property\"][data-canvas-context-value=\"noGo:hash\"][aria-checked=\"true\"], .canvas-context-menu:not([hidden]) [data-canvas-context-command=\"arrow-endpoint\"][data-canvas-context-value=\"tail:left\"][aria-checked=\"true\"], .canvas-context-menu:not([hidden]) [data-canvas-context-command=\"line-style\"][data-canvas-context-value=\"bold\"][aria-checked=\"true\"], .canvas-context-menu:not([hidden]) [data-canvas-context-command=\"color\"][data-canvas-context-value=\"#ff0000\"][aria-checked=\"true\"]", "operator": "eq", "value": 7, "timeoutMs": 8000 }, "budgetMs": 30000 }
   ],
   "oracles": [
     { "id": "both-arrows-remain", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 2 },
@@ -64,12 +71,12 @@
   "expectedDiagnostics": [],
   "coverage": {
     "classification": "real-user-path",
-    "features": ["editor.arrow.draw", "editor.arrow.properties", "editor.selection.select-all", "editor.context-menu", "document.save-as", "oracle.document-file", "desktop.production"],
+    "features": ["editor.arrow.draw", "editor.arrow.properties", "editor.selection.select-all", "editor.context-menu", "document.save-as", "document.open", "document.roundtrip", "oracle.document-file", "desktop.production"],
     "objectTypes": ["arrow"],
     "cardinalities": ["1", "2"],
-    "states": ["solid", "curved-mirror", "small-head", "large-head", "curve-120", "no-go-hash", "half-left-tail", "bold", "red", "saved-document"],
+    "states": ["solid", "curved-mirror", "small-head", "large-head", "curve-120", "no-go-hash", "half-left-tail", "bold", "red", "saved-document", "closed-document", "reopened-document"],
     "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
     "properties": ["arrow.variant", "arrow.head-size", "arrow.curve", "arrow.no-go", "arrow.endpoint.tail", "arrow.line-style", "arrow.color"],
-    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog", "close-reopen"]
   }
 }

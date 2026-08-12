@@ -8,8 +8,8 @@
     "schema": { "const": "chemsema.gui.cdp-server.v1" },
     "status": { "const": "ready" },
     "processId": { "type": "integer", "minimum": 1 },
-    "sessionId": { "const": 0 },
-    "account": { "type": "string", "pattern": "\\\\[Ss][Yy][Ss][Tt][Ee][Mm]$" },
+    "sessionId": { "type": "integer", "minimum": 0 },
+    "account": { "type": "string", "minLength": 3 },
     "port": { "const": 9223 }
   }
 }

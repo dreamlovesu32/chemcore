@@ -1,0 +1,23 @@
+{
+  "schema": "chemsema.gui.worker-profile.v1",
+  "id": "windows-physical-gui-worker-current",
+  "kind": "physical-windows",
+  "physical": {
+    "accountTemplate": "%USERDOMAIN%\\%USERNAME%",
+    "testRootTemplate": "%LOCALAPPDATA%\\ChemSema\\gui-test\\physical-worker",
+    "stateRootTemplate": "%LOCALAPPDATA%\\ChemSema\\gui-test\\physical-worker-state"
+  },
+  "resources": {
+    "mode": "adaptive",
+    "minimumAvailableMemoryGiB": 4,
+    "maximumCommitPercent": 94,
+    "desktopProbeTimeoutMs": 2000,
+    "pollIntervalMs": 2000
+  },
+  "isolation": {
+    "hostInput": true,
+    "hostClipboard": false,
+    "hostProjectMount": false,
+    "interactiveDesktopExclusive": true
+  }
+}

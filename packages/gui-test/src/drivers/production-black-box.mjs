@@ -4,7 +4,7 @@ import { gunzipSync } from "node:zlib";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
 import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
-import { HyperVCoordinator } from "../workers/hyperv.mjs";
+import { createWorkerCoordinator } from "../workers/create.mjs";
 
 const defaultProfilePath = join(guiTestsDir, "environments", "windows-gui-worker-current.json");
 
@@ -97,7 +97,7 @@ export class ProductionBlackBoxDriver {
     this.scenarioProfile = profile;
     if (!this.coordinator) {
       this.workerProfile = await readValidatedDocument(this.profilePath);
-      this.coordinator = new HyperVCoordinator(this.workerProfile);
+      this.coordinator = createWorkerCoordinator(this.workerProfile);
     }
   }
 
@@ -344,6 +344,13 @@ export class ProductionBlackBoxDriver {
       const after = nativeDialogRemains ? before : await phase("capture-after-state", () => this.actionState());
       return { before, after, completion, result, phases: this.actionProgress() };
     }
+    if (this.coordinator.atomicActionTransactions === false) {
+      const before = await phase("capture-before-state", () => this.actionState());
+      const result = await phase("perform-input", () => this.performResolvedInput(input, action));
+      const completion = await phase("wait-completion", () => this.waitForCompletion(action.completion));
+      const after = await phase("capture-after-state", () => this.actionState());
+      return { before, after, completion, result, phases: this.actionProgress() };
+    }
     const receipt = await this.coordinator.candidateAction(input, action.completion, action.budgetMs, action.id);
     this.foreground = receipt.transaction.input.foreground;
     this.lastActionState = this.stateReceipt(receipt.transaction.after);
@@ -518,7 +525,7 @@ export class ProductionBlackBoxDriver {
 
   async environment() {
     return {
-      platform: "windows-hyperv",
+      platform: this.workerProfile?.kind === "physical-windows" ? "windows-physical" : "windows-hyperv",
       workerProfile: this.workerProfile?.id || null,
       vmId: this.startReceipt?.vmId || null,
       candidateSha256: this.installReceipt?.candidate?.sha256 || null,

@@ -33,6 +33,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));
+  await readValidatedDocument(join(guiTestsDir, "environments", "windows-physical-gui-worker-current.json"));
   await assertValidDocument({
     schema: "chemsema.gui.guest-agent.v1",
     agentVersion: "0.1.0",

@@ -33,6 +33,8 @@ pub struct AgentAttestation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InputGuard {
+    #[serde(default)]
+    pub expected_account: Option<String>,
     pub expected_agent_session_id: u32,
     pub expected_process_id: u32,
     pub expected_executable: PathBuf,
@@ -44,13 +46,7 @@ pub fn validate_input_guard(
     attestation: &AgentAttestation,
     guard: &InputGuard,
 ) -> Result<(), String> {
-    if !attestation
-        .account
-        .to_ascii_lowercase()
-        .ends_with(AUTHORIZED_ACCOUNT_SUFFIX)
-    {
-        return Err("input agent is not running as the dedicated guest test account".to_string());
-    }
+    validate_account(attestation, guard)?;
     if !attestation.interactive_ready {
         return Err("guest input desktop is not interactive and unlocked".to_string());
     }
@@ -85,13 +81,7 @@ pub fn validate_target_guard(
     attestation: &AgentAttestation,
     guard: &InputGuard,
 ) -> Result<(), String> {
-    if !attestation
-        .account
-        .to_ascii_lowercase()
-        .ends_with(AUTHORIZED_ACCOUNT_SUFFIX)
-    {
-        return Err("input agent is not running as the dedicated guest test account".to_string());
-    }
+    validate_account(attestation, guard)?;
     if attestation.session_id == 0
         || attestation.session_id != guard.expected_agent_session_id
         || attestation.input_desktop.as_deref() != Some("Default")
@@ -102,6 +92,21 @@ pub fn validate_target_guard(
     }
     if !is_bounded_child(&guard.allowed_run_root, &guard.run_directory)? {
         return Err("run directory is outside the authorized guest test root".to_string());
+    }
+    Ok(())
+}
+
+fn validate_account(attestation: &AgentAttestation, guard: &InputGuard) -> Result<(), String> {
+    if let Some(expected) = guard.expected_account.as_deref() {
+        if expected.is_empty() || !attestation.account.eq_ignore_ascii_case(expected) {
+            return Err("input agent account does not match the explicitly authorized account".to_string());
+        }
+    } else if !attestation
+        .account
+        .to_ascii_lowercase()
+        .ends_with(AUTHORIZED_ACCOUNT_SUFFIX)
+    {
+        return Err("input agent is not running as the dedicated guest test account".to_string());
     }
     Ok(())
 }
@@ -153,6 +158,7 @@ mod tests {
                 }),
             },
             InputGuard {
+                expected_account: None,
                 expected_agent_session_id: 2,
                 expected_process_id: 50,
                 expected_executable: executable,
@@ -211,6 +217,26 @@ mod tests {
         assert!(validate_input_guard(&attestation, &guard)
             .unwrap_err()
             .contains("dedicated guest"));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn input_guard_accepts_only_the_explicit_physical_worker_account() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("chemsema-gui-agent-physical-{unique}"));
+        let run = root.join("run-1");
+        fs::create_dir_all(&run).unwrap();
+        let (mut attestation, mut guard) = fixture(&root, &run);
+        attestation.account = "host\\developer".to_string();
+        guard.expected_account = Some("HOST\\Developer".to_string());
+        assert_eq!(validate_input_guard(&attestation, &guard), Ok(()));
+        guard.expected_account = Some("host\\someone-else".to_string());
+        assert!(validate_input_guard(&attestation, &guard)
+            .unwrap_err()
+            .contains("explicitly authorized"));
         fs::remove_dir_all(&root).unwrap();
     }
 }

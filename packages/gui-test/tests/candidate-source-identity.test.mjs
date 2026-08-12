@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  repositoryRoot,
   verifyDesktopCandidateManifest,
   writeDesktopCandidateManifest,
 } from "../../../scripts/candidate-source-identity.mjs";
@@ -40,4 +41,10 @@ test("desktop candidate manifest binds both executable bytes and the current sou
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("fast desktop candidates rebuild the WASM included by the WebView", () => {
+  const source = readFileSync(join(repositoryRoot, "scripts", "desktop-tauri-fast.mjs"), "utf8");
+  assert.match(source, /beforeBuildCommand:\s*"node \.\.\/\.\.\/scripts\/build-engine-wasm\.mjs"/);
+  assert.doesNotMatch(source, /CHEMSEMA_FAST_BUILD_WASM/);
 });

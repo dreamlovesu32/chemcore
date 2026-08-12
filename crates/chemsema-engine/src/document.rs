@@ -2385,6 +2385,8 @@ fn object_number(object: &Map<String, Value>, key: &str) -> Option<f64> {
 
 fn canonical_arrow_head_kind(value: &str) -> &'static str {
     match value.to_ascii_lowercase().as_str() {
+        "curved" => "curved",
+        "curved-mirror" => "curved-mirror",
         "hollow" => "hollow",
         "angle" | "open" | "retrosynthetic" => "open",
         "equilibrium" => "equilibrium",
@@ -4833,6 +4835,12 @@ fn fragment_content_bbox(nodes: &[Node]) -> Option<[f64; 4]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn canonical_arrow_head_kind_preserves_curved_variants() {
+        assert_eq!(canonical_arrow_head_kind("curved"), "curved");
+        assert_eq!(canonical_arrow_head_kind("CURVED-MIRROR"), "curved-mirror");
+    }
 
     fn polygon_bounds(polygon: &[[f64; 2]]) -> Option<[f64; 4]> {
         let mut iter = polygon.iter();

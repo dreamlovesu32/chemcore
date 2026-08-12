@@ -2,66 +2,126 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://chemsema.org/schemas/gui/worker-profile-v1.schema.json",
   "title": "ChemSema GUI Worker Profile v1",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["schema", "id", "kind", "vm", "resources", "credential", "guest", "isolation"],
-  "properties": {
-    "schema": { "const": "chemsema.gui.worker-profile.v1" },
-    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$" },
-    "kind": { "const": "hyper-v" },
-    "vm": {
+  "oneOf": [
+    { "$ref": "#/$defs/hyperV" },
+    { "$ref": "#/$defs/physicalWindows" }
+  ],
+  "$defs": {
+    "identity": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "base": {
+      "type": "object",
+      "properties": {
+        "schema": { "const": "chemsema.gui.worker-profile.v1" },
+        "id": { "$ref": "#/$defs/identity" }
+      }
+    },
+    "hyperV": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "generation", "checkpoint"],
+      "required": ["schema", "id", "kind", "vm", "resources", "credential", "guest", "isolation"],
       "properties": {
-        "id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" },
-        "generation": { "const": 2 },
-        "checkpoint": {
+        "schema": { "const": "chemsema.gui.worker-profile.v1" },
+        "id": { "$ref": "#/$defs/identity" },
+        "kind": { "const": "hyper-v" },
+        "vm": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["id", "name"],
+          "required": ["id", "generation", "checkpoint"],
           "properties": {
             "id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" },
-            "name": { "type": "string", "minLength": 1 }
+            "generation": { "const": 2 },
+            "checkpoint": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "name"],
+              "properties": {
+                "id": { "type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" },
+                "name": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cpuUnits", "memoryGiB"],
+          "properties": {
+            "cpuUnits": { "type": "integer", "minimum": 1, "maximum": 8 },
+            "memoryGiB": { "type": "integer", "minimum": 1, "maximum": 20 }
+          }
+        },
+        "credential": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pathTemplate"],
+          "properties": { "pathTemplate": { "type": "string", "minLength": 1 } }
+        },
+        "guest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["account", "testRoot"],
+          "properties": {
+            "account": { "type": "string", "minLength": 1 },
+            "testRoot": { "type": "string", "pattern": "^[A-Za-z]:\\\\" }
+          }
+        },
+        "isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hostInput", "hostClipboard", "hostProjectMount", "interactiveDesktopExclusive"],
+          "properties": {
+            "hostInput": { "const": false },
+            "hostClipboard": { "const": false },
+            "hostProjectMount": { "const": false },
+            "interactiveDesktopExclusive": { "const": true }
           }
         }
       }
     },
-    "resources": {
+    "physicalWindows": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["cpuUnits", "memoryGiB"],
+      "required": ["schema", "id", "kind", "physical", "resources", "isolation"],
       "properties": {
-        "cpuUnits": { "type": "integer", "minimum": 1, "maximum": 8 },
-        "memoryGiB": { "type": "integer", "minimum": 1, "maximum": 20 }
-      }
-    },
-    "credential": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["pathTemplate"],
-      "properties": {
-        "pathTemplate": { "type": "string", "minLength": 1 }
-      }
-    },
-    "guest": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["account", "testRoot"],
-      "properties": {
-        "account": { "type": "string", "minLength": 1 },
-        "testRoot": { "type": "string", "pattern": "^[A-Za-z]:\\\\" }
-      }
-    },
-    "isolation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["hostInput", "hostClipboard", "hostProjectMount", "interactiveDesktopExclusive"],
-      "properties": {
-        "hostInput": { "const": false },
-        "hostClipboard": { "const": false },
-        "hostProjectMount": { "const": false },
-        "interactiveDesktopExclusive": { "const": true }
+        "schema": { "const": "chemsema.gui.worker-profile.v1" },
+        "id": { "$ref": "#/$defs/identity" },
+        "kind": { "const": "physical-windows" },
+        "physical": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["accountTemplate", "testRootTemplate", "stateRootTemplate"],
+          "properties": {
+            "accountTemplate": { "type": "string", "minLength": 3 },
+            "testRootTemplate": { "type": "string", "minLength": 3 },
+            "stateRootTemplate": { "type": "string", "minLength": 3 }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "minimumAvailableMemoryGiB", "maximumCommitPercent", "desktopProbeTimeoutMs", "pollIntervalMs"],
+          "properties": {
+            "mode": { "const": "adaptive" },
+            "minimumAvailableMemoryGiB": { "type": "number", "minimum": 2, "maximum": 32 },
+            "maximumCommitPercent": { "type": "integer", "minimum": 70, "maximum": 98 },
+            "desktopProbeTimeoutMs": { "type": "integer", "minimum": 250, "maximum": 10000 },
+            "pollIntervalMs": { "type": "integer", "minimum": 250, "maximum": 60000 }
+          }
+        },
+        "isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hostInput", "hostClipboard", "hostProjectMount", "interactiveDesktopExclusive"],
+          "properties": {
+            "hostInput": { "const": true },
+            "hostClipboard": { "const": false },
+            "hostProjectMount": { "const": false },
+            "interactiveDesktopExclusive": { "const": true }
+          }
+        }
       }
     }
   }
