@@ -69,16 +69,79 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.locked-mixed-properties.production",
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.atom.carbon-label-visibility-history-persistence.production",
+    "scenario.core.atom.charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.electron-symbol-attachment-persistence.production",
+    "scenario.core.atom.element-label-persistence.production",
+    "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
+    "scenario.core.atom.isotope-preset-value-matrix.production",
+    "scenario.core.atom.isotopic-abundance-value-matrix.production",
+    "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
+    "scenario.core.atom.minus-symbol-attachment-persistence.production",
+    "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.number-visibility-persistence.production",
+    "scenario.core.atom.periodic-actinide-early-free-placement.production",
+    "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
+    "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+    "scenario.core.atom.periodic-carbon-free-placement.production",
+    "scenario.core.atom.periodic-common-value-matrix.production",
+    "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
+    "scenario.core.atom.periodic-group-seventeen-free-placement.production",
+    "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+    "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
+    "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
+    "scenario.core.atom.periodic-period-five-transition-free-placement.production",
+    "scenario.core.atom.periodic-period-four-transition-free-placement.production",
+    "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+    "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
+    "scenario.core.atom.periodic-period-six-transition-free-placement.production",
+    "scenario.core.atom.periodic-representative-value-matrix.production",
+    "scenario.core.atom.plus-symbol-attachment-persistence.production",
+    "scenario.core.atom.query-abnormal-valence-history-persistence.production",
+    "scenario.core.atom.query-list-values-history-persistence.production",
+    "scenario.core.atom.query-numeric-values-history-persistence.production",
+    "scenario.core.atom.query-reaction-value-history-persistence.production",
+    "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
+    "scenario.core.atom.query-translation-value-history-persistence.production",
+    "scenario.core.atom.query-unsaturated-bonds-value-history-persistence.production",
+    "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
+    "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+    "scenario.core.atom.radical-value-matrix.production",
+    "scenario.core.atom.stereo-value-history-persistence.production",
+    "scenario.core.bond.absolute-stereo-value-matrix.production",
+    "scenario.core.bond.bold-center-click-style-cycle.production",
+    "scenario.core.bond.center-click-cycle.production",
+    "scenario.core.bond.dashed-center-click-style-cycle.production",
+    "scenario.core.bond.dashed-double-center-click-cycle.production",
+    "scenario.core.bond.double-placement-value-matrix.production",
     "scenario.core.bond.draw-single",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
+    "scenario.core.bond.query-order-value-matrix.production",
+    "scenario.core.bond.reaction-participation-history-persistence.production",
+    "scenario.core.bond.reaction-participation-value-matrix.production",
+    "scenario.core.bond.ten-variant-persistence.production",
+    "scenario.core.bond.topology-value-matrix.production",
+    "scenario.core.bond.triple-hash-wavy-center-replacement.production",
+    "scenario.core.bond.visibility-value-matrix.production",
+    "scenario.core.bond.wedge-endpoint-reversal.production",
     "scenario.core.bracket.three-kind-properties-history.production",
+    "scenario.core.chain.drag-count-persistence.production",
+    "scenario.core.chain.endpoint-attachment-continuation.production",
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.frontend.focus-hover-disabled.production",
+    "scenario.core.frontend.selection-geometry.production",
     "scenario.core.group.locked-ancestor-transform.production",
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
     "scenario.core.orbital.seven-template-properties-history.production",
+    "scenario.core.ring.bond-fusion-persistence.production",
+    "scenario.core.ring.chair-benzene-persistence.production",
+    "scenario.core.ring.endpoint-attachment-persistence.production",
+    "scenario.core.ring.six-planar-persistence.production",
+    "scenario.core.ring.vertex-bond-continuation-persistence.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
     "scenario.core.selection.locked-molecule-arrow-transform.production",
@@ -110,16 +173,79 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.locked-mixed-properties.production",
       "scenario.core.arrow.multi-property-history.production",
       "scenario.core.arrow.property-matrix-persistence.production",
+      "scenario.core.atom.carbon-label-visibility-history-persistence.production",
+      "scenario.core.atom.charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.electron-symbol-attachment-persistence.production",
+      "scenario.core.atom.element-label-persistence.production",
+      "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
+      "scenario.core.atom.isotope-preset-value-matrix.production",
+      "scenario.core.atom.isotopic-abundance-value-matrix.production",
+      "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
+      "scenario.core.atom.minus-symbol-attachment-persistence.production",
+      "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.number-visibility-persistence.production",
+      "scenario.core.atom.periodic-actinide-early-free-placement.production",
+      "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
+      "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+      "scenario.core.atom.periodic-carbon-free-placement.production",
+      "scenario.core.atom.periodic-common-value-matrix.production",
+      "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
+      "scenario.core.atom.periodic-group-seventeen-free-placement.production",
+      "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+      "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
+      "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
+      "scenario.core.atom.periodic-period-five-transition-free-placement.production",
+      "scenario.core.atom.periodic-period-four-transition-free-placement.production",
+      "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+      "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
+      "scenario.core.atom.periodic-period-six-transition-free-placement.production",
+      "scenario.core.atom.periodic-representative-value-matrix.production",
+      "scenario.core.atom.plus-symbol-attachment-persistence.production",
+      "scenario.core.atom.query-abnormal-valence-history-persistence.production",
+      "scenario.core.atom.query-list-values-history-persistence.production",
+      "scenario.core.atom.query-numeric-values-history-persistence.production",
+      "scenario.core.atom.query-reaction-value-history-persistence.production",
+      "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
+      "scenario.core.atom.query-translation-value-history-persistence.production",
+      "scenario.core.atom.query-unsaturated-bonds-value-history-persistence.production",
+      "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
+      "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+      "scenario.core.atom.radical-value-matrix.production",
+      "scenario.core.atom.stereo-value-history-persistence.production",
+      "scenario.core.bond.absolute-stereo-value-matrix.production",
+      "scenario.core.bond.bold-center-click-style-cycle.production",
+      "scenario.core.bond.center-click-cycle.production",
+      "scenario.core.bond.dashed-center-click-style-cycle.production",
+      "scenario.core.bond.dashed-double-center-click-cycle.production",
+      "scenario.core.bond.double-placement-value-matrix.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
+      "scenario.core.bond.query-order-value-matrix.production",
+      "scenario.core.bond.reaction-participation-history-persistence.production",
+      "scenario.core.bond.reaction-participation-value-matrix.production",
+      "scenario.core.bond.ten-variant-persistence.production",
+      "scenario.core.bond.topology-value-matrix.production",
+      "scenario.core.bond.triple-hash-wavy-center-replacement.production",
+      "scenario.core.bond.visibility-value-matrix.production",
+      "scenario.core.bond.wedge-endpoint-reversal.production",
       "scenario.core.bracket.three-kind-properties-history.production",
+      "scenario.core.chain.drag-count-persistence.production",
+      "scenario.core.chain.endpoint-attachment-continuation.production",
       "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
+      "scenario.core.frontend.focus-hover-disabled.production",
+      "scenario.core.frontend.selection-geometry.production",
       "scenario.core.group.locked-ancestor-transform.production",
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
       "scenario.core.orbital.seven-template-properties-history.production",
+      "scenario.core.ring.bond-fusion-persistence.production",
+      "scenario.core.ring.chair-benzene-persistence.production",
+      "scenario.core.ring.endpoint-attachment-persistence.production",
+      "scenario.core.ring.six-planar-persistence.production",
+      "scenario.core.ring.vertex-bond-continuation-persistence.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
       "scenario.core.selection.locked-molecule-arrow-transform.production",
@@ -151,15 +277,78 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.locked-mixed-properties.production",
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.atom.carbon-label-visibility-history-persistence.production",
+    "scenario.core.atom.charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.electron-symbol-attachment-persistence.production",
+    "scenario.core.atom.element-label-persistence.production",
+    "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
+    "scenario.core.atom.isotope-preset-value-matrix.production",
+    "scenario.core.atom.isotopic-abundance-value-matrix.production",
+    "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
+    "scenario.core.atom.minus-symbol-attachment-persistence.production",
+    "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.number-visibility-persistence.production",
+    "scenario.core.atom.periodic-actinide-early-free-placement.production",
+    "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
+    "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+    "scenario.core.atom.periodic-carbon-free-placement.production",
+    "scenario.core.atom.periodic-common-value-matrix.production",
+    "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
+    "scenario.core.atom.periodic-group-seventeen-free-placement.production",
+    "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+    "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
+    "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
+    "scenario.core.atom.periodic-period-five-transition-free-placement.production",
+    "scenario.core.atom.periodic-period-four-transition-free-placement.production",
+    "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+    "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
+    "scenario.core.atom.periodic-period-six-transition-free-placement.production",
+    "scenario.core.atom.periodic-representative-value-matrix.production",
+    "scenario.core.atom.plus-symbol-attachment-persistence.production",
+    "scenario.core.atom.query-abnormal-valence-history-persistence.production",
+    "scenario.core.atom.query-list-values-history-persistence.production",
+    "scenario.core.atom.query-numeric-values-history-persistence.production",
+    "scenario.core.atom.query-reaction-value-history-persistence.production",
+    "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
+    "scenario.core.atom.query-translation-value-history-persistence.production",
+    "scenario.core.atom.query-unsaturated-bonds-value-history-persistence.production",
+    "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
+    "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+    "scenario.core.atom.radical-value-matrix.production",
+    "scenario.core.atom.stereo-value-history-persistence.production",
+    "scenario.core.bond.absolute-stereo-value-matrix.production",
+    "scenario.core.bond.bold-center-click-style-cycle.production",
+    "scenario.core.bond.center-click-cycle.production",
+    "scenario.core.bond.dashed-center-click-style-cycle.production",
+    "scenario.core.bond.dashed-double-center-click-cycle.production",
+    "scenario.core.bond.double-placement-value-matrix.production",
     "scenario.core.bond.draw-single.production",
+    "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
+    "scenario.core.bond.query-order-value-matrix.production",
+    "scenario.core.bond.reaction-participation-history-persistence.production",
+    "scenario.core.bond.reaction-participation-value-matrix.production",
+    "scenario.core.bond.ten-variant-persistence.production",
+    "scenario.core.bond.topology-value-matrix.production",
+    "scenario.core.bond.triple-hash-wavy-center-replacement.production",
+    "scenario.core.bond.visibility-value-matrix.production",
+    "scenario.core.bond.wedge-endpoint-reversal.production",
     "scenario.core.bracket.three-kind-properties-history.production",
+    "scenario.core.chain.drag-count-persistence.production",
+    "scenario.core.chain.endpoint-attachment-continuation.production",
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.clipboard.cross-document-mixed.production",
     "scenario.core.document.save-open-roundtrip.production",
+    "scenario.core.frontend.focus-hover-disabled.production",
+    "scenario.core.frontend.selection-geometry.production",
     "scenario.core.group.locked-ancestor-transform.production",
     "scenario.core.group.nested-mixed-clipboard.production",
     "scenario.core.history.undo-redo-bond.production",
     "scenario.core.orbital.seven-template-properties-history.production",
+    "scenario.core.ring.bond-fusion-persistence.production",
+    "scenario.core.ring.chair-benzene-persistence.production",
+    "scenario.core.ring.endpoint-attachment-persistence.production",
+    "scenario.core.ring.six-planar-persistence.production",
+    "scenario.core.ring.vertex-bond-continuation-persistence.production",
     "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
     "scenario.core.selection.clipboard-delete-multi-bond.production",
     "scenario.core.selection.locked-molecule-arrow-transform.production",
@@ -174,21 +363,87 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.text.multi-property-persistence.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/tests/hyperv.test.mjs"]), []);
+  assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/coverage/audit.mjs"]), []);
   assert.deepEqual(selectImpactedScenarios(graph, ["viewer/numeric_dialog_host.js"]), [
     "scenario.core.text.line-spacing-validation.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/document-file.mjs"]), [
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.atom.carbon-label-visibility-history-persistence.production",
+    "scenario.core.atom.charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.electron-symbol-attachment-persistence.production",
+    "scenario.core.atom.element-label-persistence.production",
+    "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
+    "scenario.core.atom.isotope-preset-value-matrix.production",
+    "scenario.core.atom.isotopic-abundance-value-matrix.production",
+    "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
+    "scenario.core.atom.minus-symbol-attachment-persistence.production",
+    "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+    "scenario.core.atom.number-visibility-persistence.production",
+    "scenario.core.atom.periodic-actinide-early-free-placement.production",
+    "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
+    "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+    "scenario.core.atom.periodic-carbon-free-placement.production",
+    "scenario.core.atom.periodic-common-value-matrix.production",
+    "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
+    "scenario.core.atom.periodic-group-seventeen-free-placement.production",
+    "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+    "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
+    "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
+    "scenario.core.atom.periodic-period-five-transition-free-placement.production",
+    "scenario.core.atom.periodic-period-four-transition-free-placement.production",
+    "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+    "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
+    "scenario.core.atom.periodic-period-six-transition-free-placement.production",
+    "scenario.core.atom.periodic-representative-value-matrix.production",
+    "scenario.core.atom.plus-symbol-attachment-persistence.production",
+    "scenario.core.atom.query-abnormal-valence-history-persistence.production",
+    "scenario.core.atom.query-list-values-history-persistence.production",
+    "scenario.core.atom.query-numeric-values-history-persistence.production",
+    "scenario.core.atom.query-reaction-value-history-persistence.production",
+    "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
+    "scenario.core.atom.query-translation-value-history-persistence.production",
+    "scenario.core.atom.query-unsaturated-bonds-value-history-persistence.production",
+    "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
+    "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+    "scenario.core.atom.radical-value-matrix.production",
+    "scenario.core.atom.stereo-value-history-persistence.production",
+    "scenario.core.bond.absolute-stereo-value-matrix.production",
+    "scenario.core.bond.bold-center-click-style-cycle.production",
+    "scenario.core.bond.center-click-cycle.production",
+    "scenario.core.bond.dashed-center-click-style-cycle.production",
+    "scenario.core.bond.dashed-double-center-click-cycle.production",
+    "scenario.core.bond.double-placement-value-matrix.production",
+    "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
+    "scenario.core.bond.query-order-value-matrix.production",
+    "scenario.core.bond.reaction-participation-history-persistence.production",
+    "scenario.core.bond.reaction-participation-value-matrix.production",
+    "scenario.core.bond.ten-variant-persistence.production",
+    "scenario.core.bond.topology-value-matrix.production",
+    "scenario.core.bond.triple-hash-wavy-center-replacement.production",
+    "scenario.core.bond.visibility-value-matrix.production",
+    "scenario.core.bond.wedge-endpoint-reversal.production",
     "scenario.core.bracket.three-kind-properties-history.production",
+    "scenario.core.chain.drag-count-persistence.production",
+    "scenario.core.chain.endpoint-attachment-continuation.production",
     "scenario.core.chromatography.tlc-gel-mark-color-history.production",
     "scenario.core.document.save-open-roundtrip.production",
     "scenario.core.orbital.seven-template-properties-history.production",
+    "scenario.core.ring.bond-fusion-persistence.production",
+    "scenario.core.ring.chair-benzene-persistence.production",
+    "scenario.core.ring.endpoint-attachment-persistence.production",
+    "scenario.core.ring.six-planar-persistence.production",
+    "scenario.core.ring.vertex-bond-continuation-persistence.production",
     "scenario.core.shape.multi-kind-style-history.production",
     "scenario.core.symbol.eight-kind-color-history.production",
     "scenario.core.table.structure-border-history.production",
     "scenario.core.text.existing-edit-history.production",
     "scenario.core.text.line-spacing-validation.production",
     "scenario.core.text.multi-property-persistence.production",
+  ]);
+  assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/ui-state.mjs"]), [
+    "scenario.core.frontend.focus-hover-disabled.production",
+    "scenario.core.frontend.selection-geometry.production",
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["scripts/test.mjs"]), []);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/qualification/evaluate.mjs"]), []);
@@ -201,16 +456,79 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.locked-mixed-properties.production",
       "scenario.core.arrow.multi-property-history.production",
       "scenario.core.arrow.property-matrix-persistence.production",
+      "scenario.core.atom.carbon-label-visibility-history-persistence.production",
+      "scenario.core.atom.charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.electron-symbol-attachment-persistence.production",
+      "scenario.core.atom.element-label-persistence.production",
+      "scenario.core.atom.implicit-hydrogen-visibility-history-persistence.production",
+      "scenario.core.atom.isotope-preset-value-matrix.production",
+      "scenario.core.atom.isotopic-abundance-value-matrix.production",
+      "scenario.core.atom.lone-pair-symbol-attachment-persistence.production",
+      "scenario.core.atom.minus-symbol-attachment-persistence.production",
+      "scenario.core.atom.negative-charge-symbol-attachment-persistence.production",
+      "scenario.core.atom.number-visibility-persistence.production",
+      "scenario.core.atom.periodic-actinide-early-free-placement.production",
+      "scenario.core.atom.periodic-actinide-remaining-free-placement.production",
+      "scenario.core.atom.periodic-alkali-alkaline-free-placement.production",
+      "scenario.core.atom.periodic-carbon-free-placement.production",
+      "scenario.core.atom.periodic-common-value-matrix.production",
+      "scenario.core.atom.periodic-group-fifteen-sixteen-free-placement.production",
+      "scenario.core.atom.periodic-group-seventeen-free-placement.production",
+      "scenario.core.atom.periodic-group-thirteen-fourteen-free-placement.production",
+      "scenario.core.atom.periodic-lanthanide-interior-free-placement.production",
+      "scenario.core.atom.periodic-noble-lanthanide-free-placement.production",
+      "scenario.core.atom.periodic-period-five-transition-free-placement.production",
+      "scenario.core.atom.periodic-period-four-transition-free-placement.production",
+      "scenario.core.atom.periodic-period-seven-main-group-free-placement.production",
+      "scenario.core.atom.periodic-period-seven-transition-free-placement.production",
+      "scenario.core.atom.periodic-period-six-transition-free-placement.production",
+      "scenario.core.atom.periodic-representative-value-matrix.production",
+      "scenario.core.atom.plus-symbol-attachment-persistence.production",
+      "scenario.core.atom.query-abnormal-valence-history-persistence.production",
+      "scenario.core.atom.query-list-values-history-persistence.production",
+      "scenario.core.atom.query-numeric-values-history-persistence.production",
+      "scenario.core.atom.query-reaction-value-history-persistence.production",
+      "scenario.core.atom.query-ring-bond-count-value-history-persistence.production",
+      "scenario.core.atom.query-translation-value-history-persistence.production",
+      "scenario.core.atom.query-unsaturated-bonds-value-history-persistence.production",
+      "scenario.core.atom.radical-anion-symbol-attachment-persistence.production",
+      "scenario.core.atom.radical-cation-symbol-attachment-persistence.production",
+      "scenario.core.atom.radical-value-matrix.production",
+      "scenario.core.atom.stereo-value-history-persistence.production",
+      "scenario.core.bond.absolute-stereo-value-matrix.production",
+      "scenario.core.bond.bold-center-click-style-cycle.production",
+      "scenario.core.bond.center-click-cycle.production",
+      "scenario.core.bond.dashed-center-click-style-cycle.production",
+      "scenario.core.bond.dashed-double-center-click-cycle.production",
+      "scenario.core.bond.double-placement-value-matrix.production",
       "scenario.core.bond.draw-single",
       "scenario.core.bond.draw-single.production",
+      "scenario.core.bond.hashed-hollow-wedge-endpoint-reversal.production",
+      "scenario.core.bond.query-order-value-matrix.production",
+      "scenario.core.bond.reaction-participation-history-persistence.production",
+      "scenario.core.bond.reaction-participation-value-matrix.production",
+      "scenario.core.bond.ten-variant-persistence.production",
+      "scenario.core.bond.topology-value-matrix.production",
+      "scenario.core.bond.triple-hash-wavy-center-replacement.production",
+      "scenario.core.bond.visibility-value-matrix.production",
+      "scenario.core.bond.wedge-endpoint-reversal.production",
       "scenario.core.bracket.three-kind-properties-history.production",
+      "scenario.core.chain.drag-count-persistence.production",
+      "scenario.core.chain.endpoint-attachment-continuation.production",
       "scenario.core.chromatography.tlc-gel-mark-color-history.production",
       "scenario.core.clipboard.cross-document-mixed.production",
       "scenario.core.document.save-open-roundtrip.production",
+      "scenario.core.frontend.focus-hover-disabled.production",
+      "scenario.core.frontend.selection-geometry.production",
       "scenario.core.group.locked-ancestor-transform.production",
       "scenario.core.group.nested-mixed-clipboard.production",
       "scenario.core.history.undo-redo-bond.production",
       "scenario.core.orbital.seven-template-properties-history.production",
+      "scenario.core.ring.bond-fusion-persistence.production",
+      "scenario.core.ring.chair-benzene-persistence.production",
+      "scenario.core.ring.endpoint-attachment-persistence.production",
+      "scenario.core.ring.six-planar-persistence.production",
+      "scenario.core.ring.vertex-bond-continuation-persistence.production",
       "scenario.core.selection.clipboard-delete-mixed-bond-arrow.production",
       "scenario.core.selection.clipboard-delete-multi-bond.production",
       "scenario.core.selection.locked-molecule-arrow-transform.production",
@@ -232,6 +550,67 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarioPaths = [
     join(guiTestsDir, "scenarios", "core", "draw-single-bond.json"),
     join(guiTestsDir, "scenarios", "core", "draw-single-bond-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-ten-variant-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-absolute-stereo-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-bold-center-click-style-cycle-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-center-click-cycle-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-dashed-center-click-style-cycle-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-dashed-double-center-click-cycle-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-double-placement-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-hashed-hollow-wedge-endpoint-reversal-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-wedge-endpoint-reversal-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-query-order-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-topology-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-triple-hash-wavy-center-replacement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-visibility-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "ring-chair-benzene-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "ring-bond-fusion-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "ring-endpoint-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "ring-vertex-bond-continuation-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-charge-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-electron-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-lone-pair-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-minus-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-negative-charge-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-plus-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-radical-cation-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-radical-anion-symbol-attachment-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-element-label-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-isotope-preset-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-isotopic-abundance-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-radical-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-number-visibility-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-stereo-value-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-reaction-value-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-ring-bond-count-value-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-unsaturated-bonds-value-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-translation-value-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-abnormal-valence-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-list-values-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-query-numeric-values-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-carbon-label-visibility-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-carbon-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-common-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-group-fifteen-sixteen-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-group-seventeen-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-group-thirteen-fourteen-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-lanthanide-interior-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-noble-lanthanide-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-period-five-transition-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-period-four-transition-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-period-seven-main-group-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-period-seven-transition-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-period-six-transition-free-placement-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-periodic-representative-value-matrix-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-implicit-hydrogen-visibility-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "chain-drag-count-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "chain-endpoint-attachment-continuation-production.json"),
     join(guiTestsDir, "scenarios", "core", "undo-redo-bond-production.json"),
     join(guiTestsDir, "scenarios", "core", "multi-bond-clipboard-delete-production.json"),
     join(guiTestsDir, "scenarios", "core", "mixed-bond-arrow-clipboard-production.json"),
@@ -255,13 +634,1510 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "chromatography-tlc-gel-mark-color-history-production.json"),
     join(guiTestsDir, "scenarios", "core", "nested-mixed-group-clipboard-production.json"),
     join(guiTestsDir, "scenarios", "core", "save-open-roundtrip-production.json"),
+    join(guiTestsDir, "scenarios", "core", "frontend-focus-hover-disabled-production.json"),
+    join(guiTestsDir, "scenarios", "core", "frontend-selection-geometry-production.json"),
   ];
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 36);
-  assert.equal(result.summary.scenarios, 25);
+  assert.equal(result.summary.entries, 58);
+  assert.equal(result.summary.scenarios, 88);
   assert.equal(result.summary.gaps, 0);
+
+  const invalidScenarios = structuredClone(scenarios);
+  const invalidAction = invalidScenarios.find((scenario) => scenario.drivers.includes("production-black-box")).actions[0];
+  invalidAction.completion.timeoutMs = 20000;
+  invalidAction.budgetMs = 30000;
+  const invalidResult = await auditCoverage({ registry, scenarios: invalidScenarios, scenarioPaths });
+  assert.equal(invalidResult.valid, false);
+  assert.match(invalidResult.errors.join("\n"), /must reserve 15000 ms for production input transport/);
+
+  const wrongToolStateScenarios = structuredClone(scenarios);
+  const chainActivation = wrongToolStateScenarios
+    .find((scenario) => scenario.id === "core.chain.drag-count-persistence.production")
+    .actions.find((action) => action.id === "activate-chain-tool");
+  chainActivation.completion.selector = 'button[data-tool="chain"].is-selected';
+  const wrongToolStateResult = await auditCoverage({ registry, scenarios: wrongToolStateScenarios, scenarioPaths });
+  assert.equal(wrongToolStateResult.valid, false);
+  assert.match(wrongToolStateResult.errors.join("\n"), /must use is-active for a primary data-tool completion/);
+
+  const explicitUncheckedMenuScenarios = structuredClone(scenarios);
+  const hiddenAtomNumberMenu = explicitUncheckedMenuScenarios
+    .find((scenario) => scenario.id === "core.atom.number-visibility-persistence.production")
+    .actions.find((action) => action.id === "open-hidden-number-menu");
+  hiddenAtomNumberMenu.completion.selector = '.canvas-context-menu:not([hidden]) [data-canvas-context-value="show-atom-number:true"][aria-checked="false"]';
+  const explicitUncheckedMenuResult = await auditCoverage({ registry, scenarios: explicitUncheckedMenuScenarios, scenarioPaths });
+  assert.equal(explicitUncheckedMenuResult.valid, false);
+  assert.match(explicitUncheckedMenuResult.errors.join("\n"), /must identify an unchecked canvas-menu toggle by its inverse command value; unchecked menuitems omit aria-checked/);
+
+  const unobservedReplacementScenarios = structuredClone(scenarios);
+  const atomNumberReplacement = unobservedReplacementScenarios
+    .find((scenario) => scenario.id === "core.atom.number-visibility-persistence.production")
+    .actions.find((action) => action.id === "type-final-atom-number-17");
+  atomNumberReplacement.completion = { kind: "actionable", timeoutMs: 8000 };
+  const unobservedReplacementResult = await auditCoverage({ registry, scenarios: unobservedReplacementScenarios, scenarioPaths });
+  assert.equal(unobservedReplacementResult.valid, false);
+  assert.match(unobservedReplacementResult.errors.join("\n"), /replaceExisting text must complete on its exact DOM value/);
+
+  const ambiguousSecondaryScenarios = structuredClone(scenarios);
+  const ringChoice = ambiguousSecondaryScenarios
+    .find((scenario) => scenario.id === "core.ring.bond-fusion-persistence.production")
+    .actions.find((action) => action.id === "choose-ring-6");
+  delete ringChoice.target.scope;
+  const ambiguousSecondaryResult = await auditCoverage({ registry, scenarios: ambiguousSecondaryScenarios, scenarioPaths });
+  assert.equal(ambiguousSecondaryResult.valid, false);
+  assert.match(ambiguousSecondaryResult.errors.join("\n"), /must scope a secondary role target to the Secondary toolbar/);
+
+  const wrongPaletteControlScenarios = structuredClone(scenarios);
+  const elementPaletteAction = wrongPaletteControlScenarios
+    .find((scenario) => scenario.id === "core.atom.element-label-persistence.production")
+    .actions.find((action) => action.id === "open-element-palette");
+  elementPaletteAction.target = { strategy: "role", value: "button", name: "Element", scope: { role: "complementary", name: "Main Drawing Rail" } };
+  const wrongPaletteControlResult = await auditCoverage({ registry, scenarios: wrongPaletteControlScenarios, scenarioPaths });
+  assert.equal(wrongPaletteControlResult.valid, false);
+  assert.match(wrongPaletteControlResult.errors.join("\n"), /must target the stable Element quick-palette mode toggle/);
+
+  const wrongPrimitiveTargetScenarios = structuredClone(scenarios);
+  const hydrogenMenuAction = wrongPrimitiveTargetScenarios
+    .find((scenario) => scenario.id === "core.atom.implicit-hydrogen-visibility-history-persistence.production")
+    .actions.find((action) => action.id === "open-automatic-hydrogen-menu");
+  hydrogenMenuAction.target = { strategy: "entity-id", value: "n_2" };
+  const wrongPrimitiveTargetResult = await auditCoverage({ registry, scenarios: wrongPrimitiveTargetScenarios, scenarioPaths });
+  assert.equal(wrongPrimitiveTargetResult.valid, false);
+  assert.match(wrongPrimitiveTargetResult.errors.join("\n"), /entity-id resolves scene object ids only/);
+
+  const invisibleCarbonPrimitiveScenarios = structuredClone(scenarios);
+  const invisibleCarbonMenuAction = invisibleCarbonPrimitiveScenarios
+    .find((scenario) => scenario.id === "core.atom.carbon-label-visibility-history-persistence.production")
+    .actions.find((action) => action.id === "open-default-terminal-label-menu");
+  invisibleCarbonMenuAction.target = { strategy: "selector", value: '[data-node-id="n_1"]' };
+  const invisibleCarbonPrimitiveResult = await auditCoverage({ registry, scenarios: invisibleCarbonPrimitiveScenarios, scenarioPaths });
+  assert.equal(invisibleCarbonPrimitiveResult.valid, false);
+  assert.match(invisibleCarbonPrimitiveResult.errors.join("\n"), /must target the implicit Carbon through a semantic bond endpoint/);
+
+  const wrongCarbonLabelSubmenuScenarios = structuredClone(scenarios);
+  const terminalCarbonLabelAction = wrongCarbonLabelSubmenuScenarios
+    .find((scenario) => scenario.id === "core.atom.carbon-label-visibility-history-persistence.production")
+    .actions.find((action) => action.id === "show-terminal-carbon-label");
+  const terminalCarbonLabelActionIndex = wrongCarbonLabelSubmenuScenarios
+    .find((scenario) => scenario.id === "core.atom.carbon-label-visibility-history-persistence.production")
+    .actions.indexOf(terminalCarbonLabelAction);
+  wrongCarbonLabelSubmenuScenarios
+    .find((scenario) => scenario.id === "core.atom.carbon-label-visibility-history-persistence.production")
+    .actions[terminalCarbonLabelActionIndex - 1].target.name = "Atom Properties";
+  const wrongCarbonLabelSubmenuResult = await auditCoverage({ registry, scenarios: wrongCarbonLabelSubmenuScenarios, scenarioPaths });
+  assert.equal(wrongCarbonLabelSubmenuResult.valid, false);
+  assert.match(wrongCarbonLabelSubmenuResult.errors.join("\n"), /must immediately expand the Canvas menu Atom Query submenu/);
+
+  const unadvertisedCapabilityScenarios = structuredClone(scenarios);
+  const reactionScenario = unadvertisedCapabilityScenarios
+    .find((scenario) => scenario.id === "core.bond.reaction-participation-history-persistence.production");
+  reactionScenario.capabilities = reactionScenario.capabilities
+    .filter((capability) => capability !== "editor.bond.reaction-participation")
+    .concat("editor.bond.unadvertised-mutant");
+  const unadvertisedCapabilityResult = await auditCoverage({ registry, scenarios: unadvertisedCapabilityScenarios, scenarioPaths });
+  assert.equal(unadvertisedCapabilityResult.valid, false);
+  assert.match(unadvertisedCapabilityResult.errors.join("\n"), /requires capabilities not advertised by production-black-box: editor\.bond\.unadvertised-mutant/);
+
+  const staleBondSelectionScenarios = structuredClone(scenarios);
+  const staleBondSelectionScenario = staleBondSelectionScenarios
+    .find((scenario) => scenario.id === "core.bond.reaction-participation-history-persistence.production");
+  staleBondSelectionScenario.actions = staleBondSelectionScenario.actions
+    .filter((action) => action.id !== "clear-created-molecule-selection");
+  const staleBondSelectionResult = await auditCoverage({ registry, scenarios: staleBondSelectionScenarios, scenarioPaths });
+  assert.equal(staleBondSelectionResult.valid, false);
+  assert.match(staleBondSelectionResult.errors.join("\n"), /must immediately clear stale selection on page-background before opening its first bond-specific context menu/);
+});
+
+test("the planar ring matrix kills missing and wrong-member-count tool mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "ring-six-planar-persistence-production.json"));
+  const activation = scenario.actions.find((action) => action.id === "activate-rings-tool");
+  const choices = scenario.actions.filter((action) => action.id.startsWith("choose-ring-"));
+  const insertions = scenario.actions.filter((action) => action.id.startsWith("insert-ring-"));
+  assert.deepEqual(activation.target, {
+    strategy: "selector",
+    value: 'button[data-tool="templates"][data-tool-rail="main"]',
+  }, "runtime-renamed primary tools must use stable semantic identity");
+  assert.deepEqual(choices.map((action) => action.id), ["choose-ring-3", "choose-ring-4", "choose-ring-5", "choose-ring-6", "choose-ring-7", "choose-ring-8"]);
+  assert.deepEqual(insertions.map((action) => action.completion.value), [3, 7, 12, 18, 25, 33]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
+    nodes: 33,
+    bonds: 33,
+    molecules: 6,
+    objects: 6,
+  });
+});
+
+test("the chair and benzene matrix kills conformer omission and aromatic-order mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "ring-chair-benzene-persistence-production.json"));
+  assert.deepEqual(
+    scenario.actions.filter((action) => action.id.startsWith("choose-")).map((action) => action.id),
+    ["choose-chair-right", "choose-chair-left", "choose-benzene"],
+  );
+  assert.deepEqual(
+    scenario.actions.filter((action) => action.id.startsWith("insert-")).map((action) => action.completion.value),
+    [6, 12, 18],
+  );
+  const aromatic = scenario.oracles.find((oracle) => oracle.id === "saved-benzene-alternating-bond-semantics");
+  assert.deepEqual(aromatic.expected.map(({ id, order }) => [id, order]), [
+    ["b_31", 2], ["b_32", 1], ["b_33", 2], ["b_34", 1], ["b_35", 2], ["b_36", 1],
+  ]);
+});
+
+test("the ring fusion matrix kills disconnected-paste and duplicate-shared-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "ring-bond-fusion-persistence-production.json"));
+  const draw = scenario.actions.find((action) => action.id === "draw-ring-fusion-target-bond");
+  const fusion = scenario.actions.find((action) => action.id === "fuse-ring-6-on-target-bond");
+  assert.equal(draw.completion.value, 1);
+  assert.equal(fusion.completion.value, 6);
+  assert.ok(fusion.at.x > draw.from.x && fusion.at.x < draw.to.x, "the fusion click must target the drawn bond interior");
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
+    nodes: 6,
+    bonds: 6,
+    molecules: 1,
+    objects: 1,
+  });
+});
+
+test("the ring endpoint matrix kills missed-endpoint and accidental-bond-fusion mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "ring-endpoint-attachment-persistence-production.json"));
+  const draw = scenario.actions.find((action) => action.id === "draw-ring-attachment-target-bond");
+  const attachment = scenario.actions.find((action) => action.id === "attach-ring-6-at-target-endpoint");
+  assert.equal(draw.completion.value, 1);
+  assert.equal(attachment.completion.value, 7);
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
+    nodes: 7,
+    bonds: 7,
+    molecules: 1,
+    objects: 1,
+  });
+});
+
+test("the ring vertex continuation matrix kills vertex-miss and disconnected-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "ring-vertex-bond-continuation-persistence-production.json"));
+  const ringAttachment = scenario.actions.find((action) => action.id === "attach-ring-6-at-target-endpoint");
+  const continuation = scenario.actions.find((action) => action.id === "continue-single-bond-from-ring-vertex");
+  assert.equal(ringAttachment.completion.value, 7);
+  assert.equal(continuation.completion.value, 8);
+  assert.ok(Math.abs(continuation.from.x - 0.43772) < Number.EPSILON);
+  assert.ok(continuation.to.x > continuation.from.x);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
+    nodes: 8,
+    bonds: 8,
+    molecules: 1,
+    objects: 1,
+  });
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-ring-vertex-continuation-single-bond-semantics").expected.map(({ id, order }) => [id, order]),
+    [["b_16", 1]],
+  );
+});
+
+test("the element-label matrix kills wrong-palette, wrong-target, and node-semantic mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-element-label-persistence-production.json"));
+  const palette = scenario.actions.find((action) => action.id === "open-element-palette");
+  const nitrogen = scenario.actions.find((action) => action.id === "choose-nitrogen");
+  const apply = scenario.actions.find((action) => action.id === "apply-nitrogen-to-target-endpoint");
+  assert.deepEqual(palette.target, {
+    strategy: "selector",
+    value: '.quick-palette-toggle-element[data-quick-palette-mode="element"]',
+  });
+  assert.equal(palette.completion.selector, '.quick-palette.is-open[data-mode="element"]');
+  assert.equal(nitrogen.target.value, '.periodic-element-button[data-element-symbol="N"][data-element-atomic-number="7"]');
+  assert.ok(Math.abs(apply.at.x - 0.37257) < Number.EPSILON);
+  assert.equal(apply.completion.selector, '[data-node-id="n_2"]');
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-node-properties").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, labelText: "NH2", labelSourceText: "NH2" },
+  ]);
+});
+
+test("the representative periodic matrix kills swapped-number, truncated-row, wrong-target, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-representative-value-matrix-production.json"));
+  const expectedValues = [
+    ["hydrogen", "H", 1, "n_2", 0.15257, 0.34],
+    ["fluorine", "F", 9, "n_5", 0.37257, 0.34],
+    ["silicon", "Si", 14, "n_8", 0.59257, 0.34],
+    ["sulfur", "S", 16, "n_11", 0.81257, 0.34],
+    ["iron", "Fe", 26, "n_14", 0.15257, 0.64],
+    ["bromine", "Br", 35, "n_17", 0.37257, 0.64],
+    ["uranium", "U", 92, "n_20", 0.59257, 0.64],
+    ["oganesson", "Og", 118, "n_23", 0.81257, 0.64],
+  ];
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `open-element-palette-for-${name}`).target.value),
+    Array(8).fill('.quick-palette-toggle-element[data-quick-palette-mode="element"]'),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `apply-${name}`).completion.selector),
+    expectedValues.map(([, , , nodeId]) => `[data-node-id="${nodeId}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `apply-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-representative-element-semantics").expected.map(({ id, element, atomicNumber, charge }) => ({ id, element, atomicNumber, charge })),
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0 })),
+  );
+  assert.equal(scenario.oracles.find((oracle) => oracle.id === "saved-representative-element-counts").expected.nodes, 16);
+});
+
+test("the common periodic matrix kills untested-value swaps, wrong endpoints, and label-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-common-value-matrix-production.json"));
+  const expectedValues = [
+    ["boron", "B", 5, "n_2", 0.15257, 0.34, "BH2"],
+    ["phosphorus", "P", 15, "n_5", 0.37257, 0.34, "PH2"],
+    ["chlorine", "Cl", 17, "n_8", 0.59257, 0.34, "Cl"],
+    ["iodine", "I", 53, "n_11", 0.81257, 0.34, "I"],
+    ["sodium", "Na", 11, "n_14", 0.15257, 0.64, "Na"],
+    ["magnesium", "Mg", 12, "n_17", 0.37257, 0.64, "Mg"],
+    ["copper", "Cu", 29, "n_20", 0.59257, 0.64, "Cu"],
+    ["gold", "Au", 79, "n_23", 0.81257, 0.64, "Au"],
+  ];
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `apply-${name}`).completion.selector),
+    expectedValues.map(([, , , nodeId]) => `[data-node-id="${nodeId}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `apply-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-common-element-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id, , , labelText]) => ({ id, element, atomicNumber, charge: 0, labelText, labelSourceText: labelText })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-common-element-counts").expected, {
+    nodes: 16,
+    bonds: 8,
+    molecules: 8,
+    objects: 8,
+  });
+});
+
+test("the early actinide cell kills uranium-only, row-order, implicit-hydrogen, and collapsed-object mutants", async () => {
+  const s = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"));
+  const v = [["actinium","Ac",89,"n_1"],["thorium","Th",90,"n_2"],["protactinium","Pa",91,"n_3"]];
+  assert.equal(s.actions.some((a) => a.target?.value?.includes('data-element-symbol="U"')), false);
+  assert.deepEqual(v.map(([n]) => s.actions.find((a) => a.id === `choose-${n}`).target.value), v.map(([,e,z]) => `.periodic-element-button[data-element-symbol="${e}"][data-element-atomic-number="${z}"]`));
+  assert.deepEqual(s.oracles.find((o) => o.id === "saved-early-actinide-semantics").expected, v.map(([,element,atomicNumber,id]) => ({id,element,atomicNumber,charge:0,numHydrogens:0,labelText:element,labelSourceText:element})));
+  assert.deepEqual(s.oracles.find((o) => o.id === "saved-early-actinide-counts").expected, {nodes:3,bonds:0,molecules:3,objects:3});
+});
+
+test("the remaining actinide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"));
+  const expectedValues = [
+    ["neptunium", "Np", 93, "n_1"], ["plutonium", "Pu", 94, "n_2"], ["americium", "Am", 95, "n_3"],
+    ["curium", "Cm", 96, "n_4"], ["berkelium", "Bk", 97, "n_5"], ["californium", "Cf", 98, "n_6"],
+    ["einsteinium", "Es", 99, "n_7"], ["fermium", "Fm", 100, "n_8"], ["mendelevium", "Md", 101, "n_9"],
+    ["nobelium", "No", 102, "n_10"], ["lawrencium", "Lr", 103, "n_11"],
+  ];
+  assert.equal(scenario.actions.some((action) => /data-element-symbol=\\?"(?:Ac|Th|Pa|U)\\?"/.test(action.target?.value || "")), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-remaining-actinide-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-remaining-actinide-counts").expected, { nodes: 11, bonds: 0, molecules: 11, objects: 11 });
+});
+
+test("the period-seven transition cell kills prior-period reuse, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-period-seven-transition-free-placement-production.json"));
+  const expectedValues = [
+    ["rutherfordium", "Rf", 104, "n_1"], ["dubnium", "Db", 105, "n_2"], ["seaborgium", "Sg", 106, "n_3"],
+    ["bohrium", "Bh", 107, "n_4"], ["hassium", "Hs", 108, "n_5"], ["meitnerium", "Mt", 109, "n_6"],
+    ["darmstadtium", "Ds", 110, "n_7"], ["roentgenium", "Rg", 111, "n_8"], ["copernicium", "Cn", 112, "n_9"],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-period-seven-transition-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-period-seven-transition-counts").expected, { nodes: 9, bonds: 0, molecules: 9, objects: 9 });
+});
+
+test("the explicit Carbon cell kills default-tool, missing-selector, hidden-node, zero-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-carbon-free-placement-production.json"));
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.equal(
+    scenario.actions.find((action) => action.id === "choose-carbon").target.value,
+    '.periodic-element-button[data-element-symbol="C"][data-element-atomic-number="6"]',
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+  assert.equal(scenario.oracles.find((oracle) => oracle.id === "one-carbon-atom-rendered").value, 1);
+});
+
+test("the isotope value matrix kills missing presets, swapped masses, disconnected custom input, uncleared Natural, and lost persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-isotope-preset-value-matrix-production.json"));
+  const values = ["2", "3", "13", "14", "15", "18"];
+  assert.deepEqual(
+    values.map((value) => scenario.actions.some((action) => action.target?.value?.includes(`isotope:${value}`))),
+    values.map(() => true),
+  );
+  assert.equal(scenario.actions.some((action) => action.target?.value?.includes("isotope:__prompt__")), true);
+  assert.equal(scenario.actions.find((action) => action.id === "type-custom-isotope-17").text, "17");
+  assert.equal(
+    scenario.actions.filter((action) => action.id.startsWith("open-") && action.id.endsWith("-menu") && action.button === "right")
+      .every((action) => action.target.strategy === "selector" && action.target.value === '[data-node-id="n_1"]'),
+    true,
+  );
+  assert.equal(
+    scenario.actions.find((action) => action.id === "clear-to-natural-isotope").target.value,
+    '.canvas-context-menu:not([hidden]) [data-canvas-context-value="isotope:"]',
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-isotopic-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, isotopeMass: 13, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-isotopic-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the isotopic-abundance matrix kills missing values, swapped mappings, stale checked state, and lost persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-isotopic-abundance-value-matrix-production.json"));
+  const values = ["unspecified", "any", "natural", "enriched", "deficient", "nonnatural"];
+  assert.deepEqual(
+    values.map((value) => scenario.actions.some((action) => action.target?.value?.includes(`isotopic-abundance:${value}`) || action.completion?.selector?.includes(`isotopic-abundance:${value}`))),
+    values.map(() => true),
+  );
+  for (const value of values) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`isotopic-abundance:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated checked state for ${value}`);
+  }
+  assert.equal(scenario.actions.filter((action) => action.target?.name === "Isotopic Abundance").length, 5);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-abundance-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, isotopicAbundance: "nonnatural", labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-abundance-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom radical matrix kills missing values, swapped mappings, stale checked state, and lost persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-radical-value-matrix-production.json"));
+  const values = ["none", "singlet", "doublet", "triplet"];
+  assert.deepEqual(
+    values.map((value) => scenario.actions.some((action) => action.target?.value?.includes(`radical:${value}`) || action.completion?.selector?.includes(`radical:${value}`))),
+    values.map(() => true),
+  );
+  for (const value of values) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`radical:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated checked state for ${value}`);
+  }
+  assert.equal(scenario.actions.filter((action) => action.target?.name === "Radical").length, 3);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-radical-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, atomRadical: "triplet", labelText: "CH2", labelSourceText: "CH2" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-number cell kills disconnected-dialog, inverted-visibility, stale-clear, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-number-visibility-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.number"));
+  assert.equal(scenario.actions.find((action) => action.id === "open-set-atom-number-dialog").target.name, "Set Atom Number…");
+  assert.equal(scenario.actions.find((action) => action.id === "open-edit-atom-number-dialog").target.name, "Edit Atom Number…");
+  assert.equal(scenario.actions.find((action) => action.id === "clear-atom-number").target.name, "Clear Atom Number");
+  assert.equal(scenario.actions.find((action) => action.id === "hide-atom-number").completion.value, 1);
+  assert.equal(
+    scenario.actions.find((action) => action.id === "open-hidden-number-menu").completion.selector,
+    '.canvas-context-menu:not([hidden]) [data-canvas-context-value="show-atom-number:true"]:not([aria-checked])',
+  );
+  assert.equal(scenario.actions.find((action) => action.id === "show-atom-number").completion.text, "17");
+  assert.equal(scenario.actions.find((action) => action.id === "apply-edited-atom-number-42").completion.text, "42");
+  assert.equal(scenario.actions.find((action) => action.id === "apply-final-atom-number-17").completion.text, "17");
+  for (const [id, text] of [["type-atom-number-17", "17"], ["type-edited-atom-number-42", "42"], ["type-final-atom-number-17", "17"]]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.replaceExisting, true, `${id} must explicitly replace the declared field`);
+    assert.deepEqual(action.completion, { kind: "dom-text", selector: '.atom-property-dialog input[name="value"]', text, timeoutMs: 8000 });
+  }
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-numbered-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomNumber: "17", showAtomNumber: true, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-numbered-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-stereo matrix kills missing values, wrong case, accidental cancel commits, broken history, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-stereo-value-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.stereochemistry"));
+  for (const [value, annotation] of [["R", "(R)"], ["S", "(S)"], ["r", "(r)"], ["s", "(s)"]]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`stereo:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated checked state for ${value}`);
+    assert.ok(scenario.actions.some((action) => action.completion?.text === annotation), `missing exact annotation for ${value}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "type-custom-stereo-rs").replaceExisting, true);
+  assert.equal(scenario.actions.find((action) => action.id === "type-cancelled-stereo").replaceExisting, true);
+  assert.equal(scenario.actions.find((action) => action.id === "cancel-custom-stereo").key, "Escape");
+  assert.equal(scenario.actions.find((action) => action.id === "undo-custom-rs").completion.text, "(s)");
+  assert.equal(scenario.actions.find((action) => action.id === "redo-custom-rs").completion.text, "(RS)");
+  assert.equal(scenario.actions.find((action) => action.id === "hide-stereo").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "show-stereo").completion.text, "(R)");
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-stereo-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, atomStereo: "R", showAtomStereo: true, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-stereo-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query reaction matrix kills missing values, swapped enums, broken history, inverted visibility, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-reaction-value-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-reaction"));
+  for (const value of ["false", "true"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`reaction-change:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated reaction-change checked state for ${value}`);
+  }
+  for (const value of ["unspecified", "inversion", "retention"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`reaction-stereo:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated reaction-stereo checked state for ${value}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "set-reaction-changed").completion.text, "C");
+  assert.equal(scenario.actions.find((action) => action.id === "set-reaction-stereo-inversion").completion.text, "CT");
+  assert.equal(scenario.actions.find((action) => action.id === "set-reaction-stereo-unspecified").completion.text, "C");
+  assert.equal(scenario.actions.find((action) => action.id === "set-reaction-no-change").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "undo-no-change").completion.text, "C");
+  assert.equal(scenario.actions.find((action) => action.id === "redo-no-change").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "hide-query-indicator").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "show-query-indicator").completion.text, "CT");
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-query-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, reactionChange: true, reactionStereo: "retention", showAtomQuery: true, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query ring-count matrix kills skipped values, swapped enums, broken history, stale indicators, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-ring-bond-count-value-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-ring-bond-count"));
+  for (const value of ["unspecified", "no-ring-bonds", "as-drawn", "simple-ring", "fusion", "spiro-or-higher"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`ring-bond-count:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated ring-bond-count checked state for ${value}`);
+  }
+  for (const id of ["set-no-ring-bonds", "set-as-drawn", "set-simple-ring", "set-fusion", "set-spiro-or-higher", "set-final-spiro-or-higher"]) {
+    assert.equal(scenario.actions.find((action) => action.id === id).completion.text, "R", `missing exact R indicator for ${id}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "set-ring-count-unspecified").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "undo-ring-count-unspecified").completion.text, "R");
+  assert.equal(scenario.actions.find((action) => action.id === "redo-ring-count-unspecified").completion.value, 1);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-ring-query-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, ringBondCount: "spiro-or-higher", labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-ring-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query unsaturated-bonds matrix kills skipped values, swapped enums, broken history, stale indicators, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-unsaturated-bonds-value-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-unsaturated-bonds"));
+  for (const value of ["unspecified", "must-be-absent", "must-be-present"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`unsaturated-bonds:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated unsaturated-bonds checked state for ${value}`);
+  }
+  for (const id of ["set-must-be-absent", "set-must-be-present", "set-final-must-be-present"]) {
+    assert.equal(scenario.actions.find((action) => action.id === id).completion.text, "S", `missing exact S indicator for ${id}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "set-unsaturated-unspecified").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "undo-unsaturated-unspecified").completion.text, "S");
+  assert.equal(scenario.actions.find((action) => action.id === "redo-unsaturated-unspecified").completion.value, 1);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-unsaturated-query-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, unsaturatedBonds: "must-be-present", labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-unsaturated-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query translation matrix kills skipped values, swapped enums, broken history, stale indicators, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-translation-value-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-translation"));
+  for (const value of ["equal", "broad", "narrow", "any"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`translation:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated translation checked state for ${value}`);
+  }
+  for (const id of ["set-translation-broad", "set-translation-narrow", "set-translation-any", "set-final-translation-any"]) {
+    assert.equal(scenario.actions.find((action) => action.id === id).completion.text, "L", `missing exact L indicator for ${id}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "set-translation-equal").completion.value, 1);
+  assert.equal(scenario.actions.find((action) => action.id === "undo-translation-equal").completion.text, "L");
+  assert.equal(scenario.actions.find((action) => action.id === "redo-translation-equal").completion.value, 1);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-translation-query-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, queryTranslation: "any", labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-translation-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query abnormal-valence matrix kills skipped states, swapped booleans, broken history, stale menus, spurious indicators, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-abnormal-valence-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-abnormal-valence"));
+  for (const value of ["false", "true"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.selector?.includes(`abnormal-valence:${value}`) && action.completion.selector.includes('aria-checked="true"')), `missing regenerated abnormal-valence checked state for ${value}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "open-after-undo").completion.selector.includes('abnormal-valence:true'), true);
+  assert.equal(scenario.actions.find((action) => action.id === "open-after-redo").completion.selector.includes('abnormal-valence:false'), true);
+  assert.equal(scenario.oracles.find((oracle) => oracle.id === "no-spurious-abnormal-valence-indicator").value, 1);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-abnormal-valence-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, abnormalValence: true, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-abnormal-valence-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query list matrix kills skipped include/exclude states, reordered values, disconnected dialogs, broken history, stale clears, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-list-values-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-lists"));
+  for (const text of ["6 7 8", "NOT 7 8", "R X", "NOT R X"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.kind === "dom-text" && action.completion.text === text), `missing exact list dialog state ${text}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "clear-generic-list-input").completion.text, "");
+  const keyboardApplyIds = [
+    "apply-included-element-list",
+    "apply-excluded-element-list",
+    "apply-included-generic-list",
+    "apply-excluded-generic-list",
+    "apply-cleared-generic-list",
+  ];
+  for (const actionId of keyboardApplyIds) {
+    const action = scenario.actions.find((candidate) => candidate.id === actionId);
+    assert.equal(action.type, "key", `${actionId} must activate the explicitly focused submit control`);
+    assert.equal(action.key, "Enter");
+    assert.equal(action.target.value, '.atom-property-dialog button[type="submit"]');
+  }
+  for (const actionId of ["cancel-element-list", "close-element-list-after-undo", "close-final-generic-list"]) {
+    const action = scenario.actions.find((candidate) => candidate.id === actionId);
+    assert.equal(action.type, "key", `${actionId} must activate the explicitly focused cancel control`);
+    assert.equal(action.key, "Enter");
+    assert.equal(action.target.value, ".atom-property-dialog button[data-atom-property-dialog-close]");
+  }
+  const focusActions = scenario.actions.filter((action) => action.id.startsWith("focus-cancel-") || action.id.startsWith("focus-apply-"));
+  assert.equal(focusActions.length, 13, "every modal commit or cancel must expose its physical Tab focus transition");
+  assert.ok(focusActions.every((action) => action.type === "key" && action.key === "Tab" && action.completion?.selector?.endsWith(":focus")), "modal keyboard navigation must prove the focused public control before activation");
+  assert.ok(scenario.actions.some((action) => action.id === "undo-excluded-element-list"));
+  assert.ok(scenario.actions.some((action) => action.id === "redo-excluded-element-list"));
+  assert.ok(scenario.actions.some((action) => action.id === "undo-cleared-generic-list"));
+  assert.equal(scenario.oracles.find((oracle) => oracle.id === "no-spurious-list-query-indicator").value, 1);
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-query-list-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 4, elementList: [7, 8], elementListExcluded: true, genericList: ["R", "X"], genericListExcluded: true, labelText: "CH4", labelSourceText: "CH4" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-query-list-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the atom-query numeric matrix kills swapped fields, wrong precedence, stale prefills, broken clears, history, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-query-numeric-values-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.query-numeric"));
+  for (const text of ["2", "4", "3"]) {
+    assert.ok(scenario.actions.some((action) => action.completion?.kind === "dom-text" && action.completion.text === text), `missing exact numeric dialog state ${text}`);
+  }
+  assert.equal(scenario.actions.find((action) => action.id === "apply-free-sites-two").completion.text, "*2");
+  assert.equal(scenario.actions.find((action) => action.id === "apply-substituents-up-to-four").completion.text, "U4");
+  assert.equal(scenario.actions.find((action) => action.id === "apply-substituents-exactly-three").completion.text, "X3");
+  assert.equal(scenario.actions.find((action) => action.id === "clear-exactly-input").completion.text, "");
+  assert.equal(scenario.actions.find((action) => action.id === "redo-cleared-exactly").completion.text, "U4");
+  assert.equal(scenario.actions.find((action) => action.id === "undo-cleared-exactly-for-final").completion.text, "X3");
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-numeric-query-carbon-semantics").expected,
+    [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, freeSites: 2, substituentsUpTo: 4, substituentsExactly: 3, labelText: "CH2", labelSourceText: "CH2" }],
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-numeric-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the Carbon label visibility cell kills unchecked, wrong-applicability, stale-label, broken-history, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-carbon-label-visibility-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.carbon-label-visibility"));
+  assert.ok(scenario.capabilities.includes("editor.chain.draw"));
+  assert.equal(scenario.actions.find((action) => action.id === "draw-connected-two-bond-carbon-chain").completion.value, 2);
+  assert.deepEqual(scenario.actions.find((action) => action.id === "open-default-terminal-label-menu").target, { strategy: "bond-endpoint", value: "b_4:start" });
+  assert.deepEqual(scenario.actions.find((action) => action.id === "open-default-nonterminal-label-menu").target, { strategy: "bond-endpoint", value: "b_4:end" });
+  assert.deepEqual(
+    scenario.actions.filter((action) => action.id.startsWith("expand-atom-query-for-")).map((action) => action.target.name),
+    ["Atom Query", "Atom Query", "Atom Query", "Atom Query"],
+  );
+  assert.equal(scenario.actions.find((action) => action.id === "clear-created-chain-selection").target.value, "page-background");
+  assert.match(scenario.actions.find((action) => action.id === "open-default-terminal-label-menu").completion.selector, /show-terminal-carbon-label:false.*aria-checked/);
+  assert.match(scenario.actions.find((action) => action.id === "open-default-nonterminal-label-menu").completion.selector, /show-non-terminal-carbon-label:false.*aria-checked/);
+  assert.equal(scenario.actions.find((action) => action.id === "show-terminal-carbon-label").completion.text, "H3C");
+  assert.deepEqual(scenario.actions.find((action) => action.id === "show-nonterminal-carbon-label").completion, {
+    kind: "dom-count",
+    selector: 'text[data-node-id="n_2"]',
+    operator: "eq",
+    value: 2,
+    timeoutMs: 8000,
+  });
+  assert.ok(scenario.actions.some((action) => action.id === "undo-terminal-hide-for-final"));
+  assert.ok(scenario.actions.some((action) => action.id === "undo-nonterminal-hide-for-final"));
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-explicit-carbon-label-visibility-semantics").expected,
+    [
+      { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 3, showTerminalCarbonLabel: true, showNonTerminalCarbonLabel: null, labelText: "H3C", labelSourceText: "CH3" },
+      { id: "n_2", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, showTerminalCarbonLabel: null, showNonTerminalCarbonLabel: true, labelText: "C\nH2", labelSourceText: "CH2" },
+    ],
+  );
+});
+
+test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-lanthanide-interior-free-placement-production.json"));
+  const expectedValues = [
+    ["cerium", "Ce", 58, "n_1", 0.1, 0.24], ["praseodymium", "Pr", 59, "n_2", 0.3, 0.24],
+    ["neodymium", "Nd", 60, "n_3", 0.5, 0.24], ["promethium", "Pm", 61, "n_4", 0.7, 0.24],
+    ["samarium", "Sm", 62, "n_5", 0.9, 0.24], ["europium", "Eu", 63, "n_6", 0.1, 0.49],
+    ["gadolinium", "Gd", 64, "n_7", 0.3, 0.49], ["terbium", "Tb", 65, "n_8", 0.5, 0.49],
+    ["dysprosium", "Dy", 66, "n_9", 0.7, 0.49], ["holmium", "Ho", 67, "n_10", 0.9, 0.49],
+    ["erbium", "Er", 68, "n_11", 0.3, 0.74], ["thulium", "Tm", 69, "n_12", 0.5, 0.74],
+    ["ytterbium", "Yb", 70, "n_13", 0.7, 0.74],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.equal(scenario.actions.some((action) => /data-element-symbol="(?:La|Lu)"/.test(action.target?.value || "")), false);
+  assert.deepEqual(expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value), expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`));
+  assert.deepEqual(expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at), expectedValues.map(([, , , , x, y]) => ({ x, y })));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-interior-lanthanide-semantics").expected, expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-interior-lanthanide-counts").expected, { nodes: 13, bonds: 0, molecules: 13, objects: 13 });
+});
+
+test("the noble and lanthanide free-placement matrix kills bonded-only, collapsed-object, row-truncation, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-noble-lanthanide-free-placement-production.json"));
+  const expectedValues = [
+    ["helium", "He", 2, "n_1", 0.15, 0.34],
+    ["neon", "Ne", 10, "n_2", 0.37, 0.34],
+    ["argon", "Ar", 18, "n_3", 0.59, 0.34],
+    ["krypton", "Kr", 36, "n_4", 0.81, 0.34],
+    ["xenon", "Xe", 54, "n_5", 0.15, 0.64],
+    ["radon", "Rn", 86, "n_6", 0.37, 0.64],
+    ["lanthanum", "La", 57, "n_7", 0.59, 0.64],
+    ["lutetium", "Lu", 71, "n_8", 0.81, 0.64],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).completion.selector),
+    expectedValues.map(([, , , nodeId]) => `[data-node-id="${nodeId}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-noble-lanthanide-free-atom-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, labelText: element, labelSourceText: element })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-free-atom-counts").expected, {
+    nodes: 8,
+    bonds: 0,
+    molecules: 8,
+    objects: 8,
+  });
+});
+
+test("the alkali and alkaline-earth free-placement matrix kills adjacent-column, vertical-row, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"));
+  const expectedValues = [
+    ["lithium", "Li", 3, "n_1", 0.15, 0.34],
+    ["beryllium", "Be", 4, "n_2", 0.37, 0.34],
+    ["potassium", "K", 19, "n_3", 0.59, 0.34],
+    ["calcium", "Ca", 20, "n_4", 0.81, 0.34],
+    ["rubidium", "Rb", 37, "n_5", 0.15, 0.64],
+    ["strontium", "Sr", 38, "n_6", 0.37, 0.64],
+    ["cesium", "Cs", 55, "n_7", 0.59, 0.64],
+    ["barium", "Ba", 56, "n_8", 0.81, 0.64],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).completion.selector),
+    expectedValues.map(([, , , nodeId]) => `[data-node-id="${nodeId}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-group-one-two-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, labelText: element, labelSourceText: element })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-group-one-two-counts").expected, {
+    nodes: 8,
+    bonds: 0,
+    molecules: 8,
+    objects: 8,
+  });
+});
+
+test("the Group 13 and 14 free-placement matrix kills cross-column, late-row, bare-symbol, wrong-valence, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-group-thirteen-fourteen-free-placement-production.json"));
+  const expectedValues = [
+    ["aluminum", "Al", 13, "n_1", 0.15, 0.34, 3, "AlH3"],
+    ["gallium", "Ga", 31, "n_2", 0.37, 0.34, 3, "GaH3"],
+    ["indium", "In", 49, "n_3", 0.59, 0.34, 3, "InH3"],
+    ["thallium", "Tl", 81, "n_4", 0.81, 0.34, 3, "TlH3"],
+    ["germanium", "Ge", 32, "n_5", 0.15, 0.64, 4, "GeH4"],
+    ["tin", "Sn", 50, "n_6", 0.37, 0.64, 4, "SnH4"],
+    ["lead", "Pb", 82, "n_7", 0.59, 0.64, 4, "PbH4"],
+    ["flerovium", "Fl", 114, "n_8", 0.81, 0.64, 4, "FlH4"],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).completion.selector),
+    expectedValues.map(([, , , nodeId]) => `[data-node-id="${nodeId}"]`),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-group-thirteen-fourteen-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id, , , numHydrogens, labelText]) => ({ id, element, atomicNumber, charge: 0, numHydrogens, labelText, labelSourceText: labelText })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-group-thirteen-fourteen-counts").expected, {
+    nodes: 8,
+    bonds: 0,
+    molecules: 8,
+    objects: 8,
+  });
+});
+
+test("the Group 15 and 16 free-placement matrix kills cross-column, late-row, bare-symbol, wrong-valence, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-group-fifteen-sixteen-free-placement-production.json"));
+  const expectedValues = [
+    ["arsenic", "As", 33, "n_1", 0.15, 0.34, 3, "AsH3"],
+    ["antimony", "Sb", 51, "n_2", 0.37, 0.34, 3, "SbH3"],
+    ["bismuth", "Bi", 83, "n_3", 0.59, 0.34, 3, "BiH3"],
+    ["moscovium", "Mc", 115, "n_4", 0.81, 0.34, 3, "McH3"],
+    ["selenium", "Se", 34, "n_5", 0.15, 0.64, 2, "SeH2"],
+    ["tellurium", "Te", 52, "n_6", 0.37, 0.64, 2, "TeH2"],
+    ["polonium", "Po", 84, "n_7", 0.59, 0.64, 2, "PoH2"],
+    ["livermorium", "Lv", 116, "n_8", 0.81, 0.64, 2, "LvH2"],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).completion.selector),
+    expectedValues.map(([, , , nodeId]) => `[data-node-id="${nodeId}"]`),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-group-fifteen-sixteen-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id, , , numHydrogens, labelText]) => ({ id, element, atomicNumber, charge: 0, numHydrogens, labelText, labelSourceText: labelText })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-group-fifteen-sixteen-counts").expected, {
+    nodes: 8,
+    bonds: 0,
+    molecules: 8,
+    objects: 8,
+  });
+});
+
+test("the remaining Group 17 free-placement cell kills missing-row, swapped-value, bare-symbol, wrong-valence, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-group-seventeen-free-placement-production.json"));
+  const expectedValues = [
+    ["astatine", "At", 85, "n_1", 0.35, 0.49, "AtH"],
+    ["tennessine", "Ts", 117, "n_2", 0.65, 0.49, "TsH"],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-group-seventeen-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id, , , labelText]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 1, labelText, labelSourceText: labelText })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-group-seventeen-counts").expected, {
+    nodes: 2,
+    bonds: 0,
+    molecules: 2,
+    objects: 2,
+  });
+});
+
+test("the remaining period-four transition cell kills missing-row, row-order, main-group-valence, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-period-four-transition-free-placement-production.json"));
+  const expectedValues = [
+    ["scandium", "Sc", 21, "n_1", 0.15, 0.34],
+    ["titanium", "Ti", 22, "n_2", 0.37, 0.34],
+    ["vanadium", "V", 23, "n_3", 0.59, 0.34],
+    ["chromium", "Cr", 24, "n_4", 0.81, 0.34],
+    ["manganese", "Mn", 25, "n_5", 0.15, 0.64],
+    ["cobalt", "Co", 27, "n_6", 0.37, 0.64],
+    ["nickel", "Ni", 28, "n_7", 0.59, 0.64],
+    ["zinc", "Zn", 30, "n_8", 0.81, 0.64],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-period-four-transition-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-period-four-transition-counts").expected, {
+    nodes: 8,
+    bonds: 0,
+    molecules: 8,
+    objects: 8,
+  });
+});
+
+test("the period-five transition cell kills missing-row, row-order, main-group-valence, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-period-five-transition-free-placement-production.json"));
+  const expectedValues = [
+    ["yttrium", "Y", 39, "n_1", 0.1, 0.34],
+    ["zirconium", "Zr", 40, "n_2", 0.3, 0.34],
+    ["niobium", "Nb", 41, "n_3", 0.5, 0.34],
+    ["molybdenum", "Mo", 42, "n_4", 0.7, 0.34],
+    ["technetium", "Tc", 43, "n_5", 0.9, 0.34],
+    ["ruthenium", "Ru", 44, "n_6", 0.1, 0.64],
+    ["rhodium", "Rh", 45, "n_7", 0.3, 0.64],
+    ["palladium", "Pd", 46, "n_8", 0.5, 0.64],
+    ["silver", "Ag", 47, "n_9", 0.7, 0.64],
+    ["cadmium", "Cd", 48, "n_10", 0.9, 0.64],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-period-five-transition-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-period-five-transition-counts").expected, {
+    nodes: 10,
+    bonds: 0,
+    molecules: 10,
+    objects: 10,
+  });
+});
+
+test("the remaining period-six transition cell kills missing-row, row-order, main-group-valence, collapsed-object, accidental-bond, and repeated-gold mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-period-six-transition-free-placement-production.json"));
+  const expectedValues = [
+    ["hafnium", "Hf", 72, "n_1", 0.15, 0.34],
+    ["tantalum", "Ta", 73, "n_2", 0.37, 0.34],
+    ["tungsten", "W", 74, "n_3", 0.59, 0.34],
+    ["rhenium", "Re", 75, "n_4", 0.81, 0.34],
+    ["osmium", "Os", 76, "n_5", 0.15, 0.64],
+    ["iridium", "Ir", 77, "n_6", 0.37, 0.64],
+    ["platinum", "Pt", 78, "n_7", 0.59, 0.64],
+    ["mercury", "Hg", 80, "n_8", 0.81, 0.64],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.equal(scenario.actions.some((action) => action.target?.value?.includes('data-element-symbol="Au"')), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-period-six-transition-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id]) => ({ id, element, atomicNumber, charge: 0, numHydrogens: 0, labelText: element, labelSourceText: element })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-period-six-transition-counts").expected, {
+    nodes: 8,
+    bonds: 0,
+    molecules: 8,
+    objects: 8,
+  });
+});
+
+test("the remaining period-seven main-group cell kills missing-row, cross-group, zero-versus-H3, collapsed-object, and accidental-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-periodic-period-seven-main-group-free-placement-production.json"));
+  const expectedValues = [
+    ["francium", "Fr", 87, "n_1", 0.25, 0.49, 0, "Fr"],
+    ["radium", "Ra", 88, "n_2", 0.5, 0.49, 0, "Ra"],
+    ["nihonium", "Nh", 113, "n_3", 0.75, 0.49, 3, "NhH3"],
+  ];
+  assert.equal(scenario.actions.some((action) => action.id === "activate-single-bond-tool"), false);
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `choose-${name}`).target.value),
+    expectedValues.map(([, symbol, atomicNumber]) => `.periodic-element-button[data-element-symbol="${symbol}"][data-element-atomic-number="${atomicNumber}"]`),
+  );
+  assert.deepEqual(
+    expectedValues.map(([name]) => scenario.actions.find((action) => action.id === `place-${name}`).at),
+    expectedValues.map(([, , , , x, y]) => ({ x, y })),
+  );
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-period-seven-main-group-semantics").expected,
+    expectedValues.map(([, element, atomicNumber, id, , , numHydrogens, labelText]) => ({ id, element, atomicNumber, charge: 0, numHydrogens, labelText, labelSourceText: labelText })),
+  );
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-period-seven-main-group-counts").expected, {
+    nodes: 3,
+    bonds: 0,
+    molecules: 3,
+    objects: 3,
+  });
+});
+
+test("the implicit-hydrogen matrix kills wrong-menu-value, missing-history, and automatic-zero mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-implicit-hydrogen-visibility-history-persistence-production.json"));
+  const initialMenu = scenario.actions.find((action) => action.id === "open-automatic-hydrogen-menu");
+  const hiddenMenu = scenario.actions.find((action) => action.id === "open-hidden-hydrogen-menu");
+  const restoredMenu = scenario.actions.find((action) => action.id === "open-restored-automatic-menu");
+  const hide = scenario.actions.find((action) => action.id === "hide-implicit-hydrogens");
+  const restore = scenario.actions.find((action) => action.id === "restore-automatic-hydrogens");
+  const undo = scenario.actions.find((action) => action.id === "undo-second-hide");
+  const redo = scenario.actions.find((action) => action.id === "redo-second-hide");
+  assert.deepEqual(initialMenu.target, { strategy: "selector", value: '[data-node-id="n_2"]' });
+  assert.deepEqual(hiddenMenu.target, initialMenu.target);
+  assert.deepEqual(restoredMenu.target, initialMenu.target);
+  assert.match(initialMenu.completion.selector, /data-canvas-context-value="auto"/);
+  assert.equal(hide.target.name, "Hide");
+  assert.equal(hide.completion.text, "N");
+  assert.equal(restore.target.name, "Automatic");
+  assert.equal(restore.completion.text, "NH2");
+  assert.equal(undo.key, "Control+Z");
+  assert.equal(undo.completion.text, "NH2");
+  assert.equal(redo.key, "Control+Y");
+  assert.equal(redo.completion.text, "N");
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-explicit-hidden-hydrogen-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 0, numHydrogensOverride: 0, labelText: "N", labelSourceText: "N" },
+  ]);
+});
+
+test("the bond reaction matrix kills wrong-enum, missing-annotation, and missing-history mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-history-persistence-production.json"));
+  const initialMenu = scenario.actions.find((action) => action.id === "open-initial-bond-reaction-menu");
+  const clearSelection = scenario.actions.find((action) => action.id === "clear-created-molecule-selection");
+  const apply = scenario.actions.find((action) => action.id === "set-make-and-change");
+  const changedMenu = scenario.actions.find((action) => action.id === "open-changed-bond-reaction-menu");
+  const undo = scenario.actions.find((action) => action.id === "undo-reaction-participation");
+  const redo = scenario.actions.find((action) => action.id === "redo-reaction-participation");
+  assert.deepEqual(initialMenu.target, { strategy: "selector", value: 'line[data-bond-id="b_3"]' });
+  assert.equal(scenario.actions.indexOf(clearSelection), scenario.actions.indexOf(initialMenu) - 1);
+  assert.deepEqual(clearSelection.target, { strategy: "world-geometry", value: "page-background" });
+  assert.equal(clearSelection.completion.selector, '[data-layer="editor-overlay"] > *');
+  assert.match(initialMenu.completion.selector, /reaction-participation:unspecified/);
+  assert.equal(apply.target.name, "Make and Change");
+  assert.equal(apply.completion.text, "Rxn");
+  assert.match(changedMenu.completion.selector, /reaction-participation:make-and-change/);
+  assert.equal(undo.key, "Control+Z");
+  assert.equal(undo.completion.value, 0);
+  assert.equal(redo.key, "Control+Y");
+  assert.equal(redo.completion.text, "Rxn");
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-make-and-change-bond-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, reactionParticipation: "make-and-change" },
+  ]);
+});
+
+test("the bond query-order matrix kills skipped-value, stale-annotation, wrong-order, and stale-persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-query-order-value-matrix-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.bond.query-order"));
+  const appliedValues = scenario.actions
+    .filter((action) => action.id.startsWith("set-"))
+    .map((action) => action.target.name);
+  assert.deepEqual(appliedValues, [
+    "Single or Double (S/D)",
+    "Single or Aromatic (S/A)",
+    "Double or Aromatic (D/A)",
+    "None",
+    "Double or Aromatic (D/A)",
+  ]);
+
+  const verifiedValues = scenario.actions
+    .filter((action) => action.id.startsWith("open-") && action.id.endsWith("-menu"))
+    .map((action) => action.completion.selector.match(/query-orders:([a-z-]+)/)?.[1]);
+  assert.deepEqual(verifiedValues, [
+    "none",
+    "single-double",
+    "single-aromatic",
+    "double-aromatic",
+    "none",
+    "double-aromatic",
+  ]);
+
+  for (const [id, text] of [
+    ["set-single-double", "S/D"],
+    ["set-single-aromatic", "S/A"],
+    ["set-double-aromatic", "D/A"],
+    ["set-final-double-aromatic", "D/A"],
+  ]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.completion.selector, 'text[data-bond-id="b_3"]');
+    assert.equal(action.completion.text, text);
+  }
+  const clear = scenario.actions.find((action) => action.id === "set-cleared-none");
+  assert.equal(clear.completion.selector, 'text[data-bond-id="b_3"]');
+  assert.equal(clear.completion.value, 0);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-double-aromatic-query-order-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, queryOrders: ["double", "aromatic"] },
+  ]);
+});
+
+test("the bond topology matrix kills skipped-value, stale-annotation, wrong-enum, and stale-persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-topology-value-matrix-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.bond.topology"));
+  const appliedValues = scenario.actions
+    .filter((action) => action.id.startsWith("set-"))
+    .map((action) => action.target.name);
+  assert.deepEqual(appliedValues, ["Ring", "Chain", "Ring or Chain", "Unspecified", "Ring or Chain"]);
+
+  const verifiedValues = scenario.actions
+    .filter((action) => action.id.startsWith("open-") && action.id.endsWith("-menu"))
+    .map((action) => action.completion.selector.match(/topology:([a-z-]+)/)?.[1]);
+  assert.deepEqual(verifiedValues, ["unspecified", "ring", "chain", "ring-or-chain", "unspecified", "ring-or-chain"]);
+
+  for (const [id, text] of [
+    ["set-ring", "Rng"],
+    ["set-chain", "Chn"],
+    ["set-ring-or-chain", "R/C"],
+    ["set-final-ring-or-chain", "R/C"],
+  ]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.completion.selector, 'text[data-bond-id="b_3"]');
+    assert.equal(action.completion.text, text);
+  }
+  const clear = scenario.actions.find((action) => action.id === "set-cleared-unspecified");
+  assert.equal(clear.completion.selector, 'text[data-bond-id="b_3"]');
+  assert.equal(clear.completion.value, 0);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-ring-or-chain-topology-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, topology: "ring-or-chain" },
+  ]);
+});
+
+test("the absolute bond stereo matrix kills skipped-value, hidden-display, stale-annotation, wrong-enum, and stale-persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-absolute-stereo-value-matrix-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.bond.absolute-stereo"));
+  assert.ok(scenario.capabilities.includes("editor.bond.visibility"));
+  assert.equal(scenario.actions.find((action) => action.id === "set-show-stereo").target.name, "Show");
+
+  const appliedValues = scenario.actions
+    .filter((action) => ["set-e", "set-z", "set-none", "set-unspecified", "set-final-z"].includes(action.id))
+    .map((action) => action.target.name);
+  assert.deepEqual(appliedValues, ["E", "Z", "None", "Unspecified", "Z"]);
+
+  const verifiedValues = scenario.actions
+    .filter((action) => action.id.startsWith("open-") && action.completion.selector?.includes("absolute-stereo:"))
+    .map((action) => action.completion.selector.match(/absolute-stereo:([a-z]+)/)?.[1]);
+  assert.deepEqual(verifiedValues, ["unspecified", "e", "z", "none", "unspecified", "z"]);
+
+  assert.equal(scenario.actions.find((action) => action.id === "set-e").completion.text, "(E)");
+  assert.equal(scenario.actions.find((action) => action.id === "set-z").completion.text, "(Z)");
+  assert.equal(scenario.actions.find((action) => action.id === "set-final-z").completion.text, "(Z)");
+  assert.equal(scenario.actions.find((action) => action.id === "set-none").completion.value, 0);
+  assert.equal(scenario.actions.find((action) => action.id === "set-unspecified").completion.value, 0);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-z-show-stereo-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, absoluteStereo: "z", showStereo: true },
+  ]);
+});
+
+test("the bond visibility matrix kills skipped-value, coupled-display, stale-annotation, and dropped-override mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-visibility-value-matrix-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.bond.visibility"));
+  for (const [prefix, expected] of [
+    ["set-query-", ["Show", "Inherit Document Setting", "Hide"]],
+    ["set-reaction-", ["Show", "Inherit Document Setting", "Hide"]],
+    ["set-stereo-", ["Hide", "Inherit Document Setting", "Show"]],
+  ]) {
+    assert.deepEqual(
+      scenario.actions.filter((action) => action.id.startsWith(prefix)).map((action) => action.target.name),
+      expected,
+    );
+  }
+
+  assert.match(scenario.actions.find((action) => action.id === "open-query-inherit-menu").completion.selector, /show-query:inherit/);
+  assert.match(scenario.actions.find((action) => action.id === "open-query-show-menu").completion.selector, /show-query:true/);
+  assert.match(scenario.actions.find((action) => action.id === "open-reaction-property-menu").completion.selector, /show-query:false/);
+  assert.match(scenario.actions.find((action) => action.id === "open-reaction-inherit-menu").completion.selector, /show-reaction:inherit/);
+  assert.match(scenario.actions.find((action) => action.id === "open-reaction-show-menu").completion.selector, /show-reaction:true/);
+  assert.match(scenario.actions.find((action) => action.id === "open-absolute-stereo-menu").completion.selector, /show-reaction:false/);
+  assert.match(scenario.actions.find((action) => action.id === "open-stereo-inherit-menu").completion.selector, /show-stereo:inherit/);
+  assert.match(scenario.actions.find((action) => action.id === "open-stereo-hide-menu").completion.selector, /show-stereo:false/);
+  assert.match(scenario.actions.find((action) => action.id === "open-final-visibility-menu").completion.selector, /show-stereo:true/);
+
+  assert.equal(scenario.actions.find((action) => action.id === "set-query-hide").completion.value, 0);
+  assert.equal(scenario.actions.find((action) => action.id === "set-reaction-hide").completion.value, 0);
+  assert.equal(scenario.actions.find((action) => action.id === "set-stereo-hide").completion.value, 0);
+  assert.equal(scenario.actions.find((action) => action.id === "set-stereo-show").completion.text, "(Z)");
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-independent-visibility-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, topology: "ring", reactionParticipation: "make-and-change", absoluteStereo: "z", showQuery: false, showReaction: false, showStereo: true },
+  ]);
+});
+
+test("the double-bond placement matrix kills skipped-value, aliased-side, stale-checkmark, and dropped-persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-double-placement-value-matrix-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.bond.double-placement"));
+  const clearSelection = scenario.actions.find((action) => action.id === "clear-created-molecule-selection");
+  const initialMenu = scenario.actions.find((action) => action.id === "open-initial-center-menu");
+  assert.equal(scenario.actions.indexOf(clearSelection), scenario.actions.indexOf(initialMenu) - 1);
+  assert.deepEqual(initialMenu.target, { strategy: "selector", value: 'line[data-bond-id="b_3"]' });
+
+  const appliedValues = scenario.actions
+    .filter((action) => action.id.startsWith("set-double-") || action.id === "set-final-double-left")
+    .map((action) => action.target.name);
+  assert.deepEqual(appliedValues, ["Left", "Right", "Center", "Left"]);
+
+  const verifiedValues = scenario.actions
+    .filter((action) => action.id.startsWith("open-") && action.completion.selector?.includes("data-canvas-context-value"))
+    .map((action) => action.completion.selector.match(/double-(left|right|center)/)?.[1]);
+  assert.deepEqual(verifiedValues, ["center", "left", "right", "center", "left"]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-left-double-placement-semantics").expected, [
+    { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", doublePlacement: "left", stereoKind: null, wideEnd: null },
+  ]);
+});
+
+test("the wedge endpoint-reversal cell kills ignored-click, recreated-bond, and wrong-wide-end mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-wedge-endpoint-reversal-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.endpoint-reversal"));
+  const draw = scenario.actions.find((action) => action.id === "draw-solid-wedge");
+  const reverse = scenario.actions.find((action) => action.id === "reverse-wedge-at-center");
+  assert.equal(scenario.actions.indexOf(reverse), scenario.actions.indexOf(draw) + 1);
+  assert.deepEqual(reverse.target, { strategy: "selector", value: '[data-bond-id="b_3"]' });
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-reversed-wedge-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "solid-wedge", wideEnd: "begin" },
+  ]);
+});
+
+test("the Hashed/Hollow wedge cell kills cross-kind, cross-target, recreated-bond, and wrong-wide-end mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-hashed-hollow-wedge-endpoint-reversal-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.endpoint-reversal"));
+  const reversals = scenario.actions.filter((action) => action.id.startsWith("reverse-"));
+  assert.deepEqual(reversals.map((action) => action.id), [
+    "reverse-hashed-wedge-at-center",
+    "reverse-hollow-wedge-at-center",
+  ]);
+  assert.deepEqual(reversals.map((action) => action.target.value), [
+    '[data-role="document-bond"][data-bond-id="b_3"]',
+    '[data-role="document-bond"][data-bond-id="b_6"]',
+  ]);
+  assert.deepEqual(reversals.map((action) => action.completion.value), [1, 2]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-reversed-stereo-wedge-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "hashed-wedge", wideEnd: "begin" },
+    { id: "b_6", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: "hollow-wedge", wideEnd: "begin" },
+  ]);
+});
+
+test("the Triple/Hash/Wavy replacement cell kills wrong-style, stale-double, cross-target, and recreated-bond mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-triple-hash-wavy-center-replacement-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.center-click-cycle"));
+  const replacements = scenario.actions.filter((action) => action.id.startsWith("replace-"));
+  assert.deepEqual(replacements.map((action) => action.id), [
+    "replace-first-with-triple",
+    "replace-second-with-hash",
+    "replace-third-with-wavy",
+  ]);
+  assert.deepEqual(replacements.map((action) => action.target.value), [
+    '[data-role="document-bond"][data-bond-id="b_3"]',
+    '[data-role="document-bond"][data-bond-id="b_6"]',
+    '[data-role="document-bond"][data-bond-id="b_9"]',
+  ]);
+  assert.ok(replacements.every((action) => action.completion.kind === "dom-distinct-count"));
+  assert.ok(replacements.every((action) => action.completion.attribute === "data-bond-id" && action.completion.value === 3));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-triple-hash-wavy-replacement-semantics").expected, [
+    { id: "b_3", order: 3, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
+    { id: "b_6", order: 1, mainLineStyle: "hash", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
+    { id: "b_9", order: 1, mainLineStyle: "wavy", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null },
+  ]);
+});
+
+test("the Single-tool center-click cycle kills skipped-state, duplicate-bond, and wrong-final-side mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-center-click-cycle-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.center-click-cycle"));
+  const cycleActions = scenario.actions.filter((action) => action.id.startsWith("cycle-"));
+  assert.deepEqual(cycleActions.map((action) => action.id), [
+    "cycle-single-to-left-double",
+    "cycle-left-double-to-center",
+    "cycle-center-to-right-double",
+  ]);
+  assert.ok(cycleActions.every((action) => action.target.value === '[data-bond-id="b_3"]'));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-right-double-after-center-cycle").expected, [
+    { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", doublePlacement: "right", stereoKind: null, wideEnd: null },
+  ]);
+});
+
+test("the directly drawn Dashed-solid-double cycle kills wrong-default, premature-stop, wrong-side, and stale-line-style mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-dashed-double-center-click-cycle-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.center-click-cycle"));
+  const logicalBondActions = scenario.actions.filter((action) => action.id === "draw-centered-right-dashed-cycle-target" || action.id.startsWith("cycle-"));
+  assert.deepEqual(logicalBondActions.filter((action) => action.id.startsWith("cycle-")).map((action) => action.id), [
+    "cycle-centered-right-dashed-to-left",
+    "cycle-left-to-centered-left-dashed",
+    "cycle-centered-left-dashed-to-right",
+  ]);
+  assert.ok(logicalBondActions.filter((action) => action.id.startsWith("cycle-")).every((action) => action.target.value === '[data-role="document-bond"][data-bond-id="b_3"]'));
+  assert.ok(logicalBondActions.every((action) => action.completion.kind === "dom-distinct-count"));
+  assert.ok(logicalBondActions.every((action) => action.completion.selector === "[data-bond-id]"));
+  assert.ok(logicalBondActions.every((action) => action.completion.attribute === "data-bond-id"));
+  assert.ok(logicalBondActions.every((action) => action.completion.value === 1));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-right-dashed-double-after-full-cycle").expected, [
+    { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "dashed", mainLineWeight: "normal", doublePlacement: "right", stereoKind: null, wideEnd: null },
+  ]);
+});
+
+test("the Dashed-bond style cycle kills skipped-main-dash, skipped-centered-both-dashed, wrong-exit-side, and duplicate mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-dashed-center-click-style-cycle-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.center-click-cycle"));
+  const setupActions = scenario.actions.filter((action) => action.id.startsWith("setup-"));
+  const cycleActions = scenario.actions.filter((action) => action.id.startsWith("cycle-"));
+  assert.deepEqual(setupActions.map((action) => action.id), [
+    "setup-single-to-left-double",
+    "setup-left-double-to-center",
+    "setup-center-to-right-double",
+  ]);
+  assert.deepEqual(cycleActions.map((action) => action.id), [
+    "cycle-right-solid-to-right-outer-dashed",
+    "cycle-right-outer-dashed-to-both-dashed",
+    "cycle-right-both-dashed-to-centered-both-dashed",
+    "cycle-centered-both-dashed-to-left-outer-dashed",
+  ]);
+  const logicalClicks = [...setupActions, ...cycleActions];
+  assert.ok(logicalClicks.every((action) => action.target.value === '[data-role="document-bond"][data-bond-id="b_3"]'));
+  assert.ok(logicalClicks.every((action) => action.completion.kind === "dom-distinct-count"));
+  assert.ok(logicalClicks.every((action) => action.completion.attribute === "data-bond-id" && action.completion.value === 1));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-left-outer-dashed-after-full-style-cycle").expected, [
+    { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "dashed", rightLineStyle: "solid", mainLineWeight: "normal", doublePlacement: "left", stereoKind: null, wideEnd: null },
+  ]);
+});
+
+test("the Bold-bond style cycle kills skipped-centered states, wrong-exit-side, stale-weight, and duplicate mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-bold-center-click-style-cycle-production.json"));
+  assert.ok(scenario.coverage.features.includes("editor.bond.center-click-cycle"));
+  const cycleActions = scenario.actions.filter((action) => action.id.startsWith("cycle-"));
+  assert.deepEqual(cycleActions.map((action) => action.id), [
+    "cycle-plain-single-to-bold-single",
+    "cycle-bold-single-to-right-main-bold",
+    "cycle-right-main-bold-to-centered-right-outer-bold",
+    "cycle-centered-right-outer-bold-to-left-main-bold",
+    "cycle-left-main-bold-to-centered-left-outer-bold",
+    "cycle-centered-left-outer-bold-to-right-main-bold",
+  ]);
+  assert.ok(cycleActions.every((action) => action.target.value === '[data-role="document-bond"][data-bond-id="b_3"]'));
+  assert.ok(cycleActions.every((action) => action.completion.kind === "dom-distinct-count"));
+  assert.ok(cycleActions.every((action) => action.completion.attribute === "data-bond-id" && action.completion.value === 1));
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-right-main-bold-after-full-style-cycle").expected, [
+    { id: "b_3", order: 2, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "bold", doublePlacement: "right", stereoKind: null, wideEnd: null },
+  ]);
+});
+
+test("the bond reaction value matrix kills skipped-value, wrong-display, and stale-persistence mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "bond-reaction-participation-value-matrix-production.json"));
+  const appliedValues = scenario.actions
+    .filter((action) => action.id.startsWith("set-"))
+    .map((action) => action.target.name);
+  assert.deepEqual(appliedValues, [
+    "Reaction Center",
+    "Unspecified",
+    "Make or Break",
+    "Change Type",
+    "Not Reaction Center",
+    "No Change",
+    "Unmapped",
+  ]);
+
+  const verifiedValues = scenario.actions
+    .filter((action) => action.id.startsWith("open-") && action.id.endsWith("-menu"))
+    .map((action) => action.completion.selector.match(/reaction-participation:([a-z-]+)/)?.[1]);
+  assert.deepEqual(verifiedValues, [
+    "unspecified",
+    "reaction-center",
+    "unspecified",
+    "make-or-break",
+    "change-type",
+    "not-reaction-center",
+    "no-change",
+    "unmapped",
+  ]);
+
+  for (const id of ["set-reaction-center", "set-make-or-break", "set-change-type"]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.completion.selector, 'text[data-bond-id="b_3"]');
+    assert.equal(action.completion.text, "Rxn");
+  }
+  for (const id of ["set-explicit-unspecified", "set-not-reaction-center"]) {
+    const action = scenario.actions.find((candidate) => candidate.id === id);
+    assert.equal(action.completion.selector, 'text[data-bond-id="b_3"]');
+    assert.equal(action.completion.value, 0);
+  }
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-unmapped-bond-semantics").expected, [
+    { id: "b_3", order: 1, mainLineStyle: "solid", leftLineStyle: "solid", rightLineStyle: "solid", mainLineWeight: "normal", stereoKind: null, wideEnd: null, reactionParticipation: "unmapped" },
+  ]);
+});
+
+test("the atom charge attachment matrix kills detached-symbol, stale-charge, and stale-hydrogen mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-charge-symbol-attachment-persistence-production.json"));
+  const attachment = scenario.actions.find((action) => action.id === "attach-circle-plus-to-nitrogen");
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-ammonium-node-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 3, labelText: "NH3", labelSourceText: "NH3" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-positive-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "circle-plus", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "charge", chargeDelta: 1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the negative atom charge matrix kills wrong-kind, stale-hydrogen, and detached-symbol mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-negative-charge-symbol-attachment-persistence-production.json"));
+  const oxygen = scenario.actions.find((action) => action.id === "choose-oxygen");
+  const minus = scenario.actions.find((action) => action.id === "choose-circle-minus");
+  const attachment = scenario.actions.find((action) => action.id === "attach-circle-minus-to-oxygen");
+  assert.equal(oxygen.target.value, '.periodic-element-button[data-element-symbol="O"][data-element-atomic-number="8"]');
+  assert.deepEqual(minus.target.scope, { role: "toolbar", name: "Secondary toolbar" });
+  assert.equal(minus.completion.selector, 'button[data-secondary-value="symbol-kind-circle-minus"].is-selected');
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-alkoxide-node-semantics").expected, [
+    { id: "n_2", element: "O", atomicNumber: 8, charge: -1, numHydrogens: 0, labelText: "O", labelSourceText: "O" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-negative-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "circle-minus", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "charge", chargeDelta: -1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the uncircled plus matrix kills circle-plus aliases and detached-charge mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-plus-symbol-attachment-persistence-production.json"));
+  const choice = scenario.actions.find((action) => action.id === "choose-plus");
+  const attachment = scenario.actions.find((action) => action.id === "attach-plus-to-nitrogen");
+  assert.deepEqual(choice.target.scope, { role: "toolbar", name: "Secondary toolbar" });
+  assert.equal(choice.completion.selector, 'button[data-secondary-value="symbol-kind-plus"].is-selected');
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-plus-ammonium-node-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 3, labelText: "NH3", labelSourceText: "NH3" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-plus-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "plus", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "charge", chargeDelta: 1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the uncircled minus matrix kills circle-minus aliases and detached-charge mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-minus-symbol-attachment-persistence-production.json"));
+  const choice = scenario.actions.find((action) => action.id === "choose-minus");
+  const attachment = scenario.actions.find((action) => action.id === "attach-minus-to-oxygen");
+  assert.deepEqual(choice.target.scope, { role: "toolbar", name: "Secondary toolbar" });
+  assert.equal(choice.completion.selector, 'button[data-secondary-value="symbol-kind-minus"].is-selected');
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-minus-alkoxide-node-semantics").expected, [
+    { id: "n_2", element: "O", atomicNumber: 8, charge: -1, numHydrogens: 0, labelText: "O", labelSourceText: "O" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-minus-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "minus", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "charge", chargeDelta: -1, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the radical-cation matrix kills partial-delta, stale-radical, and detached-symbol mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-radical-cation-symbol-attachment-persistence-production.json"));
+  const choice = scenario.actions.find((action) => action.id === "choose-radical-cation");
+  const attachment = scenario.actions.find((action) => action.id === "attach-radical-cation-to-nitrogen");
+  assert.deepEqual(choice.target.scope, { role: "toolbar", name: "Secondary toolbar" });
+  assert.equal(choice.completion.selector, 'button[data-secondary-value="symbol-kind-radical-cation"].is-selected');
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-cation-node-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 1, numHydrogens: 2, radicalCount: 1, labelText: "NH2", labelSourceText: "NH2" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-cation-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "radical-cation", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "radical-cation", chargeDelta: 1, radicalDelta: 1, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the radical-anion matrix kills ordinary-minus aliases, partial-delta, stale-radical, and detached-symbol mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-radical-anion-symbol-attachment-persistence-production.json"));
+  const choice = scenario.actions.find((action) => action.id === "choose-radical-anion");
+  const attachment = scenario.actions.find((action) => action.id === "attach-radical-anion-to-nitrogen");
+  assert.deepEqual(choice.target.scope, { role: "toolbar", name: "Secondary toolbar" });
+  assert.equal(choice.completion.selector, 'button[data-secondary-value="symbol-kind-radical-anion"].is-selected');
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-anion-node-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: -1, numHydrogens: 0, radicalCount: 1, labelText: "N", labelSourceText: "N" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-radical-anion-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "radical-anion", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "radical-anion", chargeDelta: -1, radicalDelta: 1, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the electron matrix kills accidental-charge, stale-hydrogen, missing-radical, and detached-symbol mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-electron-symbol-attachment-persistence-production.json"));
+  const choice = scenario.actions.find((action) => action.id === "choose-electron");
+  const attachment = scenario.actions.find((action) => action.id === "attach-electron-to-nitrogen");
+  assert.deepEqual(choice.target.scope, { role: "toolbar", name: "Secondary toolbar" });
+  assert.equal(choice.completion.selector, 'button[data-secondary-value="symbol-kind-electron"].is-selected');
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-electron-node-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 1, radicalCount: 1, labelText: "NH", labelSourceText: "NH" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-electron-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "electron", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "radical", chargeDelta: 0, radicalDelta: 1, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the lone-pair matrix kills accidental charge, radical, hydrogen-removal, and detached-symbol mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-lone-pair-symbol-attachment-persistence-production.json"));
+  const choice = scenario.actions.find((action) => action.id === "choose-lone-pair");
+  const attachment = scenario.actions.find((action) => action.id === "attach-lone-pair-to-nitrogen");
+  assert.deepEqual(choice.target.scope, { role: "toolbar", name: "Secondary toolbar" });
+  assert.equal(choice.completion.selector, 'button[data-secondary-value="symbol-kind-lone-pair"].is-selected');
+  assert.ok(Math.abs(attachment.at.x - 0.37257) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-lone-pair-node-semantics").expected, [
+    { id: "n_2", element: "N", atomicNumber: 7, charge: 0, numHydrogens: 2, radicalCount: 0, labelText: "NH2", labelSourceText: "NH2" },
+  ]);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-lone-pair-symbol-attachment-semantics").expected, [
+    { id: "obj_symbol_4", kind: "lone-pair", payloadFill: "#000000", symbolStyle: "default", chemicalRole: "lone-pair", chargeDelta: 0, radicalDelta: 0, attachedAtomId: "n_2", attachmentSource: "auto" },
+  ]);
+});
+
+test("the chain matrix kills fixed-length and off-by-one drag-count mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "chain-drag-count-persistence-production.json"));
+  const activation = scenario.actions.find((action) => action.id === "activate-chain-tool");
+  const drag = scenario.actions.find((action) => action.id === "drag-four-bond-chain");
+  assert.equal(activation.completion.selector, 'button[data-tool="chain"].is-active');
+  assert.ok(Math.abs((drag.to.x - drag.from.x) - 0.145) < Number.EPSILON);
+  assert.equal(drag.completion.value, 4);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
+    nodes: 5,
+    bonds: 4,
+    molecules: 1,
+    objects: 1,
+  });
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-chain-single-bond-semantics").expected.map(({ id, order }) => [id, order]),
+    [["b_6", 1], ["b_7", 1], ["b_8", 1], ["b_9", 1]],
+  );
+});
+
+test("the continued-chain matrix kills endpoint-miss and disconnected-chain mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "chain-endpoint-attachment-continuation-production.json"));
+  const baseDrag = scenario.actions.find((action) => action.id === "drag-base-four-bond-chain");
+  const continuedDrag = scenario.actions.find((action) => action.id === "drag-continued-four-bond-chain-from-endpoint");
+  assert.equal(baseDrag.completion.value, 4);
+  assert.equal(continuedDrag.completion.value, 8);
+  assert.ok(Math.abs((continuedDrag.to.x - continuedDrag.from.x) - 0.145) < Number.EPSILON);
+  assert.deepEqual(scenario.oracles.find((oracle) => oracle.kind === "document-counts").expected, {
+    nodes: 9,
+    bonds: 8,
+    molecules: 1,
+    objects: 1,
+  });
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-continued-chain-single-bond-semantics").expected.map(({ id, order }) => [id, order]),
+    [["b_14", 1], ["b_15", 1], ["b_16", 1], ["b_17", 1]],
+  );
 });
 
 test("aggregate scheduler limits fail closed at 10 CPU units and 30 GiB", () => {

@@ -1,10 +1,9 @@
-use crate::{
-    AgentAttestation, ForegroundProcess, InputGuard, AGENT_PROTOCOL, AUTHORIZED_ACCOUNT_SUFFIX,
-};
+use crate::{AgentAttestation, ForegroundProcess, InputGuard, AGENT_PROTOCOL};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::path::PathBuf;
 use std::ptr::{null, null_mut};
+use std::sync::OnceLock;
 use std::thread;
 use std::time::Duration;
 use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, FALSE, POINT, RECT, TRUE};
@@ -24,24 +23,51 @@ use windows_sys::Win32::System::Threading::{
     QueryFullProcessImageNameW, TerminateProcess, PROCESS_QUERY_LIMITED_INFORMATION,
     PROCESS_TERMINATE,
 };
+use windows_sys::Win32::UI::HiDpi::{
+    SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
+};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
     KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
     MAPVK_VK_TO_VSC_EX, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN,
-    MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_CONTROL,
-    VK_DELETE, VK_DOWN, VK_ESCAPE, VK_LEFT, VK_MENU, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_TAB, VK_UP,
+    MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_BACK,
+    VK_CONTROL, VK_DELETE, VK_DOWN, VK_ESCAPE, VK_LEFT, VK_MENU, VK_RETURN, VK_RIGHT, VK_SHIFT,
+    VK_TAB, VK_UP,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, EnumWindows, GetClassNameW, GetClientRect, GetForegroundWindow,
     GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsWindow, IsWindowVisible,
-    PostMessageW, SetCursorPos, SetForegroundWindow, SetWindowPos, ShowWindowAsync, HWND_NOTOPMOST,
+    PostMessageW, SetCursorPos, SetForegroundWindow, SetProcessDPIAware, SetWindowPos, ShowWindowAsync, HWND_NOTOPMOST,
     HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_RESTORE, WM_CLOSE,
 };
+
+pub fn initialize_process() {
+    // UI Automation and SendInput use physical screen coordinates. Mark every
+    // short-lived and persistent agent process DPI-aware before it observes a
+    // foreground rectangle so high-DPI physical workers retain one coordinate
+    // system. A false return only means Windows fixed awareness earlier.
+    unsafe { SetProcessDPIAware() };
+}
 
 fn last_error(context: &str) -> String {
     format!("{context} failed with Windows error {}", unsafe {
         GetLastError()
     })
+}
+
+fn enable_physical_pixel_coordinates() -> Result<(), String> {
+    static DPI_AWARENESS: OnceLock<Result<(), String>> = OnceLock::new();
+    DPI_AWARENESS
+        .get_or_init(|| {
+            if unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }
+                == 0
+            {
+                Err(last_error("SetProcessDpiAwarenessContext"))
+            } else {
+                Ok(())
+            }
+        })
+        .clone()
 }
 
 fn wide_string(buffer: &[u16], length: usize) -> String {
@@ -225,6 +251,7 @@ fn foreground_process() -> Result<Option<ForegroundProcess>, String> {
 }
 
 pub fn attest() -> Result<AgentAttestation, String> {
+    enable_physical_pixel_coordinates()?;
     let process_id = unsafe { GetCurrentProcessId() };
     let mut session_id = 0u32;
     if unsafe { ProcessIdToSessionId(process_id, &mut session_id) } == 0 {
@@ -279,6 +306,41 @@ fn send_mouse(flags: u32) -> Result<(), String> {
     Ok(())
 }
 
+const CLICK_CURSOR_SETTLE: Duration = Duration::from_millis(25);
+const CLICK_BUTTON_DWELL: Duration = Duration::from_millis(25);
+
+fn deliver_click_with_timing(
+    down: u32,
+    up: u32,
+    mut send: impl FnMut(u32) -> Result<(), String>,
+    mut wait: impl FnMut(Duration),
+) -> Result<(), String> {
+    // SetCursorPos followed immediately by a zero-dwell down/up pair can be
+    // accepted by SendInput without WebView2 dispatching a DOM click. Preserve
+    // the real OS input path while giving the compositor one bounded interval
+    // to settle the cursor and the control one interval to observe button-down.
+    wait(CLICK_CURSOR_SETTLE);
+    send(down)?;
+    wait(CLICK_BUTTON_DWELL);
+    send(up)
+}
+
+const TEXT_INPUT_EVENT_SETTLE: Duration = Duration::from_millis(100);
+
+fn settle_after_text_input(mut wait: impl FnMut(Duration)) {
+    // SendInput can return after accepting a Unicode batch while WebView2 is
+    // still draining its key/input event queue. A following click or Escape
+    // can otherwise be swallowed even though CDP already observes input.value.
+    wait(TEXT_INPUT_EVENT_SETTLE);
+}
+
+fn uses_virtual_key_input(virtual_key: u16) -> bool {
+    matches!(
+        virtual_key,
+        VK_DELETE | VK_LEFT | VK_RIGHT | VK_UP | VK_DOWN
+    )
+}
+
 fn send_key_event(virtual_key: u16, flags: u32) -> Result<(), String> {
     // Physical scan-code injection is stable across keyboard layouts and matches
     // the hardware path used by an actual keyboard more closely than a bare VK.
@@ -293,13 +355,28 @@ fn send_key_event(virtual_key: u16, flags: u32) -> Result<(), String> {
     } else {
         0
     };
+    // WebView2 on a physical Windows desktop does not consistently surface an
+    // injected extended Delete scan code as a DOM `Delete` key. Preserve the
+    // OS SendInput path, but retain VK_DELETE in wVk so the window receives the
+    // same logical key used by native menu accelerators and browser key events.
+    let use_virtual_key = uses_virtual_key_input(virtual_key);
     let input = INPUT {
         r#type: INPUT_KEYBOARD,
         Anonymous: INPUT_0 {
             ki: KEYBDINPUT {
-                wVk: 0,
-                wScan: (mapped & 0xff) as u16,
-                dwFlags: flags | KEYEVENTF_SCANCODE | extended,
+                wVk: if use_virtual_key { virtual_key } else { 0 },
+                wScan: if use_virtual_key {
+                    0
+                } else {
+                    (mapped & 0xff) as u16
+                },
+                dwFlags: flags
+                    | extended
+                    | if use_virtual_key {
+                        0
+                    } else {
+                        KEYEVENTF_SCANCODE
+                    },
                 time: 0,
                 dwExtraInfo: 0,
             },
@@ -335,6 +412,7 @@ fn parse_shortcut(shortcut: &str) -> Result<(Vec<u16>, u16), String> {
     let normalized = key.to_ascii_lowercase();
     let key_code = match normalized.as_str() {
         "delete" => VK_DELETE,
+        "backspace" => VK_BACK,
         "escape" => VK_ESCAPE,
         "enter" => VK_RETURN,
         "tab" => VK_TAB,
@@ -421,6 +499,7 @@ pub fn text(guard: &InputGuard, value: &str) -> Result<AgentAttestation, String>
     if sent as usize != inputs.len() {
         return Err(last_error("SendInput(text)"));
     }
+    settle_after_text_input(thread::sleep);
     let after = attest()?;
     crate::validate_input_guard(&after, guard)?;
     Ok(after)
@@ -536,7 +615,10 @@ fn validate_point(attestation: &AgentAttestation, x: i32, y: i32) -> Result<(), 
         .ok_or_else(|| "no foreground window is available".to_string())?
         .rect;
     if x < rect[0] || y < rect[1] || x >= rect[2] || y >= rect[3] {
-        return Err("input point is outside the authorized foreground window".to_string());
+        return Err(format!(
+            "input point ({x},{y}) is outside the authorized foreground window [{},{},{},{}]",
+            rect[0], rect[1], rect[2], rect[3]
+        ));
     }
     Ok(())
 }
@@ -557,8 +639,7 @@ pub fn click(
     let (down, up) = button_flags(button)?;
     let modifier_keys = parse_pointer_modifiers(modifiers)?;
     with_modifier_keys(&modifier_keys, || {
-        send_mouse(down)?;
-        send_mouse(up)
+        deliver_click_with_timing(down, up, send_mouse, thread::sleep)
     })?;
     let after = attest()?;
     crate::validate_input_guard(&after, guard)?;
@@ -663,11 +744,12 @@ pub fn activate(guard: &InputGuard) -> Result<AgentAttestation, String> {
 }
 
 pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
+    const DEDICATED_GUEST_ACCOUNT_SUFFIX: &str = "\\chemsema-test";
     let before = attest()?;
     if !before
         .account
         .to_ascii_lowercase()
-        .ends_with(AUTHORIZED_ACCOUNT_SUFFIX)
+        .ends_with(DEDICATED_GUEST_ACCOUNT_SUFFIX)
         || before.session_id == 0
         || before.input_desktop.as_deref() != Some("Default")
     {
@@ -728,9 +810,12 @@ pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        parse_pointer_modifiers, parse_shortcut, retryable_window_snapshot_error,
-        validate_text_input, VK_CONTROL, VK_MENU, VK_SHIFT,
+        deliver_click_with_timing, parse_pointer_modifiers, parse_shortcut,
+        retryable_window_snapshot_error, settle_after_text_input, uses_virtual_key_input,
+        validate_text_input, CLICK_BUTTON_DWELL, CLICK_CURSOR_SETTLE, TEXT_INPUT_EVENT_SETTLE,
+        VK_BACK, VK_CONTROL, VK_DELETE, VK_DOWN, VK_LEFT, VK_MENU, VK_RIGHT, VK_SHIFT, VK_UP,
     };
+    use std::cell::RefCell;
 
     #[test]
     fn only_invalid_window_handles_are_retried_during_snapshot_capture() {
@@ -746,9 +831,14 @@ mod tests {
     fn keyboard_shortcuts_are_allowlisted_and_secure_attention_is_forbidden() {
         assert!(parse_shortcut("Control+Z").is_ok());
         assert!(parse_shortcut("Shift+ArrowLeft").is_ok());
+        assert_eq!(parse_shortcut("Backspace").unwrap().1, VK_BACK);
         assert!(parse_shortcut("Alt+F4").is_err());
         assert!(parse_shortcut("Control+Alt+Delete").is_err());
         assert!(parse_shortcut("Meta+R").is_err());
+        for key in [VK_DELETE, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN] {
+            assert!(uses_virtual_key_input(key));
+        }
+        assert!(!uses_virtual_key_input(b'A' as u16));
     }
 
     #[test]
@@ -778,6 +868,43 @@ mod tests {
             vec![VK_CONTROL, VK_MENU]
         );
         assert!(parse_pointer_modifiers("Windows").is_err());
+    }
+
+    #[test]
+    fn physical_click_settles_before_down_and_dwells_before_up() {
+        let events = RefCell::new(Vec::new());
+        deliver_click_with_timing(
+            10,
+            20,
+            |flag| {
+                events.borrow_mut().push(format!("send:{flag}"));
+                Ok(())
+            },
+            |duration| {
+                events
+                    .borrow_mut()
+                    .push(format!("wait:{}", duration.as_millis()))
+            },
+        )
+        .unwrap();
+        assert!(CLICK_CURSOR_SETTLE >= std::time::Duration::from_millis(20));
+        assert!(CLICK_BUTTON_DWELL >= std::time::Duration::from_millis(20));
+        assert_eq!(
+            events.into_inner(),
+            vec!["wait:25", "send:10", "wait:25", "send:20"]
+        );
+    }
+
+    #[test]
+    fn unicode_text_input_settles_before_the_next_physical_action() {
+        let waits = RefCell::new(Vec::new());
+        settle_after_text_input(|duration| waits.borrow_mut().push(duration));
+        assert!(TEXT_INPUT_EVENT_SETTLE >= std::time::Duration::from_millis(100));
+        assert_eq!(
+            waits.into_inner(),
+            vec![std::time::Duration::from_millis(100)]
+        );
+        assert!(include_str!("windows.rs").contains("settle_after_text_input(thread::sleep);"));
     }
 }
 

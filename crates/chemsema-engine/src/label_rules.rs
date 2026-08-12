@@ -265,13 +265,23 @@ fn split_compact_label_groups(compact: &str) -> Vec<String> {
                 continue;
             }
         }
-        if let Some(prefix_len) = crate::label_group_prefix_len(rest) {
-            if !current.is_empty() {
-                groups.push(std::mem::take(&mut current));
+        // Formula aliases such as CH3 may also be registered as named
+        // fragments (for example methyl). In directional node-label layout,
+        // the explicit element-hydrogen spelling remains a formula: C is the
+        // attachment group and H3 is the movable group. Let the normal
+        // uppercase boundary splitter handle it instead of collapsing the
+        // alias into one indivisible display token.
+        let leading_element_hydrogen_formula =
+            groups.is_empty() && current.is_empty() && starts_with_element_hydrogen_formula(rest);
+        if !leading_element_hydrogen_formula {
+            if let Some(prefix_len) = crate::label_group_prefix_len(rest) {
+                if !current.is_empty() {
+                    groups.push(std::mem::take(&mut current));
+                }
+                groups.push(rest[..prefix_len].to_string());
+                index += prefix_len;
+                continue;
             }
-            groups.push(rest[..prefix_len].to_string());
-            index += prefix_len;
-            continue;
         }
         let Some(character) = rest.chars().next() else {
             break;
@@ -289,6 +299,24 @@ fn split_compact_label_groups(compact: &str) -> Vec<String> {
         groups.push(current);
     }
     groups
+}
+
+fn starts_with_element_hydrogen_formula(text: &str) -> bool {
+    let mut chars = text.char_indices();
+    let Some((_, first)) = chars.next() else {
+        return false;
+    };
+    if !first.is_ascii_uppercase() {
+        return false;
+    }
+    let mut symbol_end = first.len_utf8();
+    if let Some((index, second)) = chars.next() {
+        if second.is_ascii_lowercase() {
+            symbol_end = index + second.len_utf8();
+        }
+    }
+    crate::engine::element_symbol_info(&text[..symbol_end]).is_some()
+        && text[symbol_end..].starts_with('H')
 }
 
 pub fn reverse_label_groups(text: &str) -> String {
@@ -643,6 +671,7 @@ mod tests {
         assert_eq!(split_label_groups("OCH3"), vec!["O", "CH3"]);
         assert_eq!(split_label_groups("TMSOPh"), vec!["TMS", "O", "Ph"]);
         assert_eq!(split_label_groups("CF3"), vec!["C", "F3"]);
+        assert_eq!(split_label_groups("CH3"), vec!["C", "H3"]);
         assert_eq!(split_label_groups("N(PhSO2)2"), vec!["N", "(PhSO2)2"]);
         assert_eq!(split_label_groups("C10H21"), vec!["C10H21"]);
         assert_eq!(split_label_groups("C10H21O3"), vec!["C10H21", "O3"]);

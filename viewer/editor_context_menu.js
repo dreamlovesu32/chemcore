@@ -39,6 +39,12 @@ export function contextSubmenuPlacement(entryRect, submenuRect, bounds, margin =
   };
 }
 
+export function contextMenuShouldRestoreCanvasFocus(activeElement, documentRoot) {
+  return !activeElement
+    || activeElement === documentRoot?.body
+    || activeElement === documentRoot?.documentElement;
+}
+
 export function createCanvasContextMenuHost(options) {
   let activeContextMenuState = null;
 
@@ -167,15 +173,19 @@ export function createCanvasContextMenuHost(options) {
     canvasContextMenu.hidden = true;
   }
 
-  async function finishTemporaryContextSelection() {
-    if (!activeContextMenuState?.temporarySelection) {
-      activeContextMenuState = null;
-      return;
+  function restoreCanvasFocusIfUnowned() {
+    if (contextMenuShouldRestoreCanvasFocus(document.activeElement, document)) {
+      options.focusCanvas?.();
     }
+  }
+
+  async function finishTemporaryContextSelection() {
+    const temporarySelection = activeContextMenuState?.temporarySelection;
     activeContextMenuState = null;
-    if (await options.state().editorEngine?.clearSelection?.()) {
+    if (temporarySelection && await options.state().editorEngine?.clearSelection?.()) {
       await options.renderSelectionOnlyUpdate?.();
     }
+    restoreCanvasFocusIfUnowned();
   }
 
   function closeCanvasContextMenu() {

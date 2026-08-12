@@ -51,6 +51,120 @@ fn element_tool_places_selected_element_with_chemdraw_hydrogens() {
 }
 
 #[test]
+fn radical_updates_generated_carbon_formula_hydrogens_and_label() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "C".to_string(),
+        element_atomic_number: 6,
+        ..ToolState::default()
+    });
+    click(&mut engine, 40.0, 50.0);
+    engine.select_at_point(Point::new(40.0, 50.0), false);
+
+    for (radical, hydrogens, formula) in [
+        ("singlet", 2, "CH2"),
+        ("doublet", 3, "CH3"),
+        ("triplet", 2, "CH2"),
+        ("none", 4, "CH4"),
+    ] {
+        assert!(engine.set_atom_property_for_selection("radical", Some(radical)));
+        let fragment = engine
+            .state()
+            .document
+            .editable_fragment()
+            .expect("blank document has an editable fragment")
+            .fragment;
+        let node = &fragment.nodes[0];
+        assert_eq!(node.num_hydrogens, hydrogens, "{radical}");
+        assert_eq!(
+            node.label
+                .as_ref()
+                .and_then(|label| label.source_text.as_deref()),
+            Some(formula),
+            "{radical}"
+        );
+        assert_eq!(
+            node.label
+                .as_ref()
+                .and_then(|label| label.meta.pointer("/implicitHydrogenLabel/userEdited"))
+                .and_then(serde_json::Value::as_bool),
+            Some(false),
+            "{radical}"
+        );
+        assert!(
+            node.meta.get("labelRecognition").is_none(),
+            "{radical} formula should remain chemically valid: {:?}",
+            node.meta
+        );
+    }
+}
+
+#[test]
+fn free_sites_update_generated_carbon_formula_hydrogens_and_label() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "C".to_string(),
+        element_atomic_number: 6,
+        ..ToolState::default()
+    });
+    click(&mut engine, 40.0, 50.0);
+    engine.select_at_point(Point::new(40.0, 50.0), false);
+
+    assert!(engine.set_atom_property_for_selection("free-sites", Some("2")));
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("blank document has an editable fragment")
+        .fragment;
+    let node = &fragment.nodes[0];
+    assert_eq!(node.atom_properties.free_sites, Some(2));
+    assert_eq!(node.num_hydrogens, 2);
+    assert_eq!(
+        node.label
+            .as_ref()
+            .and_then(|label| label.source_text.as_deref()),
+        Some("CH2")
+    );
+
+    assert!(engine.undo());
+    let node = &engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("blank document has an editable fragment")
+        .fragment
+        .nodes[0];
+    assert_eq!(node.atom_properties.free_sites, None);
+    assert_eq!(node.num_hydrogens, 4);
+    assert_eq!(
+        node.label
+            .as_ref()
+            .and_then(|label| label.source_text.as_deref()),
+        Some("CH4")
+    );
+
+    assert!(engine.redo());
+    let node = &engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("blank document has an editable fragment")
+        .fragment
+        .nodes[0];
+    assert_eq!(node.atom_properties.free_sites, Some(2));
+    assert_eq!(node.num_hydrogens, 2);
+    assert_eq!(
+        node.label
+            .as_ref()
+            .and_then(|label| label.source_text.as_deref()),
+        Some("CH2")
+    );
+}
+
+#[test]
 fn element_tool_replaces_focused_endpoint_without_adding_node() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
@@ -102,6 +216,44 @@ fn element_tool_replaces_focused_endpoint_without_adding_node() {
             .as_ref()
             .and_then(|label| label.source_text.as_deref()),
         Some("SeH")
+    );
+}
+
+#[test]
+fn element_tool_uses_shared_directional_layout_on_left_endpoint() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, FIRST_START_X, FIRST_START_Y);
+    let node_id = node_id_at(&engine, Point::new(FIRST_START_X, FIRST_START_Y))
+        .expect("left terminal node should exist");
+
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "N".to_string(),
+        element_atomic_number: 7,
+        ..ToolState::default()
+    });
+    hover(&mut engine, FIRST_START_X, FIRST_START_Y);
+    click(&mut engine, FIRST_START_X, FIRST_START_Y);
+
+    let node = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist")
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == node_id)
+        .expect("replaced node should still exist");
+    let label = node.label.as_ref().expect("nitrogen label should exist");
+    assert_eq!(label.source_text.as_deref(), Some("NH2"));
+    assert_eq!(label.text, "H2N");
+    assert_eq!(label.attachment.as_deref(), Some("node"));
+    let nitrogen = label_glyph_box(label, 2);
+    assert!(
+        nitrogen[0] <= node.position[0] && node.position[0] <= nitrogen[2],
+        "the element glyph, not the hydrogen suffix, must own the bond attachment: {label:?}"
     );
 }
 
@@ -1394,13 +1546,15 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
             "mixed orbital values must not claim a uniform {label}: {menu}"
         );
     }
-    assert!(menu.as_array().is_some_and(|items| items.iter().all(|item| {
-        item.get("label").and_then(serde_json::Value::as_str) != Some("Shape Style")
-    })));
+    assert!(menu
+        .as_array()
+        .is_some_and(|items| items.iter().all(|item| {
+            item.get("label").and_then(serde_json::Value::as_str) != Some("Shape Style")
+        })));
 
     assert!(engine.apply_orbital_template_to_selection("dz2"));
-    let rendered_after_template = serde_json::to_string(&engine.render_list())
-        .expect("retargeted orbitals should render");
+    let rendered_after_template =
+        serde_json::to_string(&engine.render_list()).expect("retargeted orbitals should render");
     for id in ["obj_shape_orbital_1", "obj_shape_orbital_2"] {
         assert!(
             rendered_after_template.contains(id),
@@ -1410,9 +1564,20 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
     assert!(engine.apply_orbital_template_to_selection("oval"));
     let rendered_after_ellipse = serde_json::to_string(&engine.render_list())
         .expect("ellipse-retargeted orbitals should render");
-    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
-        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
-    }) {
+    for object in engine
+        .state()
+        .document
+        .scene_objects()
+        .into_iter()
+        .filter(|object| {
+            object
+                .payload
+                .extra
+                .get("kind")
+                .and_then(serde_json::Value::as_str)
+                == Some("orbital")
+        })
+    {
         assert!(rendered_after_ellipse.contains(&object.id));
         assert!(object.payload.extra.get("center").is_some());
         assert!(object.payload.extra.get("majorAxisEnd").is_some());
@@ -1422,23 +1587,50 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
     }
     assert!(engine.apply_orbital_template_to_selection("dz2"));
     assert!(engine.apply_orbital_style_to_selection("filled"));
-    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
-        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
-    }) {
+    for object in engine
+        .state()
+        .document
+        .scene_objects()
+        .into_iter()
+        .filter(|object| {
+            object
+                .payload
+                .extra
+                .get("kind")
+                .and_then(serde_json::Value::as_str)
+                == Some("orbital")
+        })
+    {
         let style = engine
             .state()
             .document
             .styles
-            .get(object.style_ref.as_deref().expect("filled orbital style reference"))
+            .get(
+                object
+                    .style_ref
+                    .as_deref()
+                    .expect("filled orbital style reference"),
+            )
             .expect("filled orbital style should exist");
         assert_eq!(style["fill"], "#000000");
         assert_eq!(style["stroke"], serde_json::Value::Null);
     }
     assert!(engine.apply_orbital_style_to_selection("shaded"));
     assert!(engine.apply_orbital_phase_to_selection("minus"));
-    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
-        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
-    }) {
+    for object in engine
+        .state()
+        .document
+        .scene_objects()
+        .into_iter()
+        .filter(|object| {
+            object
+                .payload
+                .extra
+                .get("kind")
+                .and_then(serde_json::Value::as_str)
+                == Some("orbital")
+        })
+    {
         assert_eq!(object.payload.extra["orbitalTemplate"], "dz2");
         assert_eq!(object.payload.extra["orbitalStyle"], "shaded");
         assert_eq!(object.payload.extra["orbitalPhase"], "minus");
@@ -1446,7 +1638,12 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
             .state()
             .document
             .styles
-            .get(object.style_ref.as_deref().expect("orbital style reference"))
+            .get(
+                object
+                    .style_ref
+                    .as_deref()
+                    .expect("orbital style reference"),
+            )
             .expect("orbital style should exist");
         assert_eq!(style["kind"], "shape");
         assert_eq!(style["shaded"], true);
@@ -1495,7 +1692,10 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
         .flatten()
         .find(|item| item.get("value").and_then(serde_json::Value::as_str) == Some("minus"))
         .expect("minus phase should remain public after undo");
-    assert_ne!(minus["checked"], true, "undo must restore the mixed original phases");
+    assert_ne!(
+        minus["checked"], true,
+        "undo must restore the mixed original phases"
+    );
 }
 
 #[test]

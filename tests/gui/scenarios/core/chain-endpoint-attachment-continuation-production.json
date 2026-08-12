@@ -1,0 +1,44 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.chain.endpoint-attachment-continuation.production",
+  "title": "Attach a continued four-bond chain at an existing endpoint and persist one connected molecule",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": null,
+  "capabilities": ["gui.public-input", "editor.chain.draw", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 32,
+  "actions": [
+    { "id": "activate-chain-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Chain", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"chain\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "drag-base-four-bond-chain", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.280, "y": 0.46 }, "to": { "x": 0.425, "y": 0.46 }, "steps": 12, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 4, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "drag-continued-four-bond-chain-from-endpoint", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.39283, "y": 0.46 }, "to": { "x": 0.53783, "y": 0.46 }, "steps": 12, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 8, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "eight-distinct-connected-chain-bonds-rendered", "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 8 },
+    { "id": "saved-endpoint-attached-chain-topology-counts", "kind": "document-counts", "expected": { "nodes": 9, "bonds": 8, "molecules": 1, "objects": 1 } },
+    { "id": "saved-continued-chain-single-bond-semantics", "kind": "document-bond-properties", "expected": [
+      { "id": "b_14", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_15", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_16", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_17", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.chain.draw", "editor.chain.attach-endpoint", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "molecule"],
+    "cardinalities": ["1", "many"],
+    "states": ["blank-document", "chain-preview", "existing-endpoint", "continued-chain", "saved-document"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["chain.drag-count", "bond.order", "bond.connectivity", "bond.endpoint-attachment"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

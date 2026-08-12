@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertValidDocument } from "../protocol/validate.mjs";
 import { verifyDesktopCandidateManifest } from "../../../../scripts/candidate-source-identity.mjs";
+import { candidateActionBudgetIsValid, candidateActionTransportReserveMs, minimumCandidateActionBudgetMs } from "./action-budget.mjs";
 
 const scriptPath = join(dirname(dirname(dirname(fileURLToPath(import.meta.url)))), "scripts", "hyperv-coordinator.ps1");
 const repositoryRoot = dirname(dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url))))));
@@ -369,7 +370,7 @@ export class HyperVCoordinator {
   }
 
   async cdpBridge(request) {
-    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "text", "text-state", "entity-rects-state", "trace-start", "trace-mark", "artifact-export"].includes(request?.mode)) {
+    if (!["locate", "state", "count", "count-state", "distinct-count", "distinct-count-state", "text", "text-state", "entity-rects-state", "ui-state", "trace-start", "trace-mark", "artifact-export"].includes(request?.mode)) {
       throw new Error("CDP bridge requires a supported fixed mode.");
     }
     if (["count", "count-state", "distinct-count", "distinct-count-state", "text", "text-state"].includes(request.mode)
@@ -378,6 +379,12 @@ export class HyperVCoordinator {
     }
     if (request.mode === "entity-rects-state" && (!Array.isArray(request.entityIds) || request.entityIds.length < 1 || request.entityIds.length > 16 || new Set(request.entityIds).size !== request.entityIds.length || request.entityIds.some((id) => typeof id !== "string" || !id || id.length > 128))) {
       throw new Error("CDP entity rectangle observation requires 1 to 16 unique bounded ids.");
+    }
+    if (request.mode === "ui-state") {
+      const styles = ["backgroundColor", "borderColor", "boxShadow", "cursor", "display", "fill", "opacity", "outlineColor", "outlineStyle", "outlineWidth", "pointerEvents", "stroke", "strokeWidth", "visibility"];
+      if (typeof request.selector !== "string" || !request.selector || request.selector.length > 2048) throw new Error("CDP UI state observation requires a bounded selector.");
+      if (request.referenceSelector !== undefined && (typeof request.referenceSelector !== "string" || !request.referenceSelector || request.referenceSelector.length > 2048)) throw new Error("CDP UI state reference requires a bounded selector.");
+      if (request.styleProperties !== undefined && (!Array.isArray(request.styleProperties) || request.styleProperties.length > styles.length || new Set(request.styleProperties).size !== request.styleProperties.length || request.styleProperties.some((property) => !styles.includes(property)))) throw new Error("CDP UI state styles must be unique allowlisted properties.");
     }
     if (request.mode.startsWith("distinct-count")) {
       if (typeof request.selector !== "string" || !request.selector || !["data-object-id", "data-node-id", "data-bond-id"].includes(request.attribute)) {
@@ -483,13 +490,11 @@ export class HyperVCoordinator {
   }
 
   async candidateAction(input, completion, budgetMs, actionId) {
-    const minimumTransactionBudgetMs = 30000;
-    const transportReserveMs = 15000;
-    if (!Number.isInteger(budgetMs) || budgetMs < minimumTransactionBudgetMs) {
-      throw new Error(`Candidate action end-to-end budget must be at least ${minimumTransactionBudgetMs} ms so host/guest transport cannot consume the product completion window.`);
+    if (!Number.isInteger(budgetMs) || budgetMs < minimumCandidateActionBudgetMs) {
+      throw new Error(`Candidate action end-to-end budget must be at least ${minimumCandidateActionBudgetMs} ms so host/guest transport cannot consume the product completion window.`);
     }
-    if (!Number.isInteger(budgetMs) || !Number.isInteger(completion?.timeoutMs) || completion.timeoutMs + transportReserveMs > budgetMs) {
-      throw new Error(`Candidate action completion timeout must leave ${transportReserveMs} ms inside the end-to-end action budget for target resolution and transport.`);
+    if (!candidateActionBudgetIsValid(budgetMs, completion?.timeoutMs)) {
+      throw new Error(`Candidate action completion timeout must leave ${candidateActionTransportReserveMs} ms inside the end-to-end action budget for target resolution and transport.`);
     }
     const request = { schema: "chemsema.gui.action-transaction.v1", actionId, input, completion, budgetMs };
     await assertValidDocument(request, "candidate action transaction request");

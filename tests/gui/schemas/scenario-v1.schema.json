@@ -54,8 +54,8 @@
       "additionalProperties": false,
       "required": ["strategy", "value"],
       "properties": {
-        "strategy": { "enum": ["role", "automation-id", "test-id", "entity-id", "world-geometry", "uia-automation-id"] },
-        "value": { "type": "string", "minLength": 1 },
+        "strategy": { "enum": ["role", "automation-id", "test-id", "selector", "entity-id", "bond-endpoint", "world-geometry", "uia-automation-id"] },
+        "value": { "type": "string", "minLength": 1, "maxLength": 2048 },
         "name": { "type": "string" },
         "controlType": { "type": "string", "pattern": "^ControlType\\.[A-Za-z]+$" },
         "className": { "type": "string", "minLength": 1 },
@@ -73,6 +73,10 @@
         {
           "if": { "properties": { "strategy": { "const": "uia-automation-id" } } },
           "then": { "required": ["controlType", "className"] }
+        },
+        {
+          "if": { "properties": { "strategy": { "const": "bond-endpoint" } } },
+          "then": { "properties": { "value": { "type": "string", "pattern": "^b_[A-Za-z0-9._-]{1,120}:(?:start|end)$" } } }
         }
       ]
     },
@@ -177,6 +181,7 @@
         "key": { "type": "string", "minLength": 1 },
         "text": { "type": "string", "minLength": 1, "maxLength": 4096 },
         "textSource": { "enum": ["document-output-path"] },
+        "replaceExisting": { "type": "boolean" },
         "completion": { "$ref": "#/$defs/completion" },
         "budgetMs": { "type": "integer", "minimum": 30000, "maximum": 300000 },
         "fakeEffect": {
@@ -214,6 +219,7 @@
             ]
           }
         },
+        { "if": { "properties": { "type": { "const": "text" } } }, "else": { "not": { "required": ["replaceExisting"] } } },
         { "if": { "properties": { "type": { "enum": ["click", "drag"] } } }, "else": { "not": { "required": ["modifiers"] } } },
         { "if": { "properties": { "type": { "const": "click" } } }, "else": { "not": { "required": ["at"] } } },
         {
@@ -222,14 +228,76 @@
         }
       ]
     },
+    "uiExpected": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "count": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "visibleCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "focusedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "focusWithinCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "hoverCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "disabledCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "styles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 14,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["property", "operator", "value"],
+            "properties": {
+              "property": { "enum": ["backgroundColor", "borderColor", "boxShadow", "cursor", "display", "fill", "opacity", "outlineColor", "outlineStyle", "outlineWidth", "pointerEvents", "stroke", "strokeWidth", "visibility"] },
+              "operator": { "enum": ["eq", "neq", "contains"] },
+              "value": { "type": "string", "maxLength": 256 }
+            }
+          }
+        },
+        "rect": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "minWidth": { "type": "number", "minimum": 0, "maximum": 100000 },
+            "maxWidth": { "type": "number", "minimum": 0, "maximum": 100000 },
+            "minHeight": { "type": "number", "minimum": 0, "maximum": 100000 },
+            "maxHeight": { "type": "number", "minimum": 0, "maximum": 100000 }
+          }
+        },
+        "geometry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["relation", "tolerancePx"],
+          "properties": {
+            "relation": { "enum": ["matches-reference", "contains-reference", "inside-reference", "overlaps-reference"] },
+            "tolerancePx": { "type": "number", "minimum": 0, "maximum": 256 }
+          }
+        },
+        "viewport": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "devicePixelRatio": { "type": "number", "exclusiveMinimum": 0, "maximum": 10 },
+            "minWidth": { "type": "integer", "minimum": 1, "maximum": 32768 },
+            "maxWidth": { "type": "integer", "minimum": 1, "maximum": 32768 },
+            "minHeight": { "type": "integer", "minimum": 1, "maximum": 32768 },
+            "maxHeight": { "type": "integer", "minimum": 1, "maximum": 32768 }
+          }
+        }
+      }
+    },
     "oracle": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "kind"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["dom-count", "dom-distinct-count", "no-unexpected-diagnostics", "document-counts", "document-arrow-properties", "document-text-properties", "document-shape-properties", "document-orbital-properties", "document-chromatography-properties", "document-symbol-properties", "document-bracket-properties", "document-table-properties"] },
-        "selector": { "type": "string" },
+        "kind": { "enum": ["dom-count", "dom-distinct-count", "ui-state", "no-unexpected-diagnostics", "document-counts", "document-bond-properties", "document-node-properties", "document-arrow-properties", "document-text-properties", "document-shape-properties", "document-orbital-properties", "document-chromatography-properties", "document-symbol-properties", "document-bracket-properties", "document-table-properties"] },
+        "selector": { "type": "string", "minLength": 1, "maxLength": 2048 },
+        "referenceSelector": { "type": "string", "minLength": 1, "maxLength": 2048 },
+        "uiExpected": { "$ref": "#/$defs/uiExpected" },
         "attribute": { "enum": ["data-object-id", "data-node-id", "data-bond-id"] },
         "operator": { "enum": ["eq", "gte"] },
         "value": { "type": "integer", "minimum": 0 },
@@ -244,6 +312,86 @@
                 "bonds": { "type": "integer", "minimum": 0 },
                 "molecules": { "type": "integer", "minimum": 0 },
                 "objects": { "type": "integer", "minimum": 0 }
+              }
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "element", "atomicNumber", "charge", "labelText", "labelSourceText"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/id" },
+                  "element": { "type": "string", "minLength": 1, "maxLength": 3 },
+                  "atomicNumber": { "type": "integer", "minimum": 1, "maximum": 118 },
+                  "charge": { "type": "integer", "minimum": -16, "maximum": 16 },
+                  "numHydrogens": { "type": "integer", "minimum": 0, "maximum": 32 },
+                  "numHydrogensOverride": { "type": "integer", "minimum": 0, "maximum": 32 },
+                  "radicalCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+                  "isotopeMass": { "type": "integer", "minimum": 1, "maximum": 32767 },
+                  "isotopicAbundance": { "enum": ["unspecified", "any", "natural", "enriched", "deficient", "nonnatural"] },
+                  "atomRadical": { "enum": ["none", "singlet", "doublet", "triplet"] },
+                  "atomNumber": { "type": "string", "minLength": 1, "maxLength": 128 },
+                  "showAtomNumber": { "type": "boolean" },
+                  "atomStereo": { "type": "string", "minLength": 1, "maxLength": 128 },
+                  "showAtomStereo": { "type": "boolean" },
+                  "reactionChange": { "type": "boolean" },
+                  "reactionStereo": { "enum": ["unspecified", "inversion", "retention"] },
+                  "showAtomQuery": { "type": "boolean" },
+                  "ringBondCount": { "enum": ["unspecified", "no-ring-bonds", "as-drawn", "simple-ring", "fusion", "spiro-or-higher"] },
+                  "unsaturatedBonds": { "enum": ["unspecified", "must-be-absent", "must-be-present"] },
+                  "queryTranslation": { "enum": ["equal", "broad", "narrow", "any"] },
+                  "abnormalValence": { "type": "boolean" },
+                  "elementList": { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 118 }, "uniqueItems": true, "maxItems": 118 },
+                  "elementListExcluded": { "type": "boolean" },
+                  "genericList": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 64 }, "uniqueItems": true, "maxItems": 32 },
+                  "genericListExcluded": { "type": "boolean" },
+                  "freeSites": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+                  "substituentsUpTo": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+                  "substituentsExactly": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+                  "showTerminalCarbonLabel": { "type": ["boolean", "null"] },
+                  "showNonTerminalCarbonLabel": { "type": ["boolean", "null"] },
+                  "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
+                  "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }
+                }
+              }
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "order", "mainLineStyle", "leftLineStyle", "rightLineStyle", "mainLineWeight", "stereoKind", "wideEnd"],
+                "properties": {
+                  "id": { "$ref": "#/$defs/id" },
+                  "order": { "type": "integer", "minimum": 1, "maximum": 3 },
+                  "mainLineStyle": { "enum": ["solid", "dashed", "hash", "wavy"] },
+                  "leftLineStyle": { "enum": ["solid", "dashed", "hash", "wavy"] },
+                  "rightLineStyle": { "enum": ["solid", "dashed", "hash", "wavy"] },
+                  "mainLineWeight": { "enum": ["normal", "bold"] },
+                  "doublePlacement": { "type": ["string", "null"], "enum": [null, "left", "right", "center"] },
+                  "stereoKind": { "type": ["string", "null"], "enum": [null, "solid-wedge", "hashed-wedge", "hollow-wedge"] },
+                  "wideEnd": { "type": ["string", "null"], "enum": [null, "begin", "end"] },
+                  "queryOrders": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 4,
+                    "uniqueItems": true,
+                    "items": { "enum": ["single", "aromatic", "double", "triple"] }
+                  },
+                  "topology": { "enum": ["unspecified", "ring", "chain", "ring-or-chain"] },
+                  "reactionParticipation": { "enum": ["unspecified", "reaction-center", "make-or-break", "change-type", "make-and-change", "not-reaction-center", "no-change", "unmapped"] },
+                  "absoluteStereo": { "enum": ["unspecified", "none", "e", "z"] },
+                  "showQuery": { "type": ["boolean", "null"] },
+                  "showReaction": { "type": ["boolean", "null"] },
+                  "showStereo": { "type": ["boolean", "null"] }
+                }
               }
             },
             {
@@ -337,6 +485,9 @@
                   "phase": { "enum": ["plus", "minus"] },
                   "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
                   "geometryValid": { "const": true },
+                  "axisLength": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 },
+                  "bboxSize": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000 } },
+                  "angle": { "type": "number", "minimum": -360, "maximum": 360 },
                   "fill": { "type": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
                   "stroke": { "type": ["string", "null"], "pattern": "^#[0-9a-fA-F]{6}$" },
                   "strokeWidth": { "type": "number", "minimum": 0, "maximum": 1000 },
@@ -380,14 +531,20 @@
               "items": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": ["id", "kind", "payloadFill", "styleFill", "styleKind", "symbolStyle"],
+                "required": ["id", "kind"],
+                "minProperties": 3,
                 "properties": {
                   "id": { "$ref": "#/$defs/id" },
                   "kind": { "enum": ["circle-plus", "plus", "radical-cation", "lone-pair", "circle-minus", "minus", "radical-anion", "electron"] },
                   "payloadFill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
                   "styleFill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
                   "styleKind": { "const": "symbol" },
-                  "symbolStyle": { "type": "string", "minLength": 1, "maxLength": 64 }
+                  "symbolStyle": { "type": "string", "minLength": 1, "maxLength": 64 },
+                  "chemicalRole": { "enum": ["charge", "radical", "radical-cation", "radical-anion", "lone-pair"] },
+                  "chargeDelta": { "type": "integer", "minimum": -16, "maximum": 16 },
+                  "radicalDelta": { "type": "integer", "minimum": 0, "maximum": 16 },
+                  "attachedAtomId": { "$ref": "#/$defs/id" },
+                  "attachmentSource": { "enum": ["auto", "explicit", "source"] }
                 }
               }
             },
@@ -477,7 +634,19 @@
           "then": { "required": ["attribute"] }
         },
         {
+          "if": { "properties": { "kind": { "const": "ui-state" } } },
+          "then": { "required": ["selector", "uiExpected"] }
+        },
+        {
           "if": { "properties": { "kind": { "const": "document-counts" } } },
+          "then": { "required": ["expected"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "document-bond-properties" } } },
+          "then": { "required": ["expected"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "document-node-properties" } } },
           "then": { "required": ["expected"] }
         },
         {

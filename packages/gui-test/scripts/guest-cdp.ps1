@@ -13,8 +13,25 @@ $script:PersistentCdpSocket = $null
 $script:PersistentCdpTargetUrl = $null
 $script:TraceActive = $false
 
+Add-Type -AssemblyName System.Web.Extensions
+$script:CdpJsonSerializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+$script:CdpJsonSerializer.MaxJsonLength = [int]::MaxValue
+$script:CdpJsonSerializer.RecursionLimit = 256
+
 $MaximumArtifactBytes = 64 * 1024 * 1024
 $TraceCategories = 'devtools.timeline,disabled-by-default-devtools.timeline,blink.user_timing,v8.execute,loading,latencyInfo,renderer.scheduler'
+
+function Get-Sha256Hex([string]$Path) {
+  $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+  $algorithm = [Security.Cryptography.SHA256]::Create()
+  try {
+    $hash = $algorithm.ComputeHash($stream)
+    return ($hash | ForEach-Object { $_.ToString('x2') }) -join ''
+  } finally {
+    $algorithm.Dispose()
+    $stream.Dispose()
+  }
+}
 
 function Write-CdpResult([object]$Value) {
   $Value | ConvertTo-Json -Depth 12 -Compress
@@ -34,7 +51,11 @@ function Receive-CdpMessage([Net.WebSockets.ClientWebSocket]$Socket, [Threading.
       }
       $stream.Write($buffer, 0, $received.Count)
     } while (-not $received.EndOfMessage)
-    return [Text.Encoding]::UTF8.GetString($stream.ToArray()) | ConvertFrom-Json
+    # CDP event payloads can legally contain object keys that differ only by
+    # casing. Windows PowerShell's ConvertFrom-Json treats those keys as
+    # duplicates, while JavaScriptSerializer preserves them in a
+    # case-sensitive Dictionary<string, object>.
+    return $script:CdpJsonSerializer.DeserializeObject([Text.Encoding]::UTF8.GetString($stream.ToArray()))
   } finally {
     $stream.Dispose()
   }
@@ -116,12 +137,29 @@ try {
   if ([string]::IsNullOrWhiteSpace($EncodedRequest)) { throw 'The CDP request is absent.' }
   $requestJson = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($EncodedRequest))
   $request = $requestJson | ConvertFrom-Json
-  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state', 'entity-rects-state', 'trace-start', 'trace-mark', 'artifact-export')) {
+  if ($request.mode -notin @('locate', 'state', 'count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state', 'entity-rects-state', 'ui-state', 'trace-start', 'trace-mark', 'artifact-export')) {
     throw "Unsupported CDP bridge mode '$($request.mode)'."
   }
   if ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state', 'text', 'text-state') -and
     ([string]::IsNullOrWhiteSpace([string]$request.selector) -or ([string]$request.selector).Length -gt 2048)) {
     throw 'DOM observation requires a selector of 1 to 2048 characters.'
+  }
+  if ($request.mode -eq 'ui-state') {
+    $allowedStyleProperties = @('backgroundColor', 'borderColor', 'boxShadow', 'cursor', 'display', 'fill', 'opacity', 'outlineColor', 'outlineStyle', 'outlineWidth', 'pointerEvents', 'stroke', 'strokeWidth', 'visibility')
+    if ([string]::IsNullOrWhiteSpace([string]$request.selector) -or ([string]$request.selector).Length -gt 2048) {
+      throw 'UI state observation requires a selector of 1 to 2048 characters.'
+    }
+    if ($null -ne $request.referenceSelector -and ([string]::IsNullOrWhiteSpace([string]$request.referenceSelector) -or ([string]$request.referenceSelector).Length -gt 2048)) {
+      throw 'UI state reference requires a selector of 1 to 2048 characters.'
+    }
+    $styleProperties = if ($null -eq $request.styleProperties) {
+      ,([object[]]::new(0))
+    } else {
+      ,@($request.styleProperties)
+    }
+    if ($styleProperties.Count -gt $allowedStyleProperties.Count -or @($styleProperties | Select-Object -Unique).Count -ne $styleProperties.Count -or @($styleProperties | Where-Object { $_ -notin $allowedStyleProperties }).Count -gt 0) {
+      throw 'UI state styles must be unique allowlisted properties.'
+    }
   }
   if ($request.mode -eq 'artifact-export' -and [string]$request.artifactId -notmatch '^[a-f0-9]{32}$') {
     throw 'Artifact export requires a 32-character lowercase hexadecimal identity.'
@@ -336,6 +374,63 @@ try {
   };
 })()
 "@
+    } elseif ($request.mode -eq 'ui-state') {
+      $uiRequest = [ordered]@{
+        selector = [string]$request.selector
+        referenceSelector = if ($null -ne $request.referenceSelector) { [string]$request.referenceSelector } else { $null }
+        styleProperties = $styleProperties
+      }
+      $uiRequestBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($uiRequest | ConvertTo-Json -Depth 4 -Compress)))
+      $expression = @"
+(() => {
+  const request = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob('$uiRequestBase64'), c => c.charCodeAt(0))));
+  const visible = element => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return (rect.width > 0 || rect.height > 0) && style.display !== 'none' && style.visibility !== 'hidden';
+  };
+  const rectArray = rect => [rect.left, rect.top, rect.right, rect.bottom];
+  const union = rects => rects.length ? [
+    Math.min(...rects.map(rect => rect[0])),
+    Math.min(...rects.map(rect => rect[1])),
+    Math.max(...rects.map(rect => rect[2])),
+    Math.max(...rects.map(rect => rect[3]))
+  ] : null;
+  const observe = selector => {
+    if (!selector) return null;
+    const elements = [...document.querySelectorAll(selector)].slice(0, 128);
+    const visibleElements = elements.filter(visible);
+    const rects = visibleElements.slice(0, 32).map(element => rectArray(element.getBoundingClientRect()));
+    const styleValues = {};
+    for (const property of request.styleProperties) {
+      styleValues[property] = [...new Set(visibleElements.slice(0, 32).map(element => getComputedStyle(element)[property]))];
+    }
+    return {
+      count: elements.length,
+      truncated: document.querySelectorAll(selector).length > 128,
+      visibleCount: visibleElements.length,
+      focusedCount: elements.filter(element => element === document.activeElement).length,
+      focusWithinCount: elements.filter(element => element.contains(document.activeElement)).length,
+      hoverCount: elements.filter(element => element.matches(':hover')).length,
+      disabledCount: elements.filter(element => !!element.disabled || element.getAttribute('aria-disabled') === 'true').length,
+      rects,
+      unionRect: union(rects),
+      styleValues
+    };
+  };
+  const result = observe(request.selector);
+  result.reference = observe(request.referenceSelector);
+  result.viewport = { width: innerWidth, height: innerHeight, devicePixelRatio };
+  result.windowFocused = document.hasFocus();
+  result.activeElement = {
+    tag: document.activeElement?.tagName?.toLowerCase() || null,
+    id: document.activeElement?.id || null,
+    role: document.activeElement?.getAttribute?.('role') || null,
+    ariaLabel: document.activeElement?.getAttribute?.('aria-label') || null
+  };
+  return result;
+})()
+"@
     } elseif ($request.mode -in @('count', 'count-state', 'distinct-count', 'distinct-count-state')) {
       $selectorBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$request.selector))
       $distinct = $request.mode -in @('distinct-count', 'distinct-count-state')
@@ -369,7 +464,10 @@ try {
 (() => {
   const selector = new TextDecoder().decode(Uint8Array.from(atob('$selectorBase64'), c => c.charCodeAt(0)));
   const elements = [...document.querySelectorAll(selector)];
-  return { count: elements.length, text: elements.length === 1 ? elements[0].textContent : null };
+  const textOf = element => ['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName)
+    ? element.value
+    : element.textContent;
+  return { count: elements.length, text: elements.length === 1 ? textOf(elements[0]) : null };
 })()
 "@
       if ($request.mode -eq 'text') {
@@ -381,7 +479,9 @@ try {
   const elements = [...document.querySelectorAll(selector)];
   return {
     count: elements.length,
-    text: elements.length === 1 ? elements[0].textContent : null,
+      text: elements.length === 1
+        ? (['INPUT', 'TEXTAREA', 'SELECT'].includes(elements[0].tagName) ? elements[0].value : elements[0].textContent)
+        : null,
     state: {
       revision: null,
       appScript: document.querySelector('script[type="module"]')?.src || null,
@@ -449,6 +549,60 @@ try {
       ? { left: best.x - 0.5, top: best.y - 0.5, right: best.x + 0.5, bottom: best.y + 0.5, width: 1, height: 1 }
       : null;
   };
+  const bondEndpointPointerRect = (element, endpoint) => {
+    try {
+      const length = element.getTotalLength();
+      const matrix = element.getScreenCTM();
+      if (!Number.isFinite(length) || length <= 0 || !matrix) return null;
+      let point = null;
+      if (element.tagName.toLowerCase() === 'polygon' && element.points?.numberOfItems >= 3) {
+        const points = [...Array(element.points.numberOfItems)].map((_, index) => {
+          const item = element.points.getItem(index);
+          return { x: item.x, y: item.y };
+        });
+        let farthest = null;
+        for (let left = 0; left < points.length; left += 1) {
+          for (let right = left + 1; right < points.length; right += 1) {
+            const dx = points[right].x - points[left].x;
+            const dy = points[right].y - points[left].y;
+            const distanceSquared = dx * dx + dy * dy;
+            if (!farthest || distanceSquared > farthest.distanceSquared) {
+              farthest = { dx, dy, distanceSquared };
+            }
+          }
+        }
+        if (farthest?.distanceSquared > 0) {
+          const magnitude = Math.sqrt(farthest.distanceSquared);
+          const axis = { x: farthest.dx / magnitude, y: farthest.dy / magnitude };
+          const projected = points.map(candidate => ({
+            ...candidate,
+            projection: candidate.x * axis.x + candidate.y * axis.y,
+          }));
+          const minimum = Math.min(...projected.map(candidate => candidate.projection));
+          const maximum = Math.max(...projected.map(candidate => candidate.projection));
+          const endpointBand = Math.max(1e-6, (maximum - minimum) * 0.15);
+          const centroid = candidates => ({
+            x: candidates.reduce((sum, candidate) => sum + candidate.x, 0) / candidates.length,
+            y: candidates.reduce((sum, candidate) => sum + candidate.y, 0) / candidates.length,
+          });
+          const minimumEnd = centroid(projected.filter(candidate => candidate.projection <= minimum + endpointBand));
+          const maximumEnd = centroid(projected.filter(candidate => candidate.projection >= maximum - endpointBand));
+          const first = points[0];
+          const firstToMinimum = (first.x - minimumEnd.x) ** 2 + (first.y - minimumEnd.y) ** 2;
+          const firstToMaximum = (first.x - maximumEnd.x) ** 2 + (first.y - maximumEnd.y) ** 2;
+          const start = firstToMinimum <= firstToMaximum ? minimumEnd : maximumEnd;
+          const end = start === minimumEnd ? maximumEnd : minimumEnd;
+          point = endpoint === 'start' ? start : end;
+        }
+      }
+      point ||= element.getPointAtLength(endpoint === 'start' ? 0 : length);
+      const clientPoint = new DOMPoint(point.x, point.y).matrixTransform(matrix);
+      if (!Number.isFinite(clientPoint.x) || !Number.isFinite(clientPoint.y)) return null;
+      return { left: clientPoint.x - 0.5, top: clientPoint.y - 0.5, right: clientPoint.x + 0.5, bottom: clientPoint.y + 0.5, width: 1, height: 1 };
+    } catch {
+      return null;
+    }
+  };
   const find = (query, root) => {
     if (query.strategy === 'automation-id' || query.strategy === 'test-id') {
       const element = root.querySelector('#' + CSS.escape(query.value));
@@ -456,6 +610,9 @@ try {
     }
     if (query.strategy === 'role') {
       return [...root.querySelectorAll('*')].filter(element => roleOf(element) === query.value && (!query.name || nameOf(element) === query.name));
+    }
+    if (query.strategy === 'selector') {
+      return [...root.querySelectorAll(query.value)];
     }
     if (query.strategy === 'entity-id') {
       const matches = [...root.querySelectorAll('[data-object-id="' + CSS.escape(query.value) + '"]')];
@@ -466,6 +623,18 @@ try {
       };
       const element = matches.find(candidate => candidate.hasAttribute('data-renderer') && visibleCandidate(candidate)) || matches.find(visibleCandidate);
       return element ? [element] : [];
+    }
+    if (query.strategy === 'bond-endpoint') {
+      const identity = /^(b_[A-Za-z0-9._-]{1,120}):(start|end)$/.exec(query.value);
+      if (!identity) throw new Error('Invalid bond endpoint target ' + query.value);
+      const candidates = [...root.querySelectorAll('[data-role="document-bond"][data-bond-id="' + CSS.escape(identity[1]) + '"]')]
+        .filter(visibleElement)
+        .map(element => {
+          try { return { element, length: element.getTotalLength() }; } catch { return { element, length: 0 }; }
+        })
+        .filter(candidate => Number.isFinite(candidate.length) && candidate.length > 0)
+        .sort((left, right) => right.length - left.length);
+      return candidates.length ? [candidates[0].element] : [];
     }
     if (query.strategy === 'world-geometry') {
       if (query.value !== 'page-background') throw new Error('Unsupported world geometry target ' + query.value);
@@ -486,9 +655,17 @@ try {
       ? [...element.querySelectorAll('[data-role^="document-"], [data-bond-id], [data-node-id]')]
         .find(visibleElement) || element
       : element;
+    const renderedRect = semanticPointerElement.getBoundingClientRect();
+    const selectorGeometryRect = target.strategy === 'selector'
+      && (renderedRect.width === 0 || renderedRect.height === 0)
+      ? geometryPointerRect(element)
+      : null;
+    const bondEndpointRect = target.strategy === 'bond-endpoint'
+      ? bondEndpointPointerRect(element, target.value.endsWith(':start') ? 'start' : 'end')
+      : null;
     const rect = target.strategy === 'entity-id'
-      ? geometryPointerRect(element) || semanticPointerElement.getBoundingClientRect()
-      : semanticPointerElement.getBoundingClientRect();
+      ? geometryPointerRect(element) || renderedRect
+      : bondEndpointRect || selectorGeometryRect || renderedRect;
     const style = getComputedStyle(element);
     return {
       tag: element.tagName.toLowerCase(),
@@ -577,7 +754,7 @@ try {
         if ($payload.bytes.Length -gt (64 * 1024 * 1024)) { throw "Artifact $($payload.name) exceeds 64 MiB." }
         $path = Join-Path $artifactRoot $payload.name
         [IO.File]::WriteAllBytes($path, $payload.bytes)
-        $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        $hash = Get-Sha256Hex $path
         $exported += [ordered]@{
           name = $payload.name
           mediaType = $payload.mediaType

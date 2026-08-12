@@ -1,0 +1,70 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.bond.topology-value-matrix.production",
+  "title": "Exercise every public bond topology value and persist exact semantics",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Bond topology values, their regenerated checked states, their bond-owned annotations, clearing behavior, and exact CCJS persistence had no physical production coverage.",
+  "capabilities": ["gui.public-input", "editor.bond.draw", "editor.bond.topology", "editor.context-menu", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 49,
+  "actions": [
+    { "id": "activate-single-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"bond\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-topology-target-bond", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.34, "y": 0.46 }, "to": { "x": 0.42, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "clear-created-molecule-selection", "type": "click", "target": { "strategy": "world-geometry", "value": "page-background" }, "button": "left", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-initial-unspecified-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"bond-property\"][data-canvas-context-value=\"topology:unspecified\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-ring", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-topology-for-ring", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Topology", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Topology\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-ring", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Ring", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-bond-id=\"b_3\"]", "text": "Rng", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-ring-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"topology:ring\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-chain", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-topology-for-chain", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Topology", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Topology\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-chain", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Chain", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-bond-id=\"b_3\"]", "text": "Chn", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-chain-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"topology:chain\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-ring-or-chain", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-topology-for-ring-or-chain", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Topology", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Topology\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-ring-or-chain", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Ring or Chain", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-bond-id=\"b_3\"]", "text": "R/C", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-ring-or-chain-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"topology:ring-or-chain\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-cleared-unspecified", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-topology-for-cleared-unspecified", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Topology", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Topology\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-cleared-unspecified", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Unspecified", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": "text[data-bond-id=\"b_3\"]", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-cleared-unspecified-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"topology:unspecified\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-final-ring-or-chain", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-topology-for-final-ring-or-chain", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Topology", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Topology\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-final-ring-or-chain", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Ring or Chain", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-bond-id=\"b_3\"]", "text": "R/C", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-final-ring-or-chain-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"topology:ring-or-chain\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-final-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "final-topology-annotation", "kind": "dom-count", "selector": "text[data-bond-id=\"b_3\"]", "operator": "eq", "value": 1 },
+    { "id": "saved-topology-matrix-counts", "kind": "document-counts", "expected": { "nodes": 2, "bonds": 1, "molecules": 1, "objects": 1 } },
+    { "id": "saved-ring-or-chain-topology-semantics", "kind": "document-bond-properties", "expected": [
+      { "id": "b_3", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null, "topology": "ring-or-chain" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.bond.topology", "editor.context-menu", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "atom", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "topology-unspecified", "topology-ring", "topology-chain", "topology-ring-or-chain", "topology-annotation-visible", "topology-annotation-cleared", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["bond.order", "bond.topology", "bond.query-annotation"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

@@ -634,7 +634,8 @@ fn tlc_plate_spot_drag_updates_rf() {
     assert_eq!(context_hit["selected"], false);
     engine.select_at_point(start, false);
     let selected_context_hit: serde_json::Value =
-        serde_json::from_str(&engine.context_hit_test_json(start)).expect("selected TLC context hit JSON");
+        serde_json::from_str(&engine.context_hit_test_json(start))
+            .expect("selected TLC context hit JSON");
     assert_eq!(selected_context_hit["objectId"], "obj_shape_tlc_001");
     assert_eq!(selected_context_hit["selected"], true);
 
@@ -685,7 +686,10 @@ fn tlc_plate_spot_drag_updates_rf() {
         "expected persisted rf close to {target_rf}, got {rf_after}"
     );
 
-    assert!(engine.undo(), "spot drag should be one undoable transaction");
+    assert!(
+        engine.undo(),
+        "spot drag should be one undoable transaction"
+    );
     let rf_after_undo = engine
         .state()
         .document
@@ -753,10 +757,13 @@ fn editor_gel_band_drag_updates_value_with_atomic_history() {
     assert_eq!(context_hit["selected"], false);
     engine.select_at_point(start, false);
     let selected_context_hit: serde_json::Value =
-        serde_json::from_str(&engine.context_hit_test_json(start)).expect("selected gel context hit JSON");
+        serde_json::from_str(&engine.context_hit_test_json(start))
+            .expect("selected gel context hit JSON");
     assert_eq!(selected_context_hit["objectId"], "obj_shape_1");
     assert_eq!(selected_context_hit["selected"], true);
-    let begin = engine.begin_tlc_spot_drag(start).expect("gel band drag should begin");
+    let begin = engine
+        .begin_tlc_spot_drag(start)
+        .expect("gel band drag should begin");
     assert_eq!(begin.object_id, "obj_shape_1");
     assert_eq!(begin.value_kind, "band-value");
     assert!((begin.rf - 0.5).abs() < 0.0001);

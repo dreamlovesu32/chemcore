@@ -1,0 +1,70 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.bond.query-order-value-matrix.production",
+  "title": "Exercise every public bond query-order value and persist exact semantics",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Bond query-order values, their regenerated checked states, their bond-owned annotations, clearing behavior, and exact CCJS persistence had no physical production coverage.",
+  "capabilities": ["gui.public-input", "editor.bond.draw", "editor.bond.query-order", "editor.context-menu", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 48,
+  "actions": [
+    { "id": "activate-single-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"bond\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-query-order-target-bond", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.34, "y": 0.46 }, "to": { "x": 0.42, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "clear-created-molecule-selection", "type": "click", "target": { "strategy": "world-geometry", "value": "page-background" }, "button": "left", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-initial-none-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"bond-property\"][data-canvas-context-value=\"query-orders:none\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-single-double", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-order-for-single-double", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Query Order", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Query Order\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-single-double", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Single or Double (S/D)", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-bond-id=\"b_3\"]", "text": "S/D", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-single-double-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"query-orders:single-double\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-single-aromatic", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-order-for-single-aromatic", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Query Order", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Query Order\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-single-aromatic", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Single or Aromatic (S/A)", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-bond-id=\"b_3\"]", "text": "S/A", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-single-aromatic-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"query-orders:single-aromatic\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-double-aromatic", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-order-for-double-aromatic", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Query Order", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Query Order\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-double-aromatic", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Double or Aromatic (D/A)", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-bond-id=\"b_3\"]", "text": "D/A", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-double-aromatic-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"query-orders:double-aromatic\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-cleared-none", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-order-for-cleared-none", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Query Order", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Query Order\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-cleared-none", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "None", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": "text[data-bond-id=\"b_3\"]", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-cleared-none-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"query-orders:none\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-reaction-for-final-double-aromatic", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-query-order-for-final-double-aromatic", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Query Order", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Query Order\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-final-double-aromatic", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Double or Aromatic (D/A)", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-bond-id=\"b_3\"]", "text": "D/A", "timeoutMs": 8000 }, "budgetMs": 30000 },
+
+    { "id": "open-final-double-aromatic-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-value=\"query-orders:double-aromatic\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-final-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "final-query-order-annotation", "kind": "dom-count", "selector": "text[data-bond-id=\"b_3\"]", "operator": "eq", "value": 1 },
+    { "id": "saved-query-order-matrix-topology-counts", "kind": "document-counts", "expected": { "nodes": 2, "bonds": 1, "molecules": 1, "objects": 1 } },
+    { "id": "saved-double-aromatic-query-order-semantics", "kind": "document-bond-properties", "expected": [
+      { "id": "b_3", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null, "queryOrders": ["double", "aromatic"] }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.bond.query-order", "editor.context-menu", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "atom", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "query-order-none", "query-order-single-double", "query-order-single-aromatic", "query-order-double-aromatic", "query-annotation-visible", "query-annotation-cleared", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["bond.order", "bond.query-orders", "bond.query-annotation"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

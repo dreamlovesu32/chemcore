@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 pub const AGENT_PROTOCOL: &str = "chemsema.gui.guest-agent.v1";
-pub const AUTHORIZED_ACCOUNT_SUFFIX: &str = "\\chemsema-test";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +32,7 @@ pub struct AgentAttestation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InputGuard {
+    pub expected_agent_account: String,
     pub expected_agent_session_id: u32,
     pub expected_process_id: u32,
     pub expected_executable: PathBuf,
@@ -46,10 +46,9 @@ pub fn validate_input_guard(
 ) -> Result<(), String> {
     if !attestation
         .account
-        .to_ascii_lowercase()
-        .ends_with(AUTHORIZED_ACCOUNT_SUFFIX)
+        .eq_ignore_ascii_case(&guard.expected_agent_account)
     {
-        return Err("input agent is not running as the dedicated guest test account".to_string());
+        return Err("input agent account does not match the authorized worker account".to_string());
     }
     if !attestation.interactive_ready {
         return Err("guest input desktop is not interactive and unlocked".to_string());
@@ -87,10 +86,9 @@ pub fn validate_target_guard(
 ) -> Result<(), String> {
     if !attestation
         .account
-        .to_ascii_lowercase()
-        .ends_with(AUTHORIZED_ACCOUNT_SUFFIX)
+        .eq_ignore_ascii_case(&guard.expected_agent_account)
     {
-        return Err("input agent is not running as the dedicated guest test account".to_string());
+        return Err("input agent account does not match the authorized worker account".to_string());
     }
     if attestation.session_id == 0
         || attestation.session_id != guard.expected_agent_session_id
@@ -153,6 +151,7 @@ mod tests {
                 }),
             },
             InputGuard {
+                expected_agent_account: "guest\\chemsema-test".to_string(),
                 expected_agent_session_id: 2,
                 expected_process_id: 50,
                 expected_executable: executable,
@@ -210,7 +209,7 @@ mod tests {
         attestation.account = "host\\developer".to_string();
         assert!(validate_input_guard(&attestation, &guard)
             .unwrap_err()
-            .contains("dedicated guest"));
+            .contains("worker account"));
         fs::remove_dir_all(&root).unwrap();
     }
 }

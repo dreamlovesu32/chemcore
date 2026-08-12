@@ -65,6 +65,112 @@ export function evaluateDocumentReports({ inspect, validation }, expected) {
   return { passed, observed };
 }
 
+export function evaluateDocumentBondProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const resources = document?.resources && typeof document.resources === "object"
+    ? Object.values(document.resources)
+    : [];
+  const bonds = resources.flatMap((resource) => Array.isArray(resource?.data?.bonds) ? resource.data.bonds : []);
+  const observed = expected.map((entry) => {
+    const bond = bonds.find((candidate) => candidate?.id === entry.id);
+    return {
+      id: entry.id,
+      found: !!bond,
+      order: bond?.order ?? null,
+      mainLineStyle: bond?.lineStyles?.main ?? null,
+      leftLineStyle: bond?.lineStyles?.left ?? null,
+      rightLineStyle: bond?.lineStyles?.right ?? null,
+      mainLineWeight: bond?.lineWeights?.main ?? null,
+      doublePlacement: bond?.double?.placement ?? null,
+      stereoKind: bond?.stereo?.kind ?? null,
+      wideEnd: bond?.stereo?.wideEnd ?? bond?.stereo?.wide_end ?? null,
+      queryOrders: bond?.properties?.queryOrders ?? bond?.properties?.query_orders ?? [],
+      topology: bond?.properties?.topology ?? "unspecified",
+      reactionParticipation: bond?.properties?.reactionParticipation ?? bond?.properties?.reaction_participation ?? null,
+      absoluteStereo: bond?.properties?.absoluteStereo ?? bond?.properties?.absolute_stereo ?? "unspecified",
+      showQuery: bond?.properties?.showQuery ?? bond?.properties?.show_query ?? null,
+      showReaction: bond?.properties?.showReaction ?? bond?.properties?.show_reaction ?? null,
+      showStereo: bond?.properties?.showStereo ?? bond?.properties?.show_stereo ?? null,
+    };
+  });
+  const passed = observed.every((actual, index) => actual.found
+    && Object.entries(expected[index]).every(([name, value]) => name === "id"
+      || (Array.isArray(value)
+        ? Array.isArray(actual[name]) && value.length === actual[name].length && value.every((entry, entryIndex) => entry === actual[name][entryIndex])
+        : actual[name] === value)));
+  return { passed, observed };
+}
+
+export function evaluateDocumentNodeProperties(bytes, expected) {
+  let document;
+  try {
+    document = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch {
+    return { passed: false, observed: [] };
+  }
+  const resources = document?.resources && typeof document.resources === "object"
+    ? Object.values(document.resources)
+    : [];
+  const nodes = resources.flatMap((resource) => Array.isArray(resource?.data?.nodes) ? resource.data.nodes : []);
+  const observed = expected.map((entry) => {
+    const node = nodes.find((candidate) => candidate?.id === entry.id);
+    return {
+      id: entry.id,
+      found: !!node,
+      element: node?.element ?? null,
+      atomicNumber: node?.atomicNumber ?? node?.atomic_number ?? null,
+      charge: node?.charge ?? null,
+      numHydrogens: node?.numHydrogens ?? node?.num_hydrogens ?? null,
+      numHydrogensOverride: !node
+        ? null
+        : Object.prototype.hasOwnProperty.call(node.meta ?? {}, "numHydrogensOverride")
+          ? node.meta.numHydrogensOverride
+          : null,
+      radicalCount: !node
+        ? null
+        : Object.prototype.hasOwnProperty.call(node.meta ?? {}, "radicalCount")
+          ? node.meta.radicalCount
+          : 0,
+      isotopeMass: node?.atomProperties?.isotopeMass ?? node?.atom_properties?.isotope_mass ?? null,
+      isotopicAbundance: node?.atomProperties?.isotopicAbundance ?? node?.atom_properties?.isotopic_abundance ?? "unspecified",
+      atomRadical: node?.atomProperties?.radical ?? "none",
+      atomNumber: node?.atomProperties?.atomNumber ?? node?.atom_properties?.atom_number ?? null,
+      showAtomNumber: node?.atomProperties?.showAtomNumber ?? node?.atom_properties?.show_atom_number ?? null,
+      atomStereo: node?.atomProperties?.cipStereo ?? node?.atom_properties?.cip_stereo ?? null,
+      showAtomStereo: node?.atomProperties?.showAtomStereo ?? node?.atom_properties?.show_atom_stereo ?? null,
+      reactionChange: node?.atomProperties?.reactionChange ?? node?.atom_properties?.reaction_change ?? false,
+      reactionStereo: node?.atomProperties?.reactionStereo ?? node?.atom_properties?.reaction_stereo ?? "unspecified",
+      showAtomQuery: node?.atomProperties?.showAtomQuery ?? node?.atom_properties?.show_atom_query ?? null,
+      ringBondCount: node?.atomProperties?.ringBondCount ?? node?.atom_properties?.ring_bond_count ?? "unspecified",
+      unsaturatedBonds: node?.atomProperties?.unsaturatedBonds ?? node?.atom_properties?.unsaturated_bonds ?? "unspecified",
+      queryTranslation: node?.atomProperties?.translation ?? "equal",
+      abnormalValence: node?.atomProperties?.abnormalValence ?? node?.atom_properties?.abnormal_valence ?? false,
+      elementList: node?.atomProperties?.elementList ?? node?.atom_properties?.element_list ?? [],
+      elementListExcluded: node?.atomProperties?.elementListExcluded ?? node?.atom_properties?.element_list_excluded ?? false,
+      genericList: node?.atomProperties?.genericList ?? node?.atom_properties?.generic_list ?? [],
+      genericListExcluded: node?.atomProperties?.genericListExcluded ?? node?.atom_properties?.generic_list_excluded ?? false,
+      freeSites: node?.atomProperties?.freeSites ?? node?.atom_properties?.free_sites ?? null,
+      substituentsUpTo: node?.atomProperties?.substituentsUpTo ?? node?.atom_properties?.substituents_up_to ?? null,
+      substituentsExactly: node?.atomProperties?.substituentsExactly ?? node?.atom_properties?.substituents_exactly ?? null,
+      showTerminalCarbonLabel: node?.atomProperties?.showTerminalCarbonLabel ?? node?.atom_properties?.show_terminal_carbon_label ?? null,
+      showNonTerminalCarbonLabel: node?.atomProperties?.showNonTerminalCarbonLabel ?? node?.atom_properties?.show_non_terminal_carbon_label ?? null,
+      labelText: node?.label?.text ?? null,
+      labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
+    };
+  });
+  const passed = observed.every((actual, index) => actual.found
+    && Object.entries(expected[index]).every(([name, value]) => name === "id"
+      || (Array.isArray(value)
+        ? Array.isArray(actual[name]) && JSON.stringify(actual[name]) === JSON.stringify(value)
+        : actual[name] === value)));
+  return { passed, observed };
+}
+
 export function evaluateDocumentArrowProperties(bytes, expected) {
   let document;
   try {
@@ -203,6 +309,10 @@ export function evaluateDocumentOrbitalProperties(bytes, expected) {
     const style = styles[object?.styleRef] || {};
     const axisStart = payload.axisStart;
     const axisEnd = payload.axisEnd;
+    const bbox = Array.isArray(payload.bbox) ? payload.bbox : null;
+    const axisLength = finitePoint(axisStart) && finitePoint(axisEnd)
+      ? Math.hypot(axisEnd[0] - axisStart[0], axisEnd[1] - axisStart[1])
+      : null;
     const geometryValid = finitePoint(axisStart)
       && finitePoint(axisEnd)
       && Math.hypot(axisEnd[0] - axisStart[0], axisEnd[1] - axisStart[1]) > 0
@@ -218,6 +328,9 @@ export function evaluateDocumentOrbitalProperties(bytes, expected) {
       phase: payload.orbitalPhase ?? null,
       color: payload.orbitalColor ?? null,
       geometryValid,
+      axisLength,
+      bboxSize: bbox?.length === 4 ? [bbox[2], bbox[3]] : null,
+      angle: payload.angle ?? null,
       fill: style.fill ?? null,
       stroke: style.stroke ?? null,
       strokeWidth: style.strokeWidth ?? null,
@@ -310,6 +423,11 @@ export function evaluateDocumentSymbolProperties(bytes, expected) {
       styleFill: style.fill ?? null,
       styleKind: style.kind ?? null,
       symbolStyle: object?.payload?.symbolStyle ?? null,
+      chemicalRole: object?.payload?.chemicalRole ?? null,
+      chargeDelta: object?.payload?.chargeDelta ?? null,
+      radicalDelta: object?.payload?.radicalDelta ?? null,
+      attachedAtomId: object?.payload?.attachedAtomId ?? null,
+      attachmentSource: object?.payload?.attachmentSource ?? null,
     };
   });
   const passed = observed.every((actual, index) => actual.found

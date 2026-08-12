@@ -409,6 +409,7 @@ pub(super) fn render_symbol_object_geometry(
                 role: RenderRole::DocumentText,
                 object_id,
                 node_id: None,
+                bond_id: None,
                 x: x + 1.875,
                 y: y + payload_number(&object.payload, "baselineOffset").unwrap_or(height * 0.75),
                 baseline_offset: None,

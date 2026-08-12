@@ -2262,6 +2262,7 @@ body.native-frame-shell .document-tab-close svg {
 
 .canvas-context-submenu {
   position: absolute;
+  z-index: 1;
   left: calc(100% - 2px);
   top: -4px;
   display: none;
@@ -2447,6 +2448,15 @@ body.native-frame-shell .document-tab-close svg {
   border: 1px solid #b9c1cc;
   border-radius: 2px;
   background: #ffffff;
+}
+
+.viewer-container:focus {
+  outline: none;
+}
+
+.viewer-container:focus-visible {
+  outline: 2px solid var(--active);
+  outline-offset: -2px;
 }
 
 .numeric-dialog-field input.is-invalid {

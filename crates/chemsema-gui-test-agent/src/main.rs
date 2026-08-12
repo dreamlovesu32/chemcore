@@ -236,6 +236,8 @@ fn run(_args: &[String]) -> Result<serde_json::Value, String> {
 }
 
 fn main() {
+    #[cfg(windows)]
+    chemsema_gui_test_agent::windows::initialize_process();
     let args: Vec<String> = std::env::args().skip(1).collect();
     match run(&args) {
         Ok(result_value) => {

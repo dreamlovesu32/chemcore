@@ -1,0 +1,50 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.bond.reaction-participation-history-persistence.production",
+  "title": "Set bond reaction participation through the public menu, verify history, and persist exact semantics",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Bond drawing evidence did not prove the public Reaction Participation value domain, its visible Rxn annotation, transaction history, or durable bond properties.",
+  "capabilities": ["gui.public-input", "editor.bond.draw", "editor.bond.reaction-participation", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 46,
+  "actions": [
+    { "id": "activate-single-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"bond\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-reaction-property-target-bond", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.34, "y": 0.46 }, "to": { "x": 0.42, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "clear-created-molecule-selection", "type": "click", "target": { "strategy": "world-geometry", "value": "page-background" }, "button": "left", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-initial-bond-reaction-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"bond-property\"][data-canvas-context-value=\"reaction-participation:unspecified\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-bond-query-reaction-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Bond Query & Reaction", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Bond Query & Reaction\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-reaction-participation-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Reaction Participation", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Reaction Participation\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "set-make-and-change", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Make and Change", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "text[data-object-id=\"obj_editor_molecule\"]", "text": "Rxn", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-changed-bond-reaction-menu", "type": "click", "target": { "strategy": "selector", "value": "line[data-bond-id=\"b_3\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"bond-property\"][data-canvas-context-value=\"reaction-participation:make-and-change\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "close-changed-menu", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Escape", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "undo-reaction-participation", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-count", "selector": "text[data-object-id=\"obj_editor_molecule\"]", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-reaction-participation", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "dom-text", "selector": "text[data-object-id=\"obj_editor_molecule\"]", "text": "Rxn", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "reaction-annotation-remains-rendered", "kind": "dom-count", "selector": "text[data-object-id=\"obj_editor_molecule\"]", "operator": "eq", "value": 1 },
+    { "id": "saved-reaction-bond-topology-counts", "kind": "document-counts", "expected": { "nodes": 2, "bonds": 1, "molecules": 1, "objects": 1 } },
+    { "id": "saved-make-and-change-bond-semantics", "kind": "document-bond-properties", "expected": [
+      { "id": "b_3", "order": 1, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null, "reactionParticipation": "make-and-change" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.bond.reaction-participation", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "atom", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "reaction-unspecified", "make-and-change", "reaction-annotation-visible", "undo-restored-unspecified", "redo-restored-make-and-change", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["bond.order", "bond.reaction-participation", "bond.reaction-annotation"],
+    "persistenceBoundaries": ["runtime", "history", "filesystem", "native-dialog"]
+  }
+}

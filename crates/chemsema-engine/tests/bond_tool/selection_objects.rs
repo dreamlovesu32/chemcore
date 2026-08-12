@@ -1095,7 +1095,7 @@ fn select_tool_click_on_triple_bond_wraps_all_three_lines() {
 }
 
 #[test]
-fn select_tool_box_selecting_whole_fragment_renders_component_box() {
+fn select_tool_box_selecting_single_bond_preserves_bond_selection_role() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());
     click(&mut engine, px(300.0), px(260.0));
@@ -1109,11 +1109,18 @@ fn select_tool_box_selecting_whole_fragment_renders_component_box() {
         matches!(
             primitive,
             RenderPrimitive::Rect {
-                role: RenderRole::SelectionBox,
+                role: RenderRole::SelectionBond,
                 ..
             }
         )
     }));
+    assert!(!engine.render_list().iter().any(|primitive| matches!(
+        primitive,
+        RenderPrimitive::Rect {
+            role: RenderRole::SelectionBox,
+            ..
+        }
+    )));
     assert_eq!(
         selection_bond_dots(&engine).len(),
         0,
@@ -1128,7 +1135,7 @@ fn select_tool_whole_fragment_box_ignores_hidden_atom_handles() {
     click(&mut complete, px(300.0), px(260.0));
     complete.set_tool_state(select_tool());
     complete.select_in_rect(px_point(290.0, 234.0), px_point(346.0, 286.0), false);
-    let complete_rect = selection_box_rect(&complete);
+    let complete_rect = selection_bond_rect(&complete);
 
     let mut bond = Engine::new();
     bond.set_tool_state(bond_tool());

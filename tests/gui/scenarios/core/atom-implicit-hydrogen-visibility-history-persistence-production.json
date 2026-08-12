@@ -1,0 +1,55 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.atom.implicit-hydrogen-visibility-history-persistence.production",
+  "title": "Toggle implicit hydrogens through the public atom menu, verify history, and persist the explicit hidden state",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Element and charge-symbol evidence did not prove the public Automatic/Hide implicit-hydrogen value domain, its transaction history, or the durable distinction between automatic zero and an explicit zero override.",
+  "capabilities": ["gui.public-input", "editor.bond.draw", "editor.atom.element", "editor.atom.implicit-hydrogens", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 45,
+  "actions": [
+    { "id": "activate-single-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"bond\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-hydrogen-target-bond", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.34, "y": 0.46 }, "to": { "x": 0.42, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-element-palette", "type": "click", "target": { "strategy": "selector", "value": ".quick-palette-toggle-element[data-quick-palette-mode=\"element\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette.is-open[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-nitrogen", "type": "click", "target": { "strategy": "selector", "value": ".periodic-element-button[data-element-symbol=\"N\"][data-element-atomic-number=\"7\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette:not(.is-open)[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "apply-nitrogen-to-hydrogen-target", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.37257, "y": 0.46 }, "completion": { "kind": "dom-text", "selector": "[data-node-id=\"n_2\"]", "text": "NH2", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-automatic-hydrogen-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_2\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"implicit-hydrogen-count\"][data-canvas-context-value=\"auto\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-automatic-hydrogen-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Implicit Hydrogens", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Implicit Hydrogens\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "hide-implicit-hydrogens", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Hide", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "[data-node-id=\"n_2\"]", "text": "N", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-hidden-hydrogen-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_2\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"implicit-hydrogen-count\"][data-canvas-context-value=\"0\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-hidden-hydrogen-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Implicit Hydrogens", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Implicit Hydrogens\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "restore-automatic-hydrogens", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Automatic", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "[data-node-id=\"n_2\"]", "text": "NH2", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-restored-automatic-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-node-id=\"n_2\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"implicit-hydrogen-count\"][data-canvas-context-value=\"auto\"][aria-checked=\"true\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-restored-automatic-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Implicit Hydrogens", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Implicit Hydrogens\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "hide-implicit-hydrogens-again", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Hide", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-text", "selector": "[data-node-id=\"n_2\"]", "text": "N", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "undo-second-hide", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Z", "completion": { "kind": "dom-text", "selector": "[data-node-id=\"n_2\"]", "text": "NH2", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "redo-second-hide", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+Y", "completion": { "kind": "dom-text", "selector": "[data-node-id=\"n_2\"]", "text": "N", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "hidden-hydrogen-label-remains-rendered", "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_2\"]", "attribute": "data-node-id", "operator": "eq", "value": 1 },
+    { "id": "saved-hidden-hydrogen-topology-counts", "kind": "document-counts", "expected": { "nodes": 2, "bonds": 1, "molecules": 1, "objects": 1 } },
+    { "id": "saved-explicit-hidden-hydrogen-semantics", "kind": "document-node-properties", "expected": [
+      { "id": "n_2", "element": "N", "atomicNumber": 7, "charge": 0, "numHydrogens": 0, "numHydrogensOverride": 0, "labelText": "N", "labelSourceText": "N" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.atom.element", "editor.atom.label", "editor.atom.implicit-hydrogens", "editor.context-menu", "editor.history.undo-redo", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "atom", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "neutral-nitrogen", "implicit-hydrogens-automatic", "implicit-hydrogens-hidden", "undo-restored-automatic", "redo-restored-hidden", "saved-document"],
+    "inputModes": ["mouse", "right-mouse", "keyboard", "native-dialog"],
+    "properties": ["atom.element", "atom.atomic-number", "atom.charge", "atom.num-hydrogens", "atom.num-hydrogens-override", "atom.label-text"],
+    "persistenceBoundaries": ["runtime", "history", "filesystem", "native-dialog"]
+  }
+}

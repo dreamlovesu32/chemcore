@@ -1,6 +1,27 @@
 import { access } from "node:fs/promises";
 import { relative } from "node:path";
 import { repositoryRoot } from "../protocol/paths.mjs";
+import { candidateActionBudgetIsValid, candidateActionTransportReserveMs } from "../workers/action-budget.mjs";
+import { productionBlackBoxCapabilities } from "../drivers/production-black-box.mjs";
+
+const productionCapabilitySet = new Set(productionBlackBoxCapabilities);
+const atomQueryCarbonLabelCommands = new Set([
+  "Show Terminal Carbon Labels",
+  "Hide Terminal Carbon Labels",
+  "Show Nonterminal Carbon Labels",
+  "Hide Nonterminal Carbon Labels",
+]);
+
+function clearsSelectionViaBlankPage(action) {
+  return action?.type === "click"
+    && action.button === "left"
+    && action.target?.strategy === "world-geometry"
+    && action.target.value === "page-background"
+    && action.completion?.kind === "dom-count"
+    && action.completion.selector === '[data-layer="editor-overlay"] > *'
+    && action.completion.operator === "eq"
+    && action.completion.value === 0;
+}
 
 export async function auditCoverage({ registry, scenarios, scenarioPaths = [] }) {
   const errors = [];
@@ -30,6 +51,87 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
   for (const scenarioId of scenarioIds) {
     if (!registeredScenarioIds.has(scenarioId)) {
       errors.push(`Scenario ${scenarioId} is not mapped by the coverage registry.`);
+    }
+  }
+  for (const scenario of scenarios.filter((candidate) => candidate.drivers.includes("production-black-box"))) {
+    const missingCapabilities = scenario.capabilities.filter((capability) => !productionCapabilitySet.has(capability));
+    if (missingCapabilities.length > 0) {
+      errors.push(`Scenario ${scenario.id} requires capabilities not advertised by production-black-box: ${missingCapabilities.join(", ")}.`);
+    }
+    let bondPropertyMenuOpened = false;
+    for (const [actionIndex, action] of scenario.actions.entries()) {
+      if (!candidateActionBudgetIsValid(action.budgetMs, action.completion?.timeoutMs)) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must reserve ${candidateActionTransportReserveMs} ms for production input transport.`);
+      }
+      const selector = action.completion?.selector;
+      if (action.replaceExisting) {
+        const observesExactReplacement = action.type === "text"
+          && typeof action.text === "string"
+          && action.completion?.kind === "dom-text"
+          && action.completion.text === action.text;
+        if (!observesExactReplacement) {
+          errors.push(`Scenario ${scenario.id} action ${action.id} replaceExisting text must complete on its exact DOM value.`);
+        }
+      }
+      if (typeof selector === "string" && selector.includes(".is-selected") && selector.includes("[data-tool=")) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must use is-active for a primary data-tool completion.`);
+      }
+      if (typeof selector === "string" && selector.includes(".is-active") && selector.includes("[data-secondary-value=")) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must use is-selected for a secondary data-secondary-value completion.`);
+      }
+      if (typeof selector === "string"
+        && selector.includes(".canvas-context-menu")
+        && selector.includes('[aria-checked="false"]')) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must identify an unchecked canvas-menu toggle by its inverse command value; unchecked menuitems omit aria-checked.`);
+      }
+      if (typeof selector === "string" && selector.includes("[data-secondary-value=") && action.target?.strategy === "role") {
+        if (action.target.scope?.role !== "toolbar" || action.target.scope?.name !== "Secondary toolbar") {
+          errors.push(`Scenario ${scenario.id} action ${action.id} must scope a secondary role target to the Secondary toolbar.`);
+        }
+      }
+      if (typeof selector === "string" && selector.includes('.quick-palette.is-open[data-mode="element"]')) {
+        const targetIsElementModeToggle = action.target?.strategy === "selector"
+          && action.target.value === '.quick-palette-toggle-element[data-quick-palette-mode="element"]';
+        if (!targetIsElementModeToggle) {
+          errors.push(`Scenario ${scenario.id} action ${action.id} must target the stable Element quick-palette mode toggle.`);
+        }
+      }
+      if (action.target?.strategy === "entity-id" && /^(?:n|b)_\d+$/.test(action.target.value)) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must target a rendered chemical primitive or a semantic bond endpoint; entity-id resolves scene object ids only.`);
+      }
+      if (action.target?.strategy === "bond-endpoint" && !/^b_[A-Za-z0-9._-]{1,120}:(?:start|end)$/.test(action.target.value)) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} has an invalid semantic bond endpoint identity.`);
+      }
+      const opensDefaultHiddenCarbonLabelMenu = action.type === "click"
+        && action.button === "right"
+        && (action.completion?.selector?.includes('show-terminal-carbon-label:false')
+          || action.completion?.selector?.includes('show-non-terminal-carbon-label:false'));
+      if (opensDefaultHiddenCarbonLabelMenu && action.target?.strategy !== "bond-endpoint") {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must target the implicit Carbon through a semantic bond endpoint because the hidden atom has no rendered node primitive.`);
+      }
+      if (action.type === "click" && atomQueryCarbonLabelCommands.has(action.target?.name)) {
+        const submenuAction = scenario.actions[actionIndex - 1];
+        const expandsAtomQuery = submenuAction?.type === "click"
+          && submenuAction.target?.strategy === "role"
+          && submenuAction.target.value === "menuitem"
+          && submenuAction.target.name === "Atom Query"
+          && submenuAction.target.scope?.role === "menu"
+          && submenuAction.target.scope.name === "Canvas menu";
+        if (!expandsAtomQuery) {
+          errors.push(`Scenario ${scenario.id} action ${action.id} must immediately expand the Canvas menu Atom Query submenu containing Carbon-label commands.`);
+        }
+      }
+      const opensBondPropertyMenu = action.type === "click"
+        && action.button === "right"
+        && action.target?.strategy === "selector"
+        && action.target.value.includes("[data-bond-id=")
+        && action.completion?.selector?.includes('[data-canvas-context-command="bond-property"]');
+      if (opensBondPropertyMenu) {
+        if (!bondPropertyMenuOpened && !clearsSelectionViaBlankPage(scenario.actions[actionIndex - 1])) {
+          errors.push(`Scenario ${scenario.id} action ${action.id} must immediately clear stale selection on page-background before opening its first bond-specific context menu.`);
+        }
+        bondPropertyMenuOpened = true;
+      }
     }
   }
   for (const entry of registry.entries.filter((candidate) => candidate.status === "gap")) {

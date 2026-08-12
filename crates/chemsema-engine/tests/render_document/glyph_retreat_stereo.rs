@@ -1285,7 +1285,7 @@ fn parse_document_json_fills_default_arrow_geometry_at_import_boundary() {
         .expect("arrow head should be normalized at import boundary");
     assert_eq!(
         arrow_head.get("kind").and_then(|value| value.as_str()),
-        Some("solid")
+        Some("curved")
     );
     assert_eq!(
         arrow_head.get("bold").and_then(|value| value.as_bool()),

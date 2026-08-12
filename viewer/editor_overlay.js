@@ -6,8 +6,9 @@ import { renderCorePrimitive } from "./primitive_dom_renderer.js";
 
 const SELECTION_RESIZE_MIN_SCALE = 0.05;
 const SELECTION_STROKE_SCREEN_PX = 1;
-const SELECTION_RESIZE_HANDLE_SCREEN_PX = 1.5;
-const SELECTION_ROTATE_HANDLE_RADIUS_SCREEN_PX = 2.0;
+const SELECTION_BOND_BOX_MIN_SCREEN_PX = 12;
+const SELECTION_RESIZE_HANDLE_SCREEN_PX = 6;
+const SELECTION_ROTATE_HANDLE_RADIUS_SCREEN_PX = 4;
 const SELECTION_ROTATE_HANDLE_OFFSET_SCREEN_PX = 18;
 const SELECTION_CENTER_CROSS_HALF_SCREEN_PX = 5;
 const OBJECT_CONTROL_HANDLE_RADIUS_SCREEN_PX = 1.5;
@@ -15,6 +16,23 @@ const HOVER_CENTER_RADIUS_SCREEN_PX = 3.75;
 const TEMP_LABEL_FONT_SCREEN_PX = 12;
 const TEMP_LABEL_OFFSET_SCREEN_PX = 8;
 const EDITOR_OVERLAY_LAYER_SELECTOR = '[data-layer="editor-overlay"]';
+
+export function selectionRectWithMinimumSize(primitive, minimumSize) {
+  if (primitive?.kind !== "rect" || !(minimumSize > 0)) {
+    return primitive;
+  }
+  const width = Math.max(Number(primitive.width || 0), minimumSize);
+  const height = Math.max(Number(primitive.height || 0), minimumSize);
+  const centerX = Number(primitive.x || 0) + Number(primitive.width || 0) * 0.5;
+  const centerY = Number(primitive.y || 0) + Number(primitive.height || 0) * 0.5;
+  return {
+    ...primitive,
+    x: centerX - width * 0.5,
+    y: centerY - height * 0.5,
+    width,
+    height,
+  };
+}
 
 export function createEditorOverlayRenderer(options) {
   function ensureEditorOverlayRoot(viewerSvg) {
@@ -145,6 +163,16 @@ export function createEditorOverlayRenderer(options) {
       return primitive;
     }
     const strokeWidth = options.screenPxToWorld(SELECTION_STROKE_SCREEN_PX);
+    if (primitive.role === "selection-bond" && primitive.kind === "rect") {
+      return {
+        ...selectionRectWithMinimumSize(
+          primitive,
+          options.screenPxToWorld(SELECTION_BOND_BOX_MIN_SCREEN_PX),
+        ),
+        strokeWidth,
+        stroke_width: undefined,
+      };
+    }
     if (primitive.role === "selection-resize-handle" && primitive.kind === "rect") {
       const size = options.screenPxToWorld(SELECTION_RESIZE_HANDLE_SCREEN_PX);
       const centerX = primitive.x + primitive.width * 0.5;

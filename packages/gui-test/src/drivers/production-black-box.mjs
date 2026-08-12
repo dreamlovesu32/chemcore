@@ -3,10 +3,110 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { guiTestsDir } from "../protocol/paths.mjs";
 import { readValidatedDocument } from "../protocol/validate.mjs";
-import { evaluateDocumentArrowProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
-import { HyperVCoordinator } from "../workers/hyperv.mjs";
+import { evaluateDocumentArrowProperties, evaluateDocumentBondProperties, evaluateDocumentBracketProperties, evaluateDocumentChromatographyProperties, evaluateDocumentNodeProperties, evaluateDocumentOrbitalProperties, evaluateDocumentReports, evaluateDocumentShapeProperties, evaluateDocumentSymbolProperties, evaluateDocumentTableProperties, evaluateDocumentTextProperties, inspectDocumentBytes } from "../oracles/document-file.mjs";
+import { evaluateUiState, uiStateRequest } from "../oracles/ui-state.mjs";
+import { createWorkerCoordinator } from "../workers/create.mjs";
 
 const defaultProfilePath = join(guiTestsDir, "environments", "windows-gui-worker-current.json");
+
+export const productionBlackBoxCapabilities = Object.freeze([
+  "gui.public-input",
+  "editor.bond.draw",
+  "editor.bond.query-order",
+  "editor.bond.topology",
+  "editor.bond.reaction-participation",
+  "editor.bond.absolute-stereo",
+  "editor.bond.double-placement",
+  "editor.bond.visibility",
+  "editor.ring.insert",
+  "editor.chain.draw",
+  "editor.arrow.draw",
+  "editor.arrow.properties",
+  "editor.text.create",
+  "editor.text.edit-existing",
+  "editor.text.properties",
+  "editor.shape.draw",
+  "editor.shape.properties",
+  "editor.symbol.draw",
+  "editor.symbol.properties",
+  "editor.symbol.atom-attachment",
+  "editor.bracket.draw",
+  "editor.bracket.properties",
+  "editor.table.draw",
+  "editor.table.properties",
+  "editor.orbital.draw",
+  "editor.orbital.properties",
+  "editor.chromatography.draw",
+  "editor.chromatography.properties",
+  "editor.selection.select-all",
+  "editor.selection.region",
+  "editor.selection.additive",
+  "editor.selection.mixed-object",
+  "editor.object.lock",
+  "editor.context-menu",
+  "editor.group.group-ungroup",
+  "editor.group.nested",
+  "editor.group.locked-ancestor",
+  "editor.clipboard.copy-paste",
+  "editor.clipboard.cross-document",
+  "editor.selection.delete",
+  "editor.selection.delete-partial",
+  "editor.selection.transform-partial",
+  "editor.history.undo-redo",
+  "editor.atom.element",
+  "editor.atom.implicit-hydrogens",
+  "editor.atom.isotope",
+  "editor.atom.isotopic-abundance",
+  "editor.atom.radical",
+  "editor.atom.number",
+  "editor.atom.stereochemistry",
+  "editor.atom.query-reaction",
+  "editor.atom.query-ring-bond-count",
+  "editor.atom.query-unsaturated-bonds",
+  "editor.atom.query-translation",
+  "editor.atom.query-abnormal-valence",
+  "editor.atom.query-lists",
+  "editor.atom.query-numeric",
+  "editor.atom.carbon-label-visibility",
+  "document.save-as",
+  "document.open",
+  "document.close-discard",
+  "document.roundtrip",
+  "document.new",
+  "oracle.dom",
+  "oracle.ui-state",
+  "frontend.focus",
+  "frontend.hover",
+  "frontend.disabled-state",
+  "frontend.selection-overlay",
+  "frontend.dpi",
+  "oracle.diagnostics",
+  "oracle.document-file",
+  "desktop.production",
+]);
+
+const exactChemicalIdentitySelector = /\[\s*data-(?:bond|node)-id\s*=\s*(?:"[^"]+"|'[^']+'|[A-Za-z0-9_.:-]+)\s*\]/;
+
+function collectiveLogicalMatch(matches) {
+  const left = Math.min(...matches.map((match) => match.rect[0]));
+  const top = Math.min(...matches.map((match) => match.rect[1]));
+  const right = Math.max(...matches.map((match) => match.rect[2]));
+  const bottom = Math.max(...matches.map((match) => match.rect[3]));
+  return { ...matches[0], rect: [left, top, right, bottom] };
+}
+
+function canonicalActionableMatches(target, matches) {
+  if (target.strategy === "selector" && exactChemicalIdentitySelector.test(target.value) && matches.length > 1) {
+    // A logical bond can render as multiple lines or polygons, and a logical
+    // atom label can render as separate element, hydrogen, isotope, charge, or
+    // radical text primitives. An exact chemical identity still names one
+    // semantic target. Use collective bounds so renderer ordering and fragment
+    // insertion cannot move or ambiguate the physical click; other locators
+    // stay strict.
+    return [collectiveLogicalMatch(matches)];
+  }
+  return matches;
+}
 
 async function retry(operation, { timeoutMs = 90000, intervalMs = 1000 } = {}) {
   const deadline = Date.now() + timeoutMs;
@@ -97,7 +197,7 @@ export class ProductionBlackBoxDriver {
     this.scenarioProfile = profile;
     if (!this.coordinator) {
       this.workerProfile = await readValidatedDocument(this.profilePath);
-      this.coordinator = new HyperVCoordinator(this.workerProfile);
+      this.coordinator = createWorkerCoordinator(this.workerProfile);
     }
   }
 
@@ -158,51 +258,7 @@ export class ProductionBlackBoxDriver {
   }
 
   capabilities() {
-    return [
-      "gui.public-input",
-      "editor.bond.draw",
-      "editor.arrow.draw",
-      "editor.arrow.properties",
-      "editor.text.create",
-      "editor.text.edit-existing",
-      "editor.text.properties",
-      "editor.shape.draw",
-      "editor.shape.properties",
-      "editor.symbol.draw",
-      "editor.symbol.properties",
-      "editor.bracket.draw",
-      "editor.bracket.properties",
-      "editor.table.draw",
-      "editor.table.properties",
-      "editor.orbital.draw",
-      "editor.orbital.properties",
-      "editor.chromatography.draw",
-      "editor.chromatography.properties",
-      "editor.selection.select-all",
-      "editor.selection.region",
-      "editor.selection.additive",
-      "editor.selection.mixed-object",
-      "editor.object.lock",
-      "editor.context-menu",
-      "editor.group.group-ungroup",
-      "editor.group.nested",
-      "editor.group.locked-ancestor",
-      "editor.clipboard.copy-paste",
-      "editor.clipboard.cross-document",
-      "editor.selection.delete",
-      "editor.selection.delete-partial",
-      "editor.selection.transform-partial",
-      "editor.history.undo-redo",
-      "document.save-as",
-      "document.open",
-      "document.close-discard",
-      "document.roundtrip",
-      "document.new",
-      "oracle.dom",
-      "oracle.diagnostics",
-      "oracle.document-file",
-      "desktop.production",
-    ];
+    return [...productionBlackBoxCapabilities];
   }
 
   async resolve(target) {
@@ -219,7 +275,10 @@ export class ProductionBlackBoxDriver {
     if (target.scope && value.scopeCount !== 1) {
       throw new Error(`Target scope resolved to ${value.scopeCount} elements.`);
     }
-    const matches = value.matches.filter((match) => match.visible && !match.disabled);
+    const matches = canonicalActionableMatches(
+      target,
+      value.matches.filter((match) => match.visible && !match.disabled),
+    );
     if (matches.length !== 1) {
       throw new Error(`Target resolved to ${matches.length} visible actionable elements.`);
     }
@@ -270,8 +329,7 @@ export class ProductionBlackBoxDriver {
       return result;
     }
     if (input.kind === "text") {
-      const receipt = await this.coordinator.candidateInput("text", { text: input.text });
-      this.foreground = receipt.agent.foreground;
+      await this.performResolvedTextInput(input, action);
       return result;
     }
     throw new Error(`Production black-box input type ${action.type} is not implemented.`);
@@ -281,7 +339,10 @@ export class ProductionBlackBoxDriver {
     if (action.type === "key") return { input: { kind: "key", key: action.key }, result: { kind: "key", key: action.key } };
     if (action.type === "text") {
       if (typeof action.text === "string") {
-        return { input: { kind: "text", text: action.text }, result: { kind: "text", textLength: action.text.length } };
+        return {
+          input: { kind: "text", text: action.text, ...(action.replaceExisting ? { replaceExisting: true } : {}) },
+          result: { kind: "text", textLength: action.text.length, ...(action.replaceExisting ? { replaceExisting: true } : {}) },
+        };
       }
       if (action.textSource !== "document-output-path" || !this.documentOutput?.guestPath) throw new Error("Document output path is unavailable for text input.");
       return { input: { kind: "text", text: this.documentOutput.guestPath }, result: { kind: "text", textSource: action.textSource } };
@@ -369,11 +430,10 @@ export class ProductionBlackBoxDriver {
       return { kind: "key", key: input.key };
     }
     if (input.kind === "text") {
-      const receipt = await this.coordinator.candidateInput("text", { text: input.text });
-      this.foreground = receipt.agent.foreground;
+      await this.performResolvedTextInput(input, action);
       return action.textSource
-        ? { kind: "text", textSource: action.textSource }
-        : { kind: "text", textLength: input.text.length };
+        ? { kind: "text", textSource: action.textSource, ...(input.replaceExisting ? { replaceExisting: true } : {}) }
+        : { kind: "text", textLength: input.text.length, ...(input.replaceExisting ? { replaceExisting: true } : {}) };
     }
     if (input.kind === "click") {
       const receipt = await this.coordinator.candidateInput("click", { x: input.x, y: input.y }, { button: input.button, modifiers: input.modifiers });
@@ -386,6 +446,20 @@ export class ProductionBlackBoxDriver {
       return { kind: "drag", from: input.from, to: input.to };
     }
     throw new Error(`Unsupported resolved input ${input.kind}.`);
+  }
+
+  async performResolvedTextInput(input, action) {
+    if (input.replaceExisting) {
+      const geometry = await this.inputGeometry(action.target);
+      const [left, top, right, bottom] = geometry.rect;
+      const [x, y] = geometry.screen([(left + right) / 2, (top + bottom) / 2]);
+      const focus = await this.coordinator.candidateInput("click", { x, y }, { button: "left" });
+      this.foreground = focus.agent.foreground;
+      const selection = await this.coordinator.candidateInput("key", { key: "Control+A" });
+      this.foreground = selection.agent.foreground;
+    }
+    const receipt = await this.coordinator.candidateInput("text", { text: input.text });
+    this.foreground = receipt.agent.foreground;
   }
 
   async waitForNativeTargetDismissal(target, timeoutMs) {
@@ -461,10 +535,22 @@ export class ProductionBlackBoxDriver {
   async observe(oracle) {
     if (oracle.kind === "dom-count") return this.coordinator.cdpBridge({ mode: "count", selector: oracle.selector });
     if (oracle.kind === "dom-distinct-count") return this.coordinator.cdpBridge({ mode: "distinct-count", selector: oracle.selector, attribute: oracle.attribute });
+    if (oracle.kind === "ui-state") {
+      const observed = await this.coordinator.cdpBridge(uiStateRequest({ selector: oracle.selector, referenceSelector: oracle.referenceSelector, ...oracle.uiExpected }));
+      return evaluateUiState(observed, oracle.uiExpected);
+    }
     if (oracle.kind === "no-unexpected-diagnostics") return [...this.diagnostics];
     if (oracle.kind === "document-counts") {
       const document = await this.ensureSavedDocument();
       return evaluateDocumentReports(document.reports, oracle.expected);
+    }
+    if (oracle.kind === "document-bond-properties") {
+      const document = await this.ensureSavedDocument();
+      return evaluateDocumentBondProperties(document.transfer.bytes, oracle.expected);
+    }
+    if (oracle.kind === "document-node-properties") {
+      const document = await this.ensureSavedDocument();
+      return evaluateDocumentNodeProperties(document.transfer.bytes, oracle.expected);
     }
     if (oracle.kind === "document-arrow-properties") {
       const document = await this.ensureSavedDocument();
@@ -517,10 +603,12 @@ export class ProductionBlackBoxDriver {
   }
 
   async environment() {
+    const physical = this.workerProfile?.kind === "physical-windows";
     return {
-      platform: "windows-hyperv",
+      platform: physical ? "windows-physical" : "windows-hyperv",
       workerProfile: this.workerProfile?.id || null,
-      vmId: this.startReceipt?.vmId || null,
+      vmId: physical ? null : this.startReceipt?.vmId || null,
+      machineIdSha256: physical ? this.startReceipt?.machineIdSha256 || null : null,
       candidateSha256: this.installReceipt?.candidate?.sha256 || null,
       notes: [...this.environmentNotes],
       profile: this.scenarioProfile,

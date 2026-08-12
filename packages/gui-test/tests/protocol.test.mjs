@@ -17,6 +17,7 @@ const lockedMoleculeArrowTransformScenarioPath = join(guiTestsDir, "scenarios", 
 const lockedGroupAncestorTransformScenarioPath = join(guiTestsDir, "scenarios", "core", "locked-group-ancestor-transform-production.json");
 const textLineSpacingScenarioPath = join(guiTestsDir, "scenarios", "core", "text-line-spacing-validation-production.json");
 const textExistingEditScenarioPath = join(guiTestsDir, "scenarios", "core", "text-existing-edit-history-production.json");
+const frontendSelectionScenarioPath = join(guiTestsDir, "scenarios", "core", "frontend-selection-geometry-production.json");
 
 test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(scenarioPath);
@@ -30,6 +31,7 @@ test("scenario, coverage registry, and impact graph validate", async () => {
   await readValidatedDocument(lockedGroupAncestorTransformScenarioPath);
   await readValidatedDocument(textLineSpacingScenarioPath);
   await readValidatedDocument(textExistingEditScenarioPath);
+  await readValidatedDocument(frontendSelectionScenarioPath);
   await readValidatedDocument(join(guiTestsDir, "coverage", "registry-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "coverage", "impact-v1.json"));
   await readValidatedDocument(join(guiTestsDir, "environments", "windows-gui-worker-current.json"));
@@ -97,6 +99,70 @@ test("scenario, coverage registry, and impact graph validate", async () => {
     schema: "chemsema.gui.action-transaction-receipt.v1",
     input: {}, before: {}, after: {}, completion: { actionable: true },
   }, "action transaction receipt fixture");
+});
+
+test("mixed-object text selection does not depend on the engine's next object id", async () => {
+  const scenario = await readValidatedDocument(frontendSelectionScenarioPath);
+  const commit = scenario.actions.find((action) => action.id === "commit-text");
+  const selectText = scenario.actions.find((action) => action.id === "select-text-only");
+  const openMenu = scenario.actions.find((action) => action.id === "open-text-font-menu");
+  const geometry = scenario.oracles.filter((oracle) => oracle.id.startsWith("text-selection-box-"));
+  assert.equal(commit.completion.selector, '[data-role="document-text"]');
+  assert.deepEqual(selectText.target, { strategy: "selector", value: '[data-role="document-text"]' });
+  assert.equal(selectText.completion.operator, "eq");
+  assert.equal(selectText.completion.value, 1);
+  assert(scenario.actions.indexOf(selectText) < scenario.actions.indexOf(openMenu));
+  assert.deepEqual(openMenu.target, { strategy: "selector", value: '[data-role="document-text"]' });
+  assert(geometry.every((oracle) => oracle.referenceSelector === '[data-role="document-text"]'));
+  assert.doesNotMatch(JSON.stringify({ commit, selectText, openMenu, geometry }), /obj_text_\d+/);
+});
+
+test("text selection geometry requires both ink containment and a tight metrics envelope", async () => {
+  const scenario = await readValidatedDocument(frontendSelectionScenarioPath);
+  const encloses = scenario.oracles.find((oracle) => oracle.id === "text-selection-box-encloses-current-font-geometry");
+  const tight = scenario.oracles.find((oracle) => oracle.id === "text-selection-box-remains-tight-to-current-font-geometry");
+  assert.deepEqual(encloses.uiExpected.geometry, { relation: "contains-reference", tolerancePx: 1 });
+  assert.deepEqual(tight.uiExpected.geometry, { relation: "matches-reference", tolerancePx: 5.5 });
+  assert.equal(encloses.selector, tight.selector);
+  assert.equal(encloses.referenceSelector, tight.referenceSelector);
+});
+
+test("bond selection geometry targets the canonical engine selection role", async () => {
+  const scenario = await readValidatedDocument(frontendSelectionScenarioPath);
+  const bond = scenario.oracles.find((oracle) => oracle.id === "selection-overlay-encloses-rendered-bond");
+  assert.equal(bond.selector, '[data-layer="editor-overlay"] [data-role="selection-bond"]');
+  assert.doesNotMatch(bond.selector, /selection-(bond|node)-box/);
+  assert.deepEqual(bond.uiExpected.rect, { minWidth: 12, minHeight: 12 });
+});
+
+test("mixed text and bond selection requires one scaled handle set per selection box", async () => {
+  const scenario = await readValidatedDocument(frontendSelectionScenarioPath);
+  const selectAll = scenario.actions.find((action) => action.id === "reselect-after-font-change");
+  const handles = scenario.oracles.find((oracle) => oracle.id === "mixed-selection-resize-handles-have-scaled-screen-size");
+  assert.equal(selectAll.type, "key");
+  assert.equal(selectAll.key, "Control+A");
+  assert.equal(handles.selector, '[data-layer="editor-overlay"] [data-role="selection-resize-handle"]');
+  assert.equal(handles.uiExpected.count, 2 * 8);
+  assert.equal(handles.uiExpected.visibleCount, 2 * 8);
+  assert.deepEqual(handles.uiExpected.rect, { minWidth: 5, maxWidth: 9, minHeight: 5, maxHeight: 9 });
+  assert.deepEqual(handles.uiExpected.viewport, {
+    devicePixelRatio: 1.5,
+    minWidth: 1200,
+    maxWidth: 1360,
+    minHeight: 840,
+    maxHeight: 960,
+  });
+});
+
+test("selector targets share the bounded DOM selector limit", async () => {
+  const scenario = JSON.parse(await readFile(frontendSelectionScenarioPath, "utf8"));
+  const openMenu = scenario.actions.find((action) => action.id === "open-text-font-menu");
+  openMenu.target.value = "x".repeat(2048);
+  assert.equal((await validateDocument(scenario)).valid, true);
+  openMenu.target.value += "x";
+  const result = await validateDocument(scenario);
+  assert.equal(result.valid, false);
+  assert(result.errors.some((error) => error.includes("2048")));
 });
 
 test("scenario protocol rejects missing auditable coverage", async () => {

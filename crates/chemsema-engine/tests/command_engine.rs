@@ -1664,9 +1664,9 @@ fn editor_commands_create_native_tlc_and_gel_plate_models() {
     assert_eq!(tlc["payload"]["showSideTicks"], true);
     let tlc_lanes = tlc["payload"]["lanes"].as_array().expect("TLC lanes");
     assert!((3..=12).contains(&tlc_lanes.len()));
-    assert!(tlc_lanes.iter().all(|lane| lane["spots"].as_array().is_some_and(|spots| {
-        spots.len() == 1 && spots[0]["rf"] == 0.15
-    })));
+    assert!(tlc_lanes.iter().all(|lane| lane["spots"]
+        .as_array()
+        .is_some_and(|spots| { spots.len() == 1 && spots[0]["rf"] == 0.15 })));
 
     let gel = find_object(&document, &gel_id);
     assert_eq!(gel["payload"]["kind"], "gelPlate");
@@ -1674,56 +1674,71 @@ fn editor_commands_create_native_tlc_and_gel_plate_models() {
     let gel_lanes = gel_data["lanes"].as_array().expect("gel lanes");
     assert_eq!(gel_data["color"], "#ff0000");
     assert!((3..=12).contains(&gel_lanes.len()));
-    assert!(gel_lanes.iter().all(|lane| lane["bands"].as_array().is_some_and(|bands| {
-        bands.len() == 1
-            && bands[0]["value"] == 0.5
-            && bands[0]["color"] == "#ff0000"
-            && bands[0]["visible"] == true
-    })));
+    assert!(gel_lanes
+        .iter()
+        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+            bands.len() == 1
+                && bands[0]["value"] == 0.5
+                && bands[0]["color"] == "#ff0000"
+                && bands[0]["visible"] == true
+        })));
 
     assert!(engine.select_all());
     assert!(engine.apply_color_to_selection("#0000ff"));
     let recolored = document_value(&engine);
     let tlc = find_object(&recolored, &tlc_id);
-    assert!(tlc["payload"]["lanes"].as_array().expect("recolored TLC lanes").iter().all(|lane| {
-        lane["spots"].as_array().is_some_and(|spots| {
-            spots.iter().all(|spot| spot["color"] == "#0000ff")
-        })
-    }));
+    assert!(tlc["payload"]["lanes"]
+        .as_array()
+        .expect("recolored TLC lanes")
+        .iter()
+        .all(|lane| {
+            lane["spots"]
+                .as_array()
+                .is_some_and(|spots| spots.iter().all(|spot| spot["color"] == "#0000ff"))
+        }));
     let gel = find_object(&recolored, &gel_id);
     assert_eq!(gel["payload"]["gelElectrophoresis"]["color"], "#0000ff");
     assert!(gel["payload"]["gelElectrophoresis"]["lanes"]
         .as_array()
         .expect("recolored gel lanes")
         .iter()
-        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
-            bands.iter().all(|band| band["color"] == "#0000ff")
-        })));
-    assert!(engine.undo(), "batch chromatography color should be one history step");
+        .all(|lane| lane["bands"]
+            .as_array()
+            .is_some_and(|bands| { bands.iter().all(|band| band["color"] == "#0000ff") })));
+    assert!(
+        engine.undo(),
+        "batch chromatography color should be one history step"
+    );
     let undone = document_value(&engine);
     let tlc = find_object(&undone, &tlc_id);
-    assert!(tlc["payload"]["lanes"].as_array().expect("undone TLC lanes").iter().all(|lane| {
-        lane["spots"].as_array().is_some_and(|spots| {
-            spots.iter().all(|spot| spot.get("color").is_none())
-        })
-    }));
+    assert!(tlc["payload"]["lanes"]
+        .as_array()
+        .expect("undone TLC lanes")
+        .iter()
+        .all(|lane| {
+            lane["spots"]
+                .as_array()
+                .is_some_and(|spots| spots.iter().all(|spot| spot.get("color").is_none()))
+        }));
     let gel = find_object(&undone, &gel_id);
     assert!(gel["payload"]["gelElectrophoresis"]["lanes"]
         .as_array()
         .expect("undone gel lanes")
         .iter()
-        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
-            bands.iter().all(|band| band["color"] == "#ff0000")
-        })));
+        .all(|lane| lane["bands"]
+            .as_array()
+            .is_some_and(|bands| { bands.iter().all(|band| band["color"] == "#ff0000") })));
     assert!(engine.redo());
     let redone = document_value(&engine);
-    assert!(find_object(&redone, &gel_id)["payload"]["gelElectrophoresis"]["lanes"]
-        .as_array()
-        .expect("redone gel lanes")
-        .iter()
-        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
-            bands.iter().all(|band| band["color"] == "#0000ff")
-        })));
+    assert!(
+        find_object(&redone, &gel_id)["payload"]["gelElectrophoresis"]["lanes"]
+            .as_array()
+            .expect("redone gel lanes")
+            .iter()
+            .all(|lane| lane["bands"]
+                .as_array()
+                .is_some_and(|bands| { bands.iter().all(|band| band["color"] == "#0000ff") }))
+    );
 }
 
 #[test]
@@ -1999,6 +2014,244 @@ fn atom_properties_command_round_trips_through_ccjs_cdxml_and_cdx() {
 }
 
 #[test]
+fn atom_query_value_menus_report_selected_values_and_kill_hard_coded_false_mutants() {
+    fn checked_values(menu: &Value, submenu_label: &str) -> Vec<String> {
+        menu.as_array()
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("label").and_then(Value::as_str) == Some("Atom Query"))
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(Value::as_array)
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("label").and_then(Value::as_str) == Some(submenu_label))
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(Value::as_array)
+            .expect("Atom Query enum submenu")
+            .iter()
+            .filter(|item| item.get("checked").and_then(Value::as_bool) == Some(true))
+            .filter_map(|item| {
+                item.get("value")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            })
+            .collect()
+    }
+
+    fn atom_menu(engine: &Engine) -> Value {
+        serde_json::from_str(&engine.context_menu_json(r#"{"kind":"atom"}"#, false))
+            .expect("atom context menu JSON")
+    }
+
+    fn checked_atom_query_values(menu: &Value, command: &str) -> Vec<String> {
+        menu.as_array()
+            .and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item.get("label").and_then(Value::as_str) == Some("Atom Query"))
+            })
+            .and_then(|item| item.get("submenu"))
+            .and_then(Value::as_array)
+            .expect("Atom Query submenu")
+            .iter()
+            .filter(|item| item.get("command").and_then(Value::as_str) == Some("atom-property"))
+            .filter(|item| item.get("checked").and_then(Value::as_bool) == Some(true))
+            .filter_map(|item| item.get("value").and_then(Value::as_str))
+            .filter(|value| value.starts_with(command))
+            .map(str::to_string)
+            .collect()
+    }
+
+    let mut engine = Engine::new();
+    let add = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 100.0, "y": 100.0 },
+            "end": { "x": 148.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    let first = created_node_id(&add, 0);
+    execute(
+        &mut engine,
+        json!({ "type": "select-targets", "targets": { "nodes": [first] } }),
+    );
+
+    let defaults = atom_menu(&engine);
+    assert_eq!(
+        checked_values(&defaults, "Ring Bond Count"),
+        ["ring-bond-count:unspecified"]
+    );
+    assert_eq!(
+        checked_values(&defaults, "Unsaturated Bonds"),
+        ["unsaturated-bonds:unspecified"]
+    );
+    assert_eq!(
+        checked_values(&defaults, "Translation"),
+        ["translation:equal"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&defaults, "abnormal-valence:"),
+        ["abnormal-valence:false"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&defaults, "show-terminal-carbon-label:"),
+        ["show-terminal-carbon-label:false"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&defaults, "show-non-terminal-carbon-label:"),
+        ["show-non-terminal-carbon-label:false"]
+    );
+
+    for (property, value) in [
+        ("ring-bond-count", "simple-ring"),
+        ("unsaturated-bonds", "must-be-present"),
+        ("translation", "narrow"),
+        ("abnormal-valence", "true"),
+        ("show-terminal-carbon-label", "true"),
+        ("show-non-terminal-carbon-label", "true"),
+    ] {
+        assert_eq!(
+            execute(
+                &mut engine,
+                json!({
+                    "type": "set-atom-property-for-selection",
+                    "property": property,
+                    "value": value
+                }),
+            )["changed"],
+            true,
+            "{property} should change"
+        );
+    }
+    let updated = atom_menu(&engine);
+    assert_eq!(
+        checked_values(&updated, "Ring Bond Count"),
+        ["ring-bond-count:simple-ring"]
+    );
+    assert_eq!(
+        checked_values(&updated, "Unsaturated Bonds"),
+        ["unsaturated-bonds:must-be-present"]
+    );
+    assert_eq!(
+        checked_values(&updated, "Translation"),
+        ["translation:narrow"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&updated, "abnormal-valence:"),
+        ["abnormal-valence:true"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&updated, "show-terminal-carbon-label:"),
+        ["show-terminal-carbon-label:true"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&updated, "show-non-terminal-carbon-label:"),
+        ["show-non-terminal-carbon-label:true"]
+    );
+}
+
+#[test]
+fn generated_carbon_display_labels_follow_shared_attachment_direction_layout() {
+    let mut engine = Engine::new();
+    let first_bond = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 100.0, "y": 100.0 },
+            "end": { "x": 148.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    let shared_node_id = created_node_id(&first_bond, 1);
+    execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": {
+                "nodeId": shared_node_id,
+                "x": 148.0,
+                "y": 100.0
+            },
+            "end": { "x": 196.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+
+    let document = document_value(&engine);
+    let mut nodes: Vec<_> = document["resources"]
+        .as_object()
+        .expect("resources")
+        .values()
+        .flat_map(|resource| {
+            resource["data"]["nodes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .cloned()
+        })
+        .collect();
+    nodes.sort_by(|left, right| {
+        left["position"][0]
+            .as_f64()
+            .unwrap()
+            .total_cmp(&right["position"][0].as_f64().unwrap())
+    });
+    let node_ids: Vec<_> = nodes
+        .iter()
+        .map(|node| node["id"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(node_ids.len(), 3);
+    execute(
+        &mut engine,
+        json!({ "type": "select-targets", "targets": { "nodes": node_ids } }),
+    );
+    for property in [
+        "show-terminal-carbon-label",
+        "show-non-terminal-carbon-label",
+    ] {
+        assert_eq!(
+            execute(
+                &mut engine,
+                json!({
+                    "type": "set-atom-property-for-selection",
+                    "property": property,
+                    "value": "true"
+                }),
+            )["changed"],
+            true
+        );
+    }
+
+    let document = document_value(&engine);
+    let labels: Vec<_> = node_ids
+        .iter()
+        .map(|node_id| find_node(&document, node_id)["label"].clone())
+        .collect();
+    assert_eq!(labels[0]["sourceText"], "CH3");
+    assert_eq!(labels[0]["text"], "H3C");
+    assert_eq!(labels[0]["attachment"], "node");
+    assert_eq!(labels[0]["layout"], "attached-group");
+
+    assert_eq!(labels[1]["sourceText"], "CH2");
+    assert_eq!(labels[1]["text"], "H2\nC");
+    assert_eq!(labels[1]["lines"], json!(["H2", "C"]));
+    assert_eq!(labels[1]["layout"], "attached-group-above");
+
+    assert_eq!(labels[2]["sourceText"], "CH3");
+    assert_eq!(labels[2]["text"], "CH3");
+    assert_eq!(labels[2]["attachment"], "node");
+}
+
+#[test]
 fn bond_query_reaction_command_round_trips_through_ccjs_cdxml_and_cdx() {
     let mut engine = Engine::new();
     let add = execute(
@@ -2111,6 +2364,91 @@ fn bond_query_reaction_command_round_trips_through_ccjs_cdxml_and_cdx() {
     assert_eq!(reopened_bond["properties"]["showQuery"], true);
     assert_eq!(reopened_bond["properties"]["showReaction"], true);
     assert_eq!(reopened_bond["properties"]["showStereo"], true);
+}
+
+#[test]
+fn bond_derived_annotation_identity_survives_set_undo_and_redo() {
+    let mut engine = Engine::new();
+    let add = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 100.0, "y": 100.0 },
+            "end": { "x": 148.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    let bond_id = created_bond_id(&add);
+    execute(
+        &mut engine,
+        json!({
+            "type": "select-targets",
+            "targets": { "bonds": [bond_id] }
+        }),
+    );
+    let changed = execute(
+        &mut engine,
+        json!({
+            "type": "set-bond-property-for-selection",
+            "property": "reaction-participation",
+            "value": "make-and-change"
+        }),
+    );
+    assert_eq!(changed["changed"], true);
+
+    let target_bonds = BTreeSet::from([bond_id.clone()]);
+    let rendered = engine.render_targets(&BTreeSet::new(), &target_bonds, &BTreeSet::new());
+    let reaction_annotation = rendered.iter().find(|primitive| match primitive {
+        RenderPrimitive::Text { text, runs, .. } => {
+            text == "Rxn" || runs.iter().map(|run| run.text.as_str()).collect::<String>() == "Rxn"
+        }
+        _ => false,
+    });
+    assert!(
+        matches!(
+            reaction_annotation,
+            Some(RenderPrimitive::Text {
+                bond_id: Some(annotation_bond_id),
+                ..
+            }) if annotation_bond_id == &bond_id
+        ),
+        "derived bond text must carry its owning bond id so incremental DOM replacement can remove it: {rendered:?}"
+    );
+
+    let undo = execute(&mut engine, json!({ "type": "undo" }));
+    assert_eq!(undo["changed"], true);
+    let rendered_after_undo =
+        engine.render_targets(&BTreeSet::new(), &target_bonds, &BTreeSet::new());
+    assert!(
+        !rendered_after_undo.iter().any(|primitive| match primitive {
+            RenderPrimitive::Text { text, runs, .. } => {
+                text == "Rxn"
+                    || runs.iter().map(|run| run.text.as_str()).collect::<String>() == "Rxn"
+            }
+            _ => false,
+        }),
+        "undo must remove the derived annotation from the affected target render: {rendered_after_undo:?}"
+    );
+
+    let redo = execute(&mut engine, json!({ "type": "redo" }));
+    assert_eq!(redo["changed"], true);
+    let rendered_after_redo =
+        engine.render_targets(&BTreeSet::new(), &target_bonds, &BTreeSet::new());
+    assert!(
+        rendered_after_redo.iter().any(|primitive| matches!(
+            primitive,
+            RenderPrimitive::Text {
+                bond_id: Some(annotation_bond_id),
+                text,
+                runs,
+                ..
+            } if annotation_bond_id == &bond_id
+                && (text == "Rxn"
+                    || runs.iter().map(|run| run.text.as_str()).collect::<String>() == "Rxn")
+        )),
+        "redo must restore a target-addressable derived annotation: {rendered_after_redo:?}"
+    );
 }
 
 #[test]

@@ -418,6 +418,7 @@ function Activate-Candidate {
     $guardPath = Join-Path $runDirectory 'guard.json'
     $resultPath = Join-Path $runDirectory 'result.json'
     $guardJson = [ordered]@{
+      expectedAgentAccount = "$env:COMPUTERNAME\$ExpectedAccount"
       expectedAgentSessionId = [int]$process.SessionId
       expectedProcessId = [int]$process.Id
       expectedExecutable = $CandidatePath
@@ -887,7 +888,7 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key', 'text')][str
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
   $result = Invoke-Guest -ScriptBlock {
-    param($CandidatePath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button, $Key, $TextBase64, $Modifiers)
+    param($ExpectedAccount, $CandidatePath, $TestRoot, $Kind, $X, $Y, $FromX, $FromY, $ToX, $ToY, $Steps, $Button, $Key, $TextBase64, $Modifiers)
     $process = Get-Process chemsema-desktop -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $CandidatePath -and $_.SessionId -ne 0 } | Select-Object -First 1
     if ($null -eq $process) { throw 'The authorized desktop candidate is not running.' }
     $runRoot = Join-Path $TestRoot 'runs'
@@ -895,6 +896,7 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key', 'text')][str
     New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
     $guardPath = Join-Path $runDirectory 'guard.json'
     $guardJson = [ordered]@{
+      expectedAgentAccount = "$env:COMPUTERNAME\$ExpectedAccount"
       expectedAgentSessionId = [int]$process.SessionId
       expectedProcessId = [int]$process.Id
       expectedExecutable = $CandidatePath
@@ -936,7 +938,7 @@ function Invoke-CandidateInput([ValidateSet('click', 'drag', 'key', 'text')][str
     if ($response.id -ne $requestId -or $response.schema -ne 'chemsema.gui.guest-agent-response.v1') { throw 'Persistent input response identity is invalid.' }
     if ($response.status -ne 'passed') { throw "Interactive input was rejected: $($response.message)" }
     $response.result
-  } -ArgumentList @($guestPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton, $InputKey, $InputTextBase64, $InputModifiers)
+  } -ArgumentList @($GuestAccount, $guestPath, $GuestTestRoot, $Kind, $InputX, $InputY, $InputFromX, $InputFromY, $InputToX, $InputToY, $InputSteps, $InputButton, $InputKey, $InputTextBase64, $InputModifiers)
   [ordered]@{
     schema = 'chemsema.gui.worker-attestation.v1'
     operation = "input-$Kind"
@@ -957,7 +959,7 @@ function Invoke-ActionTransaction {
   $hostHash = (Get-FileHash -LiteralPath $HostCandidatePath -Algorithm SHA256).Hash.ToLowerInvariant()
   $guestPath = Join-Path (Join-Path (Join-Path $GuestTestRoot 'candidate') $hostHash) 'chemsema-desktop.exe'
   $transaction = Invoke-Guest -ScriptBlock {
-    param($CandidatePath, $TestRoot, $Request)
+    param($ExpectedAccount, $CandidatePath, $TestRoot, $Request)
 
     function Send-ChannelRequest([string]$ChannelName, [string]$RequestSchema, [string]$ResponseSchema, [System.Collections.IDictionary]$EnvelopeFields, [int]$TimeoutMs) {
       $channelRoot = Join-Path $TestRoot $ChannelName
@@ -1003,6 +1005,7 @@ function Invoke-ActionTransaction {
     New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
     $guardPath = Join-Path $runDirectory 'guard.json'
     $guardJson = [ordered]@{
+      expectedAgentAccount = "$env:COMPUTERNAME\$ExpectedAccount"
       expectedAgentSessionId = [int]$process.SessionId
       expectedProcessId = [int]$process.Id
       expectedExecutable = $CandidatePath
@@ -1145,7 +1148,7 @@ function Invoke-ActionTransaction {
       after = $after
       completion = $completion
     }
-  } -ArgumentList @($guestPath, $GuestTestRoot, $request)
+  } -ArgumentList @($GuestAccount, $guestPath, $GuestTestRoot, $request)
   $cleanTransaction = [ordered]@{
     schema = [string]$transaction.schema
     input = $transaction.input

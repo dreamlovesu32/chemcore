@@ -1361,6 +1361,7 @@ canvasContextMenuHost = createCanvasContextMenuHost({
   openImageFilePickerAt,
   renderEditorOverlay,
   refreshCommandAvailability,
+  focusCanvas: () => viewerContainer?.focus({ preventScroll: true }),
   confirmRepeatUnitUngroup: confirmRepeatUnitUngroupIfNeeded,
 });
 canvasContextMenu = canvasContextMenuHost.canvasContextMenu;
@@ -2413,6 +2414,10 @@ syncCanvasCursor();
 syncViewerSvgPointerEventMode();
 bindBrowserBeforeUnloadGuard();
 
+viewerContainer?.addEventListener("pointerdown", (event) => {
+  const interactive = event.target?.closest?.("button, input, select, textarea, [contenteditable=\"true\"]");
+  if (!interactive) viewerContainer.focus({ preventScroll: true });
+}, true);
 viewerSvg?.addEventListener("pointermove", editorPointerController.handleEditorPointerMove);
 viewerSvg?.addEventListener("pointerdown", editorPointerController.handleEditorPointerDown);
 viewerSvg?.addEventListener("pointerup", editorPointerController.handleEditorPointerUp);

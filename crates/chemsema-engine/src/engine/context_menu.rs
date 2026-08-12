@@ -1397,6 +1397,44 @@ impl Engine {
     }
 
     fn atom_query_menu(&self) -> JsonValue {
+        let show_terminal_default = self
+            .state
+            .document
+            .document
+            .meta
+            .pointer("/import/cdxml/defaults/showTerminalCarbonLabels")
+            .and_then(JsonValue::as_bool)
+            .unwrap_or(false);
+        let show_non_terminal_default = self
+            .state
+            .document
+            .document
+            .meta
+            .pointer("/import/cdxml/defaults/showNonTerminalCarbonLabels")
+            .and_then(JsonValue::as_bool)
+            .unwrap_or(false);
+        let show_terminal_carbon = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties
+                .show_terminal_carbon_label
+                .unwrap_or(show_terminal_default)
+        });
+        let show_non_terminal_carbon = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties
+                .show_non_terminal_carbon_label
+                .unwrap_or(show_non_terminal_default)
+        });
+        let ring_bond_count = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties.ring_bond_count
+        });
+        let unsaturated_bonds = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties.unsaturated_bonds
+        });
+        let translation = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties.translation
+        });
+        let abnormal_valence = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties.abnormal_valence
+        });
         let reaction_change = uniform_node_value(self.selected_label_nodes(), |node| {
             node.atom_properties.reaction_change
         });
@@ -1418,34 +1456,34 @@ impl Engine {
                 {
                     "label": "Ring Bond Count",
                     "submenu": [
-                        atom_property_item("Unspecified", "ring-bond-count", "unspecified", false),
-                        atom_property_item("No Ring Bonds", "ring-bond-count", "no-ring-bonds", false),
-                        atom_property_item("As Drawn", "ring-bond-count", "as-drawn", false),
-                        atom_property_item("Simple Ring", "ring-bond-count", "simple-ring", false),
-                        atom_property_item("Fusion", "ring-bond-count", "fusion", false),
-                        atom_property_item("Spiro or Higher", "ring-bond-count", "spiro-or-higher", false)
+                        atom_property_item("Unspecified", "ring-bond-count", "unspecified", ring_bond_count == Some(crate::RingBondCount::Unspecified)),
+                        atom_property_item("No Ring Bonds", "ring-bond-count", "no-ring-bonds", ring_bond_count == Some(crate::RingBondCount::NoRingBonds)),
+                        atom_property_item("As Drawn", "ring-bond-count", "as-drawn", ring_bond_count == Some(crate::RingBondCount::AsDrawn)),
+                        atom_property_item("Simple Ring", "ring-bond-count", "simple-ring", ring_bond_count == Some(crate::RingBondCount::SimpleRing)),
+                        atom_property_item("Fusion", "ring-bond-count", "fusion", ring_bond_count == Some(crate::RingBondCount::Fusion)),
+                        atom_property_item("Spiro or Higher", "ring-bond-count", "spiro-or-higher", ring_bond_count == Some(crate::RingBondCount::SpiroOrHigher))
                     ]
                 },
                 {
                     "label": "Unsaturated Bonds",
                     "submenu": [
-                        atom_property_item("Unspecified", "unsaturated-bonds", "unspecified", false),
-                        atom_property_item("Must Be Absent", "unsaturated-bonds", "must-be-absent", false),
-                        atom_property_item("Must Be Present", "unsaturated-bonds", "must-be-present", false)
+                        atom_property_item("Unspecified", "unsaturated-bonds", "unspecified", unsaturated_bonds == Some(crate::UnsaturatedBonds::Unspecified)),
+                        atom_property_item("Must Be Absent", "unsaturated-bonds", "must-be-absent", unsaturated_bonds == Some(crate::UnsaturatedBonds::MustBeAbsent)),
+                        atom_property_item("Must Be Present", "unsaturated-bonds", "must-be-present", unsaturated_bonds == Some(crate::UnsaturatedBonds::MustBePresent))
                     ]
                 },
                 {
                     "label": "Translation",
                     "submenu": [
-                        atom_property_item("Equal", "translation", "equal", false),
-                        atom_property_item("Broad", "translation", "broad", false),
-                        atom_property_item("Narrow", "translation", "narrow", false),
-                        atom_property_item("Any", "translation", "any", false)
+                        atom_property_item("Equal", "translation", "equal", translation == Some(crate::QueryTranslation::Equal)),
+                        atom_property_item("Broad", "translation", "broad", translation == Some(crate::QueryTranslation::Broad)),
+                        atom_property_item("Narrow", "translation", "narrow", translation == Some(crate::QueryTranslation::Narrow)),
+                        atom_property_item("Any", "translation", "any", translation == Some(crate::QueryTranslation::Any))
                     ]
                 },
                 separator(),
-                atom_property_item("Allow Abnormal Valence", "abnormal-valence", "true", false),
-                atom_property_item("Use Normal Valence", "abnormal-valence", "false", false),
+                atom_property_item("Allow Abnormal Valence", "abnormal-valence", "true", abnormal_valence == Some(true)),
+                atom_property_item("Use Normal Valence", "abnormal-valence", "false", abnormal_valence == Some(false)),
                 separator(),
                 {
                     "label": "Reaction Change",
@@ -1463,10 +1501,10 @@ impl Engine {
                     ]
                 },
                 separator(),
-                atom_property_item("Show Terminal Carbon Labels", "show-terminal-carbon-label", "true", false),
-                atom_property_item("Hide Terminal Carbon Labels", "show-terminal-carbon-label", "false", false),
-                atom_property_item("Show Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "true", false),
-                atom_property_item("Hide Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "false", false)
+                atom_property_item("Show Terminal Carbon Labels", "show-terminal-carbon-label", "true", show_terminal_carbon == Some(true)),
+                atom_property_item("Hide Terminal Carbon Labels", "show-terminal-carbon-label", "false", show_terminal_carbon == Some(false)),
+                atom_property_item("Show Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "true", show_non_terminal_carbon == Some(true)),
+                atom_property_item("Hide Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "false", show_non_terminal_carbon == Some(false))
             ]
         })
     }

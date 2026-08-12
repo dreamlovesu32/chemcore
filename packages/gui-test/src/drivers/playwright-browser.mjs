@@ -102,6 +102,7 @@ export class PlaywrightBrowserDriver {
       const id = target.value.replaceAll('"', '\\"');
       return scope.locator(`[id="${id}"]`);
     }
+    if (target.strategy === "selector") return scope.locator(target.value);
     throw new Error(`Playwright browser cannot resolve target strategy ${target.strategy}.`);
   }
 
@@ -235,12 +236,19 @@ export class PlaywrightBrowserDriver {
       await this.page.waitForFunction(
         ({ selector, text }) => {
           const elements = document.querySelectorAll(selector);
-          return elements.length === 1 && elements[0].textContent === text;
+          const observed = elements.length === 1 && ["INPUT", "TEXTAREA", "SELECT"].includes(elements[0].tagName)
+            ? elements[0].value
+            : elements[0]?.textContent;
+          return elements.length === 1 && observed === text;
         },
         completion,
         { timeout: completion.timeoutMs },
       );
-      return { observedText: await this.page.locator(completion.selector).textContent() };
+      return {
+        observedText: await this.page.locator(completion.selector).evaluate((element) => (
+          ["INPUT", "TEXTAREA", "SELECT"].includes(element.tagName) ? element.value : element.textContent
+        )),
+      };
     }
     throw new Error(`Unsupported completion ${completion.kind}.`);
   }

@@ -1,0 +1,51 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.bond.triple-hash-wavy-center-replacement.production",
+  "title": "Replace three styled double bonds with Triple, Hash, and Wavy tools through public center clicks",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Center-click replacement tools could recreate a logical bond, retain stale double placement or dashed lanes, apply the wrong stateless style, or update only rendered primitives without persisting exact semantics.",
+  "capabilities": ["gui.public-input", "editor.bond.draw", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 59,
+  "actions": [
+    { "id": "activate-single-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"bond\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-dashed-double", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Dashed-solid double bond", "scope": { "role": "toolbar", "name": "Secondary toolbar" } }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-dashed-double\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-triple-replacement-target", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.20, "y": 0.46 }, "to": { "x": 0.28, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-hash-replacement-target", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.44, "y": 0.46 }, "to": { "x": 0.52, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-wavy-replacement-target", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.68, "y": 0.46 }, "to": { "x": 0.76, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-triple", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Triple bond", "scope": { "role": "toolbar", "name": "Secondary toolbar" } }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-triple\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "replace-first-with-triple", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_3\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-hash-bond", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Hash bond", "scope": { "role": "toolbar", "name": "Secondary toolbar" } }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-bold-dashed\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "replace-second-with-hash", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_6\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-wavy-bond", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Wavy bond", "scope": { "role": "toolbar", "name": "Secondary toolbar" } }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"bond-wavy\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "replace-third-with-wavy", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-bond\"][data-bond-id=\"b_9\"]" }, "button": "left", "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 3, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "three-replaced-logical-bonds-rendered", "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 3 },
+    { "id": "saved-replaced-bond-counts", "kind": "document-counts", "expected": { "nodes": 6, "bonds": 3, "molecules": 3, "objects": 3 } },
+    { "id": "saved-triple-hash-wavy-replacement-semantics", "kind": "document-bond-properties", "expected": [
+      { "id": "b_3", "order": 3, "mainLineStyle": "solid", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_6", "order": 1, "mainLineStyle": "hash", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null },
+      { "id": "b_9", "order": 1, "mainLineStyle": "wavy", "leftLineStyle": "solid", "rightLineStyle": "solid", "mainLineWeight": "normal", "stereoKind": null, "wideEnd": null }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.bond.center-click-cycle", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "atom", "molecule"],
+    "cardinalities": ["many"],
+    "states": ["blank-document", "three-dashed-doubles", "triple-replacement", "hash-replacement", "wavy-replacement", "saved-document"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["bond.order", "bond.double.placement", "bond.line-styles", "bond.line-weights", "bond.stereo.kind", "bond.identity"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

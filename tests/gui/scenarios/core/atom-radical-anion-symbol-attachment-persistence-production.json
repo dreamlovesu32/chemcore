@@ -1,0 +1,50 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.atom.radical-anion-symbol-attachment-persistence.production",
+  "title": "Attach a public radical-anion symbol to nitrogen and persist exact charge-radical semantics",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Charge and radical-cation attachment evidence did not prove that radical-anion uses its independent valence branch, applies both negative-charge and radical deltas, and preserves exact atom-link provenance.",
+  "capabilities": ["gui.public-input", "editor.bond.draw", "editor.atom.element", "editor.symbol.draw", "editor.symbol.atom-attachment", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 40,
+  "actions": [
+    { "id": "activate-single-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"bond\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-radical-anion-target-bond", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.34, "y": 0.46 }, "to": { "x": 0.42, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-element-palette", "type": "click", "target": { "strategy": "selector", "value": ".quick-palette-toggle-element[data-quick-palette-mode=\"element\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette.is-open[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-nitrogen", "type": "click", "target": { "strategy": "selector", "value": ".periodic-element-button[data-element-symbol=\"N\"][data-element-atomic-number=\"7\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette:not(.is-open)[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "apply-nitrogen-to-radical-anion-target", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.37257, "y": 0.46 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_2\"]", "attribute": "data-node-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-charge-symbol-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Charge and electron symbols", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"symbol\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-radical-anion", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Radical anion", "scope": { "role": "toolbar", "name": "Secondary toolbar" } }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"symbol-kind-radical-anion\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "attach-radical-anion-to-nitrogen", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.37257, "y": 0.46 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "radical-anion-nitrogen-label-remains-rendered", "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_2\"]", "attribute": "data-node-id", "operator": "eq", "value": 1 },
+    { "id": "attached-radical-anion-symbol-remains-rendered", "kind": "dom-distinct-count", "selector": "[data-role=\"document-graphic\"][data-object-id]", "attribute": "data-object-id", "operator": "eq", "value": 1 },
+    { "id": "saved-radical-anion-topology-counts", "kind": "document-counts", "expected": { "nodes": 2, "bonds": 1, "molecules": 1, "objects": 2 } },
+    { "id": "saved-radical-anion-node-semantics", "kind": "document-node-properties", "expected": [
+      { "id": "n_2", "element": "N", "atomicNumber": 7, "charge": -1, "numHydrogens": 0, "radicalCount": 1, "labelText": "N", "labelSourceText": "N" }
+    ] },
+    { "id": "saved-radical-anion-symbol-attachment-semantics", "kind": "document-symbol-properties", "expected": [
+      { "id": "obj_symbol_4", "kind": "radical-anion", "payloadFill": "#000000", "symbolStyle": "default", "chemicalRole": "radical-anion", "chargeDelta": -1, "radicalDelta": 1, "attachedAtomId": "n_2", "attachmentSource": "auto" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.atom.element", "editor.atom.label", "editor.symbol.draw", "editor.symbol.atom-attachment", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "atom", "symbol", "molecule"],
+    "cardinalities": ["1"],
+    "states": ["blank-document", "element-palette-open", "neutral-nitrogen", "charge-symbol-active", "radical-anion-selected", "radical-anion-attached", "negative-radical-node", "saved-document"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["atom.element", "atom.atomic-number", "atom.charge", "atom.num-hydrogens", "atom.radical-count", "atom.label-text", "symbol.kind", "symbol.chemical-role", "symbol.charge-delta", "symbol.radical-delta", "symbol.attached-atom", "symbol.attachment-source"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

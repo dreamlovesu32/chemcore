@@ -377,6 +377,76 @@ pub(crate) fn text_object_world_bounds(
     }
 }
 
+pub(crate) fn refresh_auto_sized_text_object_box(object: &mut crate::SceneObject) -> bool {
+    if object.object_type != "text"
+        || object
+            .meta
+            .pointer("/import/cdxml/authoredBoundingBox")
+            .and_then(Value::as_bool)
+            == Some(true)
+        || !payload_bool(&object.payload, "preserveLines").unwrap_or(false)
+    {
+        return false;
+    }
+    let runs = object
+        .payload
+        .extra
+        .get("runs")
+        .cloned()
+        .and_then(|value| serde_json::from_value::<Vec<LabelRun>>(value).ok())
+        .unwrap_or_default();
+    let default_font_size =
+        payload_number(&object.payload, "fontSize").unwrap_or(DEFAULT_TEXT_FONT_SIZE);
+    let default_font_family = object
+        .payload
+        .extra
+        .get("fontFamily")
+        .and_then(Value::as_str)
+        .unwrap_or(DEFAULT_TEXT_FONT_FAMILY)
+        .to_string();
+    let lines = split_runs_by_line_preserving_empty(&runs);
+    let width = lines
+        .iter()
+        .map(|line| {
+            crate::shared_text_advance_and_ink_bounds(
+                "",
+                line,
+                default_font_size,
+                Some(&default_font_family),
+            )
+            .0
+        })
+        .fold(TEXT_EDIT_BOX_WIDTH, f64::max);
+    let line_height =
+        payload_number(&object.payload, "lineHeight").unwrap_or(DEFAULT_TEXT_BLOCK_LINE_HEIGHT);
+    let max_font_size = crate::shared_estimated_text_max_font_size(default_font_size, &runs);
+    let height = (line_height * lines.len().max(1) as f64).max(max_font_size);
+    let align = object
+        .payload
+        .extra
+        .get("align")
+        .and_then(Value::as_str)
+        .unwrap_or("left")
+        .to_string();
+    let local_box = text_object_box_for_align(&align, round2(width), round2(height));
+    let next_box = [
+        round6(local_box[0]),
+        round6(local_box[1]),
+        round6(local_box[2]),
+        round6(local_box[3]),
+    ];
+    let changed =
+        payload_box(&object.payload) != Some(next_box) || object.payload.bbox != Some(next_box);
+    if changed {
+        object
+            .payload
+            .extra
+            .insert("box".to_string(), json!(next_box));
+        object.payload.bbox = Some(next_box);
+    }
+    changed
+}
+
 pub(crate) fn text_object_arrange_bounds(
     document: &crate::ChemSemaDocument,
     object: &crate::SceneObject,

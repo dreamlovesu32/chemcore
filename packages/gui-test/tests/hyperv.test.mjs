@@ -24,8 +24,11 @@ test("worker profile contains no secret and expands its external credential path
 
 test("production canvas and secondary controls expose stable accessibility locators", async () => {
   const html = await readFile(join(repositoryRoot, "viewer", "index.html"), "utf8");
+  const palette = await readFile(join(repositoryRoot, "viewer", "text_symbol_palette.js"), "utf8");
   assert.match(html, /id="viewer-container"[^>]+role="application"[^>]+aria-label="Drawing canvas"/);
   assert.match(html, /id="secondary-toolbar"[^>]+role="toolbar"[^>]+aria-label="Secondary toolbar"/);
+  assert.match(palette, /elementToggle\.className = "quick-palette-toggle quick-palette-toggle-element"/);
+  assert.match(palette, /elementToggle\.dataset\.quickPaletteMode = "element"/);
 });
 
 test("host attestation verifies identity, services, VM bounds, and encrypted credential", async () => {
@@ -292,7 +295,8 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   const guestSource = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
   assert.match(guestSource, /'distinct-count', 'distinct-count-state', 'text', 'text-state'/);
   assert.match(guestSource, /DOM observation requires a selector of 1 to 2048 characters/);
-  assert.match(guestSource, /elements\.length === 1 \? elements\[0\]\.textContent : null/);
+  assert.match(guestSource, /\['INPUT', 'TEXTAREA', 'SELECT'\]\.includes\(element\.tagName\)/);
+  assert.match(guestSource, /\? element\.value\s+: element\.textContent/);
   const countBranch = guestSource.slice(
     guestSource.indexOf("} elseif ($request.mode -in @('count', 'count-state'"),
     guestSource.indexOf("} elseif ($request.mode -in @('text', 'text-state'"),
@@ -310,6 +314,19 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   assert.match(guestSource, /rootMatrix\.inverse\(\)\.multiply\(elementMatrix\)/);
   assert.match(guestSource, /worldRect/);
   assert.match(guestSource, /'data-object-id', 'data-node-id', 'data-bond-id'/);
+  const selectorGeometryContract = (candidate) => (
+    /const renderedRect = semanticPointerElement\.getBoundingClientRect\(\);/.test(candidate)
+    && /const selectorGeometryRect = target\.strategy === 'selector'\s+&& \(renderedRect\.width === 0 \|\| renderedRect\.height === 0\)\s+\? geometryPointerRect\(element\)\s+: null;/.test(candidate)
+    && /: bondEndpointRect \|\| selectorGeometryRect \|\| renderedRect;/.test(candidate)
+  );
+  assert.equal(selectorGeometryContract(guestSource), true);
+  for (const mutant of [
+    guestSource.replace("const selectorGeometryRect = target.strategy === 'selector'", "const selectorGeometryRect = target.strategy === 'entity-id'"),
+    guestSource.replace("&& (renderedRect.width === 0 || renderedRect.height === 0)", "&& false"),
+    guestSource.replace(": bondEndpointRect || selectorGeometryRect || renderedRect;", ": bondEndpointRect || renderedRect;"),
+  ]) {
+    assert.equal(selectorGeometryContract(mutant), false);
+  }
   assert.match(guestSource, /'artifact-export'/);
   assert.match(guestSource, /'trace-start'/);
   assert.match(guestSource, /'trace-mark'/);
@@ -424,6 +441,70 @@ test("production world geometry targets are restricted to the rendered page", as
   assert.match(source, /\[data-layer="page-background"\]/);
 });
 
+test("production bond-endpoint targets recover closed-polygon centerlines and kill clipped-edge or opposite-end mutants", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
+  const endpointContract = (candidate) => (
+    /query\.strategy === 'bond-endpoint'/.test(candidate)
+    && /\^\(b_\[A-Za-z0-9\._-\]\{1,120\}\):\(start\|end\)\$/.test(candidate)
+    && /\[data-role="document-bond"\]\[data-bond-id=/.test(candidate)
+    && /sort\(\(left, right\) => right\.length - left\.length\)/.test(candidate)
+    && /element\.tagName\.toLowerCase\(\) === 'polygon'/.test(candidate)
+    && /element\.points\?\.numberOfItems >= 3/.test(candidate)
+    && /distanceSquared > farthest\.distanceSquared/.test(candidate)
+    && /candidate\.projection <= minimum \+ endpointBand/.test(candidate)
+    && /candidate\.projection >= maximum - endpointBand/.test(candidate)
+    && /firstToMinimum <= firstToMaximum \? minimumEnd : maximumEnd/.test(candidate)
+    && /point = endpoint === 'start' \? start : end/.test(candidate)
+    && /point \|\|= element\.getPointAtLength\(endpoint === 'start' \? 0 : length\)/.test(candidate)
+    && /bondEndpointRect \|\| selectorGeometryRect \|\| renderedRect/.test(candidate)
+  );
+  assert.equal(endpointContract(source), true);
+  const extractBondEndpointHelper = (candidate) => {
+    const match = candidate.match(/  const bondEndpointPointerRect = [\s\S]*?\r?\n  };\r?\n  const find/);
+    assert.ok(match, "bond endpoint helper must be extractable with LF or CRLF line endings");
+    return match[0].replace(/\r?\n  const find$/, "");
+  };
+  const helperSource = extractBondEndpointHelper(source);
+  assert.doesNotThrow(() => extractBondEndpointHelper(source.replace(/\r?\n/g, "\r\n")));
+  class IdentityDomPoint {
+    constructor(x, y) { this.x = x; this.y = y; }
+    matrixTransform() { return this; }
+  }
+  const resolveBondEndpoint = new Function("DOMPoint", `${helperSource}\nreturn bondEndpointPointerRect;`)(IdentityDomPoint);
+  const clippedPolygonPoints = [
+    [-182.96703243671993, -7.3204702291928045],
+    [-171.02, -0.42264549667551754],
+    [-171.02, -1],
+    [-171.02, -1.5773545033244825],
+    [-182.4670214363569, -8.186489281821544],
+  ].map(([x, y]) => ({ x, y }));
+  const clippedPolygon = {
+    tagName: "polygon",
+    points: {
+      numberOfItems: clippedPolygonPoints.length,
+      getItem: (index) => clippedPolygonPoints[index],
+    },
+    getTotalLength: () => 50,
+    getScreenCTM: () => ({}),
+    getPointAtLength: () => { throw new Error("closed-path perimeter fallback must not run"); },
+  };
+  const startRect = resolveBondEndpoint(clippedPolygon, "start");
+  const endRect = resolveBondEndpoint(clippedPolygon, "end");
+  assert.ok((startRect.left + 0.5) < -182, "start remains on the label-clipped terminal side");
+  assert.ok(Math.abs((endRect.left + 0.5) - (-171.02)) < 1e-9, "end resolves the shared Carbon cross-section centroid");
+  assert.ok(Math.abs((endRect.top + 0.5) - (-1)) < 1e-9, "end resolves the shared Carbon centerline");
+  for (const mutant of [
+    source.replace("query.strategy === 'bond-endpoint'", "query.strategy === 'selector'"),
+    source.replace("element.tagName.toLowerCase() === 'polygon'", "false"),
+    source.replace("point = endpoint === 'start' ? start : end", "point = start"),
+    source.replace("point ||= element.getPointAtLength(endpoint === 'start' ? 0 : length)", "point = element.getPointAtLength(length * 0.5)"),
+    source.replace("bondEndpointRect || selectorGeometryRect || renderedRect", "selectorGeometryRect || renderedRect"),
+  ]) {
+    assert.equal(endpointContract(mutant), false);
+  }
+});
+
 test("production semantic targets expose native text and select controls", async () => {
   const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
   const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
@@ -437,6 +518,8 @@ test("production semantic targets expose native text and select controls", async
   assert.match(source, /aria-labelledby/);
   assert.match(source, /label\.querySelector\(':scope > span'\)/);
   assert.match(source, /clone\.querySelectorAll\('input, select, textarea, button, option, em'\)/);
+  assert.match(source, /\['INPUT', 'TEXTAREA', 'SELECT'\]\.includes\(elements\[0\]\.tagName\)/);
+  assert.match(source, /elements\[0\]\.value/);
 });
 
 test("production entity targets use a real SVG geometry midpoint and retain bounded fallbacks", async () => {
@@ -460,9 +543,16 @@ test("production entity targets use a real SVG geometry midpoint and retain boun
   assert.match(source, /candidate\.getScreenCTM\(\)/);
   assert.match(source, /new DOMPoint\(midpoint\.x, midpoint\.y\)\.matrixTransform\(matrix\)/);
   assert.match(source, /length > best\.length/);
-  assert.match(source, /geometryPointerRect\(element\) \|\| semanticPointerElement\.getBoundingClientRect\(\)/);
+  assert.match(source, /geometryPointerRect\(element\) \|\| renderedRect/);
   assert.match(source, /screenRects\.flatMap/);
   assert.match(source, /worldPoints\.push/);
+});
+
+test("production selector targets resolve the unique rendered element without an object id", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
+  assert.match(source, /query\.strategy === 'selector'/);
+  assert.match(source, /root\.querySelectorAll\(query\.value\)/);
 });
 
 test("production action transaction uses one guest invocation for before, input, completion, and after", async () => {

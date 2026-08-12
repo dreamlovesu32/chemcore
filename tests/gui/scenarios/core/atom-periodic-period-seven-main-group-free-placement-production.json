@@ -1,0 +1,49 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.atom.periodic-period-seven-main-group-free-placement.production",
+  "title": "Place the remaining period-seven main-group atoms directly through the public Element palette",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": "Existing periodic evidence cannot kill missing Fr, Ra, or Nh buttons, their mapping, or the distinction between zero-hydrogen Group 1/2 atoms and the Group 13 implicit-hydrogen label.",
+  "capabilities": ["gui.public-input", "editor.atom.element", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 67,
+  "actions": [
+    { "id": "open-element-palette-for-francium", "type": "click", "target": { "strategy": "selector", "value": ".quick-palette-toggle-element[data-quick-palette-mode=\"element\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette.is-open[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-francium", "type": "click", "target": { "strategy": "selector", "value": ".periodic-element-button[data-element-symbol=\"Fr\"][data-element-atomic-number=\"87\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette:not(.is-open)[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "place-francium", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.25, "y": 0.49 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_1\"]", "attribute": "data-node-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-element-palette-for-radium", "type": "click", "target": { "strategy": "selector", "value": ".quick-palette-toggle-element[data-quick-palette-mode=\"element\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette.is-open[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-radium", "type": "click", "target": { "strategy": "selector", "value": ".periodic-element-button[data-element-symbol=\"Ra\"][data-element-atomic-number=\"88\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette:not(.is-open)[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "place-radium", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.5, "y": 0.49 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_2\"]", "attribute": "data-node-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-element-palette-for-nihonium", "type": "click", "target": { "strategy": "selector", "value": ".quick-palette-toggle-element[data-quick-palette-mode=\"element\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette.is-open[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-nihonium", "type": "click", "target": { "strategy": "selector", "value": ".periodic-element-button[data-element-symbol=\"Nh\"][data-element-atomic-number=\"113\"]" }, "completion": { "kind": "dom-count", "selector": ".quick-palette:not(.is-open)[data-mode=\"element\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "place-nihonium", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.75, "y": 0.49 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-node-id=\"n_3\"]", "attribute": "data-node-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "three-period-seven-main-group-atoms-rendered", "kind": "dom-distinct-count", "selector": "[data-node-id]", "attribute": "data-node-id", "operator": "eq", "value": 3 },
+    { "id": "saved-period-seven-main-group-counts", "kind": "document-counts", "expected": { "nodes": 3, "bonds": 0, "molecules": 3, "objects": 3 } },
+    { "id": "saved-period-seven-main-group-semantics", "kind": "document-node-properties", "expected": [
+      { "id": "n_1", "element": "Fr", "atomicNumber": 87, "charge": 0, "numHydrogens": 0, "labelText": "Fr", "labelSourceText": "Fr" },
+      { "id": "n_2", "element": "Ra", "atomicNumber": 88, "charge": 0, "numHydrogens": 0, "labelText": "Ra", "labelSourceText": "Ra" },
+      { "id": "n_3", "element": "Nh", "atomicNumber": 113, "charge": 0, "numHydrogens": 3, "labelText": "NhH3", "labelSourceText": "NhH3" }
+    ] },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.atom.element", "editor.atom.free-placement", "editor.atom.label", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["atom", "molecule"],
+    "cardinalities": ["many"],
+    "states": ["blank-document", "periodic-palette-open", "francium", "radium", "nihonium", "saved-document"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["atom.element", "atom.atomic-number", "atom.charge", "atom.identity", "atom.free-placement", "atom.implicit-hydrogen"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.frontend.selection-geometry.production",
+  "title": "Verify production bond and text selection overlays, resize handles, canvas focus, and scaled geometry through guarded OS input",
+  "risk": "critical",
+  "owner": "desktop-frontend",
+  "originatingDefect": null,
+  "capabilities": ["gui.public-input", "editor.bond.draw", "editor.text.create", "editor.text.properties", "editor.selection.region", "editor.selection.select-all", "oracle.ui-state", "frontend.focus", "frontend.selection-overlay", "frontend.dpi", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1280, "height": 900 }, "dpi": 144, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 1,
+  "actions": [
+    { "id": "activate-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-single-bond", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.43, "y": 0.50 }, "to": { "x": 0.53, "y": 0.50 }, "steps": 8, "completion": { "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-box-selection", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"select\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-bond-by-region", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.38, "y": 0.43 }, "to": { "x": 0.58, "y": 0.57 }, "steps": 10, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-text-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Text", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"text\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-text-editor", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "at": { "x": 0.70, "y": 0.35 }, "completion": { "kind": "dom-count", "selector": ".text-editor-input", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-text", "type": "text", "target": { "strategy": "role", "value": "textbox", "name": "text editor input" }, "text": "ChemSema H2O", "completion": { "kind": "dom-text", "selector": ".text-editor-display", "text": "ChemSema H2O", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "commit-text", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Box selection", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-text", "selector": "[data-role=\"document-text\"]", "text": "ChemSema H2O", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-bond-and-text", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] > *", "operator": "gte", "value": 2, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-text-only", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-text\"]" }, "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-text-box\"], [data-layer=\"editor-overlay\"] [data-role=\"selection-box\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-text-font-menu", "type": "click", "target": { "strategy": "selector", "value": "[data-role=\"document-text\"]" }, "button": "right", "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [data-canvas-context-command=\"text-style\"][data-canvas-context-value=\"font-family:Times New Roman\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "expand-text-font-menu", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Font", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden]) [aria-label=\"Font\"]:focus", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "change-text-font", "type": "click", "target": { "strategy": "role", "value": "menuitem", "name": "Times New Roman", "scope": { "role": "menu", "name": "Canvas menu" } }, "completion": { "kind": "dom-count", "selector": ".canvas-context-menu:not([hidden])", "operator": "eq", "value": 0, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "reselect-after-font-change", "type": "key", "target": { "strategy": "automation-id", "value": "viewer-container" }, "key": "Control+A", "completion": { "kind": "dom-count", "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-text-box\"]", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 }
+  ],
+  "oracles": [
+    {
+      "id": "text-selection-box-encloses-current-font-geometry",
+      "kind": "ui-state",
+      "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-text-box\"]",
+      "referenceSelector": "[data-role=\"document-text\"]",
+      "uiExpected": {
+        "count": 1,
+        "visibleCount": 1,
+        "geometry": { "relation": "contains-reference", "tolerancePx": 1 }
+      }
+    },
+    {
+      "id": "text-selection-box-remains-tight-to-current-font-geometry",
+      "kind": "ui-state",
+      "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-text-box\"]",
+      "referenceSelector": "[data-role=\"document-text\"]",
+      "uiExpected": {
+        "count": 1,
+        "visibleCount": 1,
+        "geometry": { "relation": "matches-reference", "tolerancePx": 5.5 }
+      }
+    },
+    {
+      "id": "selection-overlay-encloses-rendered-bond",
+      "kind": "ui-state",
+      "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-bond\"]",
+      "referenceSelector": "[data-bond-id]",
+      "uiExpected": {
+        "rect": { "minWidth": 12, "minHeight": 12 },
+        "styles": [
+          { "property": "fill", "operator": "eq", "value": "none" },
+          { "property": "stroke", "operator": "neq", "value": "none" },
+          { "property": "strokeWidth", "operator": "neq", "value": "0px" }
+        ],
+        "geometry": { "relation": "contains-reference", "tolerancePx": 5 },
+        "viewport": { "devicePixelRatio": 1.5, "minWidth": 1200, "maxWidth": 1360, "minHeight": 840, "maxHeight": 960 }
+      }
+    },
+    {
+      "id": "mixed-selection-resize-handles-have-scaled-screen-size",
+      "kind": "ui-state",
+      "selector": "[data-layer=\"editor-overlay\"] [data-role=\"selection-resize-handle\"]",
+      "uiExpected": {
+        "count": 16,
+        "visibleCount": 16,
+        "styles": [
+          { "property": "fill", "operator": "neq", "value": "none" },
+          { "property": "stroke", "operator": "eq", "value": "none" }
+        ],
+        "rect": { "minWidth": 5, "maxWidth": 9, "minHeight": 5, "maxHeight": 9 },
+        "viewport": { "devicePixelRatio": 1.5, "minWidth": 1200, "maxWidth": 1360, "minHeight": 840, "maxHeight": 960 }
+      }
+    },
+    {
+      "id": "canvas-retains-real-focus-and-hover",
+      "kind": "ui-state",
+      "selector": "#viewer-container",
+      "uiExpected": { "count": 1, "visibleCount": 1, "focusedCount": 1, "focusWithinCount": 1, "hoverCount": 1 }
+    },
+    { "id": "rendered-bond-remains", "kind": "dom-count", "selector": "[data-bond-id]", "operator": "eq", "value": 1 },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.text.create", "editor.text.properties", "editor.selection.region", "editor.selection.select-all", "frontend.focus", "frontend.selection-overlay", "frontend.dpi", "desktop.production"],
+    "objectTypes": ["bond", "molecule", "text", "selection-overlay", "resize-handle"],
+    "cardinalities": ["1", "many"],
+    "states": ["selected", "focused", "hovered", "selection-box-visible", "bond-selection-minimum-screen-size", "text-selection-tight", "font-changed", "resize-handles-visible", "dpi-150-percent"],
+    "inputModes": ["mouse", "right-mouse", "keyboard"],
+    "properties": ["text.font-family", "ui.selection-stroke", "ui.selection-fill", "ui.selection-geometry", "ui.handle-size", "ui.device-pixel-ratio"],
+    "persistenceBoundaries": ["runtime"]
+  }
+}

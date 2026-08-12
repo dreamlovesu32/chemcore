@@ -243,6 +243,8 @@ pub enum RenderPrimitive {
         object_id: Option<String>,
         #[serde(rename = "nodeId", default, skip_serializing_if = "Option::is_none")]
         node_id: Option<String>,
+        #[serde(rename = "bondId", default, skip_serializing_if = "Option::is_none")]
+        bond_id: Option<String>,
         x: f64,
         y: f64,
         #[serde(
@@ -603,6 +605,7 @@ pub(super) fn push_text_rotated(
         role: RenderRole::DocumentText,
         object_id: object_id.clone(),
         node_id: None,
+        bond_id: None,
         x,
         y,
         baseline_offset,
@@ -718,11 +721,13 @@ pub(super) fn push_text_for_node(
     runs: Vec<crate::LabelRun>,
     object_id: Option<String>,
     node_id: Option<String>,
+    bond_id: Option<String>,
 ) {
     out.push(RenderPrimitive::Text {
         role: RenderRole::DocumentText,
         object_id,
         node_id,
+        bond_id,
         x,
         y,
         baseline_offset,

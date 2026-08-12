@@ -1,0 +1,40 @@
+{
+  "schema": "chemsema.gui.scenario.v1",
+  "id": "core.ring.bond-fusion-persistence.production",
+  "title": "Fuse a six-membered ring onto an existing bond through guarded production input and persist one molecule",
+  "risk": "critical",
+  "owner": "editor-core",
+  "originatingDefect": null,
+  "capabilities": ["gui.public-input", "editor.bond.draw", "editor.ring.insert", "document.save-as", "oracle.document-file", "desktop.production"],
+  "drivers": ["production-black-box"],
+  "profile": { "pool": "interactive-isolated-worker", "viewport": { "width": 1028, "height": 779 }, "dpi": 96, "locale": "zh-CN", "theme": "light", "runtime": "production" },
+  "seed": 33,
+  "actions": [
+    { "id": "activate-single-bond-tool", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Single bond", "scope": { "role": "complementary", "name": "Main Drawing Rail" } }, "completion": { "kind": "dom-count", "selector": "button[data-tool=\"bond\"].is-active", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "draw-ring-fusion-target-bond", "type": "drag", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "from": { "x": 0.34, "y": 0.46 }, "to": { "x": 0.42, "y": 0.46 }, "steps": 8, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "activate-rings-tool", "type": "click", "target": { "strategy": "selector", "value": "button[data-tool=\"templates\"][data-tool-rail=\"main\"]" }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value^=\"ring-\"]", "operator": "eq", "value": 6, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "choose-ring-6", "type": "click", "target": { "strategy": "role", "value": "button", "name": "6-membered ring", "scope": { "role": "toolbar", "name": "Secondary toolbar" } }, "completion": { "kind": "dom-count", "selector": "button[data-secondary-value=\"ring-6\"].is-selected", "operator": "eq", "value": 1, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "fuse-ring-6-on-target-bond", "type": "click", "target": { "strategy": "automation-id", "value": "viewer-container" }, "button": "left", "at": { "x": 0.35629, "y": 0.46 }, "completion": { "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 6, "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "open-save-as-dialog", "type": "click", "target": { "strategy": "role", "value": "button", "name": "Save as" }, "completion": { "kind": "uia-visible", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "timeoutMs": 15000 }, "budgetMs": 30000 },
+    { "id": "focus-save-filename", "type": "click", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "select-save-filename", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Control+A", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "type-save-path", "type": "text", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "textSource": "document-output-path", "completion": { "kind": "actionable", "timeoutMs": 8000 }, "budgetMs": 30000 },
+    { "id": "confirm-save", "type": "key", "target": { "strategy": "uia-automation-id", "value": "1001", "controlType": "ControlType.Pane", "className": "Edit" }, "key": "Enter", "completion": { "kind": "document-saved", "timeoutMs": 30000 }, "budgetMs": 90000 }
+  ],
+  "oracles": [
+    { "id": "one-fused-six-membered-ring-rendered", "kind": "dom-distinct-count", "selector": "[data-bond-id]", "attribute": "data-bond-id", "operator": "eq", "value": 6 },
+    { "id": "saved-bond-fused-ring-topology-counts", "kind": "document-counts", "expected": { "nodes": 6, "bonds": 6, "molecules": 1, "objects": 1 } },
+    { "id": "no-console-errors", "kind": "no-unexpected-diagnostics" }
+  ],
+  "expectedDiagnostics": [],
+  "coverage": {
+    "classification": "real-user-path",
+    "features": ["editor.bond.draw", "editor.ring.insert", "editor.ring.fuse-bond", "document.save-as", "oracle.document-file", "desktop.production"],
+    "objectTypes": ["bond", "molecule"],
+    "cardinalities": ["1", "many"],
+    "states": ["blank-document", "existing-bond", "ring-target-hover", "bond-fused-ring", "saved-document"],
+    "inputModes": ["mouse", "keyboard", "native-dialog"],
+    "properties": ["ring.member-count", "bond.connectivity", "template.bond-fusion"],
+    "persistenceBoundaries": ["runtime", "filesystem", "native-dialog"]
+  }
+}
