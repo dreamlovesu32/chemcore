@@ -5,6 +5,12 @@ import { candidateActionBudgetIsValid, candidateActionTransportReserveMs } from 
 import { productionBlackBoxCapabilities } from "../drivers/production-black-box.mjs";
 
 const productionCapabilitySet = new Set(productionBlackBoxCapabilities);
+const atomQueryCarbonLabelCommands = new Set([
+  "Show Terminal Carbon Labels",
+  "Hide Terminal Carbon Labels",
+  "Show Nonterminal Carbon Labels",
+  "Hide Nonterminal Carbon Labels",
+]);
 
 function clearsSelectionViaBlankPage(action) {
   return action?.type === "click"
@@ -102,6 +108,18 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
           || action.completion?.selector?.includes('show-non-terminal-carbon-label:false'));
       if (opensDefaultHiddenCarbonLabelMenu && action.target?.strategy !== "bond-endpoint") {
         errors.push(`Scenario ${scenario.id} action ${action.id} must target the implicit Carbon through a semantic bond endpoint because the hidden atom has no rendered node primitive.`);
+      }
+      if (action.type === "click" && atomQueryCarbonLabelCommands.has(action.target?.name)) {
+        const submenuAction = scenario.actions[actionIndex - 1];
+        const expandsAtomQuery = submenuAction?.type === "click"
+          && submenuAction.target?.strategy === "role"
+          && submenuAction.target.value === "menuitem"
+          && submenuAction.target.name === "Atom Query"
+          && submenuAction.target.scope?.role === "menu"
+          && submenuAction.target.scope.name === "Canvas menu";
+        if (!expandsAtomQuery) {
+          errors.push(`Scenario ${scenario.id} action ${action.id} must immediately expand the Canvas menu Atom Query submenu containing Carbon-label commands.`);
+        }
       }
       const opensBondPropertyMenu = action.type === "click"
         && action.button === "right"
