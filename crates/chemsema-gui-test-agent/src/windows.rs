@@ -30,8 +30,9 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MapVirtualKeyW, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT,
     KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE, KEYEVENTF_UNICODE,
     MAPVK_VK_TO_VSC_EX, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN,
-    MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_CONTROL,
-    VK_DELETE, VK_DOWN, VK_ESCAPE, VK_LEFT, VK_MENU, VK_RETURN, VK_RIGHT, VK_SHIFT, VK_TAB, VK_UP,
+    MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEINPUT, VK_BACK,
+    VK_CONTROL, VK_DELETE, VK_DOWN, VK_ESCAPE, VK_LEFT, VK_MENU, VK_RETURN, VK_RIGHT, VK_SHIFT,
+    VK_TAB, VK_UP,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, EnumWindows, GetClassNameW, GetClientRect, GetForegroundWindow,
@@ -391,6 +392,7 @@ fn parse_shortcut(shortcut: &str) -> Result<(Vec<u16>, u16), String> {
     let normalized = key.to_ascii_lowercase();
     let key_code = match normalized.as_str() {
         "delete" => VK_DELETE,
+        "backspace" => VK_BACK,
         "escape" => VK_ESCAPE,
         "enter" => VK_RETURN,
         "tab" => VK_TAB,
@@ -791,7 +793,7 @@ mod tests {
         deliver_click_with_timing, parse_pointer_modifiers, parse_shortcut,
         retryable_window_snapshot_error, settle_after_text_input, uses_virtual_key_input,
         validate_text_input, CLICK_BUTTON_DWELL, CLICK_CURSOR_SETTLE, TEXT_INPUT_EVENT_SETTLE,
-        VK_CONTROL, VK_DELETE, VK_DOWN, VK_LEFT, VK_MENU, VK_RIGHT, VK_SHIFT, VK_UP,
+        VK_BACK, VK_CONTROL, VK_DELETE, VK_DOWN, VK_LEFT, VK_MENU, VK_RIGHT, VK_SHIFT, VK_UP,
     };
     use std::cell::RefCell;
 
@@ -809,6 +811,7 @@ mod tests {
     fn keyboard_shortcuts_are_allowlisted_and_secure_attention_is_forbidden() {
         assert!(parse_shortcut("Control+Z").is_ok());
         assert!(parse_shortcut("Shift+ArrowLeft").is_ok());
+        assert_eq!(parse_shortcut("Backspace").unwrap().1, VK_BACK);
         assert!(parse_shortcut("Alt+F4").is_err());
         assert!(parse_shortcut("Control+Alt+Delete").is_err());
         assert!(parse_shortcut("Meta+R").is_err());
