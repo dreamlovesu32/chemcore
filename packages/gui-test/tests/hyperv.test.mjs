@@ -317,13 +317,13 @@ test("CDP observation uses a persistent bounded channel rather than per-request 
   const selectorGeometryContract = (candidate) => (
     /const renderedRect = semanticPointerElement\.getBoundingClientRect\(\);/.test(candidate)
     && /const selectorGeometryRect = target\.strategy === 'selector'\s+&& \(renderedRect\.width === 0 \|\| renderedRect\.height === 0\)\s+\? geometryPointerRect\(element\)\s+: null;/.test(candidate)
-    && /: selectorGeometryRect \|\| renderedRect;/.test(candidate)
+    && /: bondEndpointRect \|\| selectorGeometryRect \|\| renderedRect;/.test(candidate)
   );
   assert.equal(selectorGeometryContract(guestSource), true);
   for (const mutant of [
     guestSource.replace("const selectorGeometryRect = target.strategy === 'selector'", "const selectorGeometryRect = target.strategy === 'entity-id'"),
     guestSource.replace("&& (renderedRect.width === 0 || renderedRect.height === 0)", "&& false"),
-    guestSource.replace(": selectorGeometryRect || renderedRect;", ": renderedRect;"),
+    guestSource.replace(": bondEndpointRect || selectorGeometryRect || renderedRect;", ": bondEndpointRect || renderedRect;"),
   ]) {
     assert.equal(selectorGeometryContract(mutant), false);
   }
@@ -439,6 +439,27 @@ test("production world geometry targets are restricted to the rendered page", as
   assert.match(source, /query\.strategy === 'world-geometry'/);
   assert.match(source, /query\.value !== 'page-background'/);
   assert.match(source, /\[data-layer="page-background"\]/);
+});
+
+test("production bond-endpoint targets resolve an exact logical endpoint and kill midpoint or opposite-end mutants", async () => {
+  const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+  const source = await readFile(join(packageRoot, "scripts", "guest-cdp.ps1"), "utf8");
+  const endpointContract = (candidate) => (
+    /query\.strategy === 'bond-endpoint'/.test(candidate)
+    && /\^\(b_\[A-Za-z0-9\._-\]\{1,120\}\):\(start\|end\)\$/.test(candidate)
+    && /\[data-role="document-bond"\]\[data-bond-id=/.test(candidate)
+    && /sort\(\(left, right\) => right\.length - left\.length\)/.test(candidate)
+    && /getPointAtLength\(endpoint === 'start' \? 0 : length\)/.test(candidate)
+    && /bondEndpointRect \|\| selectorGeometryRect \|\| renderedRect/.test(candidate)
+  );
+  assert.equal(endpointContract(source), true);
+  for (const mutant of [
+    source.replace("query.strategy === 'bond-endpoint'", "query.strategy === 'selector'"),
+    source.replace("endpoint === 'start' ? 0 : length", "length * 0.5"),
+    source.replace("bondEndpointRect || selectorGeometryRect || renderedRect", "selectorGeometryRect || renderedRect"),
+  ]) {
+    assert.equal(endpointContract(mutant), false);
+  }
 });
 
 test("production semantic targets expose native text and select controls", async () => {

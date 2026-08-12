@@ -2085,12 +2085,22 @@ fn atom_query_value_menus_report_selected_values_and_kill_hard_coded_false_mutan
         checked_atom_query_values(&defaults, "abnormal-valence:"),
         ["abnormal-valence:false"]
     );
+    assert_eq!(
+        checked_atom_query_values(&defaults, "show-terminal-carbon-label:"),
+        ["show-terminal-carbon-label:false"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&defaults, "show-non-terminal-carbon-label:"),
+        ["show-non-terminal-carbon-label:false"]
+    );
 
     for (property, value) in [
         ("ring-bond-count", "simple-ring"),
         ("unsaturated-bonds", "must-be-present"),
         ("translation", "narrow"),
         ("abnormal-valence", "true"),
+        ("show-terminal-carbon-label", "true"),
+        ("show-non-terminal-carbon-label", "true"),
     ] {
         assert_eq!(
             execute(
@@ -2121,6 +2131,14 @@ fn atom_query_value_menus_report_selected_values_and_kill_hard_coded_false_mutan
     assert_eq!(
         checked_atom_query_values(&updated, "abnormal-valence:"),
         ["abnormal-valence:true"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&updated, "show-terminal-carbon-label:"),
+        ["show-terminal-carbon-label:true"]
+    );
+    assert_eq!(
+        checked_atom_query_values(&updated, "show-non-terminal-carbon-label:"),
+        ["show-non-terminal-carbon-label:true"]
     );
 }
 

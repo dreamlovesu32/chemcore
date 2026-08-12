@@ -706,6 +706,15 @@ test("coverage audit binds every registered source and scenario", async () => {
   assert.equal(wrongPrimitiveTargetResult.valid, false);
   assert.match(wrongPrimitiveTargetResult.errors.join("\n"), /entity-id resolves scene object ids only/);
 
+  const invisibleCarbonPrimitiveScenarios = structuredClone(scenarios);
+  const invisibleCarbonMenuAction = invisibleCarbonPrimitiveScenarios
+    .find((scenario) => scenario.id === "core.atom.carbon-label-visibility-history-persistence.production")
+    .actions.find((action) => action.id === "open-default-terminal-label-menu");
+  invisibleCarbonMenuAction.target = { strategy: "selector", value: '[data-node-id="n_1"]' };
+  const invisibleCarbonPrimitiveResult = await auditCoverage({ registry, scenarios: invisibleCarbonPrimitiveScenarios, scenarioPaths });
+  assert.equal(invisibleCarbonPrimitiveResult.valid, false);
+  assert.match(invisibleCarbonPrimitiveResult.errors.join("\n"), /must target the implicit Carbon through a semantic bond endpoint/);
+
   const unadvertisedCapabilityScenarios = structuredClone(scenarios);
   const reactionScenario = unadvertisedCapabilityScenarios
     .find((scenario) => scenario.id === "core.bond.reaction-participation-history-persistence.production");
@@ -1230,6 +1239,11 @@ test("the atom-query numeric matrix kills swapped fields, wrong precedence, stal
 test("the Carbon label visibility cell kills unchecked, wrong-applicability, stale-label, broken-history, and display-only mutants", async () => {
   const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-carbon-label-visibility-history-persistence-production.json"));
   assert.ok(scenario.capabilities.includes("editor.atom.carbon-label-visibility"));
+  assert.ok(scenario.capabilities.includes("editor.chain.draw"));
+  assert.equal(scenario.actions.find((action) => action.id === "draw-connected-two-bond-carbon-chain").completion.value, 2);
+  assert.deepEqual(scenario.actions.find((action) => action.id === "open-default-terminal-label-menu").target, { strategy: "bond-endpoint", value: "b_4:start" });
+  assert.deepEqual(scenario.actions.find((action) => action.id === "open-default-nonterminal-label-menu").target, { strategy: "bond-endpoint", value: "b_4:end" });
+  assert.equal(scenario.actions.find((action) => action.id === "clear-created-chain-selection").target.value, "page-background");
   assert.match(scenario.actions.find((action) => action.id === "open-default-terminal-label-menu").completion.selector, /show-terminal-carbon-label:false.*aria-checked/);
   assert.match(scenario.actions.find((action) => action.id === "open-default-nonterminal-label-menu").completion.selector, /show-non-terminal-carbon-label:false.*aria-checked/);
   assert.equal(scenario.actions.find((action) => action.id === "show-terminal-carbon-label").completion.text, "CH3");

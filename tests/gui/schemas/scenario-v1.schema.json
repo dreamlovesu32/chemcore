@@ -54,7 +54,7 @@
       "additionalProperties": false,
       "required": ["strategy", "value"],
       "properties": {
-        "strategy": { "enum": ["role", "automation-id", "test-id", "selector", "entity-id", "world-geometry", "uia-automation-id"] },
+        "strategy": { "enum": ["role", "automation-id", "test-id", "selector", "entity-id", "bond-endpoint", "world-geometry", "uia-automation-id"] },
         "value": { "type": "string", "minLength": 1, "maxLength": 2048 },
         "name": { "type": "string" },
         "controlType": { "type": "string", "pattern": "^ControlType\\.[A-Za-z]+$" },
@@ -73,6 +73,10 @@
         {
           "if": { "properties": { "strategy": { "const": "uia-automation-id" } } },
           "then": { "required": ["controlType", "className"] }
+        },
+        {
+          "if": { "properties": { "strategy": { "const": "bond-endpoint" } } },
+          "then": { "properties": { "value": { "type": "string", "pattern": "^b_[A-Za-z0-9._-]{1,120}:(?:start|end)$" } } }
         }
       ]
     },

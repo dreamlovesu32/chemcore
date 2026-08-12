@@ -1397,6 +1397,32 @@ impl Engine {
     }
 
     fn atom_query_menu(&self) -> JsonValue {
+        let show_terminal_default = self
+            .state
+            .document
+            .document
+            .meta
+            .pointer("/import/cdxml/defaults/showTerminalCarbonLabels")
+            .and_then(JsonValue::as_bool)
+            .unwrap_or(false);
+        let show_non_terminal_default = self
+            .state
+            .document
+            .document
+            .meta
+            .pointer("/import/cdxml/defaults/showNonTerminalCarbonLabels")
+            .and_then(JsonValue::as_bool)
+            .unwrap_or(false);
+        let show_terminal_carbon = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties
+                .show_terminal_carbon_label
+                .unwrap_or(show_terminal_default)
+        });
+        let show_non_terminal_carbon = uniform_node_value(self.selected_label_nodes(), |node| {
+            node.atom_properties
+                .show_non_terminal_carbon_label
+                .unwrap_or(show_non_terminal_default)
+        });
         let ring_bond_count = uniform_node_value(self.selected_label_nodes(), |node| {
             node.atom_properties.ring_bond_count
         });
@@ -1475,10 +1501,10 @@ impl Engine {
                     ]
                 },
                 separator(),
-                atom_property_item("Show Terminal Carbon Labels", "show-terminal-carbon-label", "true", false),
-                atom_property_item("Hide Terminal Carbon Labels", "show-terminal-carbon-label", "false", false),
-                atom_property_item("Show Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "true", false),
-                atom_property_item("Hide Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "false", false)
+                atom_property_item("Show Terminal Carbon Labels", "show-terminal-carbon-label", "true", show_terminal_carbon == Some(true)),
+                atom_property_item("Hide Terminal Carbon Labels", "show-terminal-carbon-label", "false", show_terminal_carbon == Some(false)),
+                atom_property_item("Show Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "true", show_non_terminal_carbon == Some(true)),
+                atom_property_item("Hide Nonterminal Carbon Labels", "show-non-terminal-carbon-label", "false", show_non_terminal_carbon == Some(false))
             ]
         })
     }

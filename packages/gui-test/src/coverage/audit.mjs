@@ -91,7 +91,17 @@ export async function auditCoverage({ registry, scenarios, scenarioPaths = [] })
         }
       }
       if (action.target?.strategy === "entity-id" && /^(?:n|b)_\d+$/.test(action.target.value)) {
-        errors.push(`Scenario ${scenario.id} action ${action.id} must target a chemical node or bond with its data-node-id or data-bond-id selector; entity-id resolves scene object ids only.`);
+        errors.push(`Scenario ${scenario.id} action ${action.id} must target a rendered chemical primitive or a semantic bond endpoint; entity-id resolves scene object ids only.`);
+      }
+      if (action.target?.strategy === "bond-endpoint" && !/^b_[A-Za-z0-9._-]{1,120}:(?:start|end)$/.test(action.target.value)) {
+        errors.push(`Scenario ${scenario.id} action ${action.id} has an invalid semantic bond endpoint identity.`);
+      }
+      const opensDefaultHiddenCarbonLabelMenu = action.type === "click"
+        && action.button === "right"
+        && (action.completion?.selector?.includes('show-terminal-carbon-label:false')
+          || action.completion?.selector?.includes('show-non-terminal-carbon-label:false'));
+      if (opensDefaultHiddenCarbonLabelMenu && action.target?.strategy !== "bond-endpoint") {
+        errors.push(`Scenario ${scenario.id} action ${action.id} must target the implicit Carbon through a semantic bond endpoint because the hidden atom has no rendered node primitive.`);
       }
       const opensBondPropertyMenu = action.type === "click"
         && action.button === "right"

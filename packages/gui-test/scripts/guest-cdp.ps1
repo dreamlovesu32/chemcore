@@ -549,6 +549,19 @@ try {
       ? { left: best.x - 0.5, top: best.y - 0.5, right: best.x + 0.5, bottom: best.y + 0.5, width: 1, height: 1 }
       : null;
   };
+  const bondEndpointPointerRect = (element, endpoint) => {
+    try {
+      const length = element.getTotalLength();
+      const matrix = element.getScreenCTM();
+      if (!Number.isFinite(length) || length <= 0 || !matrix) return null;
+      const point = element.getPointAtLength(endpoint === 'start' ? 0 : length);
+      const clientPoint = new DOMPoint(point.x, point.y).matrixTransform(matrix);
+      if (!Number.isFinite(clientPoint.x) || !Number.isFinite(clientPoint.y)) return null;
+      return { left: clientPoint.x - 0.5, top: clientPoint.y - 0.5, right: clientPoint.x + 0.5, bottom: clientPoint.y + 0.5, width: 1, height: 1 };
+    } catch {
+      return null;
+    }
+  };
   const find = (query, root) => {
     if (query.strategy === 'automation-id' || query.strategy === 'test-id') {
       const element = root.querySelector('#' + CSS.escape(query.value));
@@ -569,6 +582,18 @@ try {
       };
       const element = matches.find(candidate => candidate.hasAttribute('data-renderer') && visibleCandidate(candidate)) || matches.find(visibleCandidate);
       return element ? [element] : [];
+    }
+    if (query.strategy === 'bond-endpoint') {
+      const identity = /^(b_[A-Za-z0-9._-]{1,120}):(start|end)$/.exec(query.value);
+      if (!identity) throw new Error('Invalid bond endpoint target ' + query.value);
+      const candidates = [...root.querySelectorAll('[data-role="document-bond"][data-bond-id="' + CSS.escape(identity[1]) + '"]')]
+        .filter(visibleElement)
+        .map(element => {
+          try { return { element, length: element.getTotalLength() }; } catch { return { element, length: 0 }; }
+        })
+        .filter(candidate => Number.isFinite(candidate.length) && candidate.length > 0)
+        .sort((left, right) => right.length - left.length);
+      return candidates.length ? [candidates[0].element] : [];
     }
     if (query.strategy === 'world-geometry') {
       if (query.value !== 'page-background') throw new Error('Unsupported world geometry target ' + query.value);
@@ -594,9 +619,12 @@ try {
       && (renderedRect.width === 0 || renderedRect.height === 0)
       ? geometryPointerRect(element)
       : null;
+    const bondEndpointRect = target.strategy === 'bond-endpoint'
+      ? bondEndpointPointerRect(element, target.value.endsWith(':start') ? 'start' : 'end')
+      : null;
     const rect = target.strategy === 'entity-id'
       ? geometryPointerRect(element) || renderedRect
-      : selectorGeometryRect || renderedRect;
+      : bondEndpointRect || selectorGeometryRect || renderedRect;
     const style = getComputedStyle(element);
     return {
       tag: element.tagName.toLowerCase(),
