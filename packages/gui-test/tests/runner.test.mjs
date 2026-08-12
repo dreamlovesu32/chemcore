@@ -1163,16 +1163,28 @@ test("the atom-query list matrix kills skipped include/exclude states, reordered
     assert.ok(scenario.actions.some((action) => action.completion?.kind === "dom-text" && action.completion.text === text), `missing exact list dialog state ${text}`);
   }
   assert.equal(scenario.actions.find((action) => action.id === "clear-generic-list-input").completion.text, "");
+  const keyboardApplyIds = [
+    "apply-included-element-list",
+    "apply-excluded-element-list",
+    "apply-included-generic-list",
+    "apply-excluded-generic-list",
+    "apply-cleared-generic-list",
+  ];
+  for (const actionId of keyboardApplyIds) {
+    const action = scenario.actions.find((candidate) => candidate.id === actionId);
+    assert.equal(action.type, "key", `${actionId} must activate the explicitly focused submit control`);
+    assert.equal(action.key, "Enter");
+    assert.equal(action.target.value, '.atom-property-dialog button[type="submit"]');
+  }
   for (const actionId of ["cancel-element-list", "close-element-list-after-undo", "close-final-generic-list"]) {
     const action = scenario.actions.find((candidate) => candidate.id === actionId);
-    assert.equal(action.type, "click", `${actionId} must exercise the public modal control, not a targetless key`);
-    assert.deepEqual(action.target, {
-      strategy: "role",
-      value: "button",
-      name: "Cancel",
-      scope: { role: "form", name: actionId === "close-final-generic-list" ? "Generic List" : "Element List" },
-    });
+    assert.equal(action.type, "key", `${actionId} must activate the explicitly focused cancel control`);
+    assert.equal(action.key, "Enter");
+    assert.equal(action.target.value, ".atom-property-dialog button[data-atom-property-dialog-close]");
   }
+  const focusActions = scenario.actions.filter((action) => action.id.startsWith("focus-cancel-") || action.id.startsWith("focus-apply-"));
+  assert.equal(focusActions.length, 13, "every modal commit or cancel must expose its physical Tab focus transition");
+  assert.ok(focusActions.every((action) => action.type === "key" && action.key === "Tab" && action.completion?.selector?.endsWith(":focus")), "modal keyboard navigation must prove the focused public control before activation");
   assert.ok(scenario.actions.some((action) => action.id === "undo-excluded-element-list"));
   assert.ok(scenario.actions.some((action) => action.id === "redo-excluded-element-list"));
   assert.ok(scenario.actions.some((action) => action.id === "undo-cleared-generic-list"));
