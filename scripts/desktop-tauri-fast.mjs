@@ -59,9 +59,9 @@ writeFileSync(
   fastConfigPath,
   JSON.stringify({
     build: {
-      beforeBuildCommand: process.env.CHEMSEMA_FAST_BUILD_WASM === "1"
-        ? "node ../../scripts/build-engine-wasm.mjs"
-        : "",
+      // The WebView executes the generated WASM. Reusing an older generated
+      // module would make the candidate manifest claim a false source binding.
+      beforeBuildCommand: "node ../../scripts/build-engine-wasm.mjs",
     },
     bundle: {
       active: false,

@@ -113,6 +113,7 @@
     "gui-physical-worker": "node packages/gui-test/src/workers/physical-daemon.mjs",
     "gui-physical-soak": "node packages/gui-test/src/workers/physical-soak.mjs",
     "gui-platform:test": "node --test packages/gui-test/tests/*.test.mjs",
+    "gui-physical-daemon": "node packages/gui-test/src/workers/physical-daemon.mjs",
     "check:legacy-redirects": "node scripts/check-legacy-redirects.mjs",
     "check:retired-name": "node scripts/check-retired-name.mjs",
     "check:cdx-cdxml-field-ledger": "node scripts/check-cdx-cdxml-field-ledger.mjs",

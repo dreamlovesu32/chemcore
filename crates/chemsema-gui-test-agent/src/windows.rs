@@ -37,9 +37,17 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, EnumWindows, GetClassNameW, GetClientRect, GetForegroundWindow,
     GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, IsWindow, IsWindowVisible,
-    PostMessageW, SetCursorPos, SetForegroundWindow, SetWindowPos, ShowWindowAsync, HWND_NOTOPMOST,
+    PostMessageW, SetCursorPos, SetForegroundWindow, SetProcessDPIAware, SetWindowPos, ShowWindowAsync, HWND_NOTOPMOST,
     HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_RESTORE, WM_CLOSE,
 };
+
+pub fn initialize_process() {
+    // UI Automation and SendInput use physical screen coordinates. Mark every
+    // short-lived and persistent agent process DPI-aware before it observes a
+    // foreground rectangle so high-DPI physical workers retain one coordinate
+    // system. A false return only means Windows fixed awareness earlier.
+    unsafe { SetProcessDPIAware() };
+}
 
 fn last_error(context: &str) -> String {
     format!("{context} failed with Windows error {}", unsafe {
