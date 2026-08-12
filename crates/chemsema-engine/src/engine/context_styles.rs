@@ -1188,6 +1188,11 @@ impl Engine {
         );
         if matches!(update, AtomPropertyUpdate::Radical(_)) {
             changed |= self.refresh_symbol_chemistry();
+        }
+        if matches!(
+            update,
+            AtomPropertyUpdate::Radical(_) | AtomPropertyUpdate::FreeSites(_)
+        ) {
             let stroke_width = self.options.bond_stroke_world_pt().value();
             if let Some(mut entry) = self.state.document.editable_fragment_mut() {
                 let object_translate = entry.object.transform.translate;

@@ -99,6 +99,70 @@ fn radical_updates_generated_carbon_formula_hydrogens_and_label() {
 }
 
 #[test]
+fn free_sites_update_generated_carbon_formula_hydrogens_and_label() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "C".to_string(),
+        element_atomic_number: 6,
+        ..ToolState::default()
+    });
+    click(&mut engine, 40.0, 50.0);
+    engine.select_at_point(Point::new(40.0, 50.0), false);
+
+    assert!(engine.set_atom_property_for_selection("free-sites", Some("2")));
+    let fragment = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("blank document has an editable fragment")
+        .fragment;
+    let node = &fragment.nodes[0];
+    assert_eq!(node.atom_properties.free_sites, Some(2));
+    assert_eq!(node.num_hydrogens, 2);
+    assert_eq!(
+        node.label
+            .as_ref()
+            .and_then(|label| label.source_text.as_deref()),
+        Some("CH2")
+    );
+
+    assert!(engine.undo());
+    let node = &engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("blank document has an editable fragment")
+        .fragment
+        .nodes[0];
+    assert_eq!(node.atom_properties.free_sites, None);
+    assert_eq!(node.num_hydrogens, 4);
+    assert_eq!(
+        node.label
+            .as_ref()
+            .and_then(|label| label.source_text.as_deref()),
+        Some("CH4")
+    );
+
+    assert!(engine.redo());
+    let node = &engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("blank document has an editable fragment")
+        .fragment
+        .nodes[0];
+    assert_eq!(node.atom_properties.free_sites, Some(2));
+    assert_eq!(node.num_hydrogens, 2);
+    assert_eq!(
+        node.label
+            .as_ref()
+            .and_then(|label| label.source_text.as_deref()),
+        Some("CH2")
+    );
+}
+
+#[test]
 fn element_tool_replaces_focused_endpoint_without_adding_node() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());

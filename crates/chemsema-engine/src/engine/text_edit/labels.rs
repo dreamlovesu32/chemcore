@@ -2901,8 +2901,14 @@ pub(crate) fn carbon_valence_hydrogen_count_for_node(
         })
         .sum();
     let radical_valence_twice = 2 * crate::node_radical_count(node);
-    ((8 - connection_order_twice - radical_valence_twice - 2 * node.charge.abs()).clamp(0, 8) / 2)
-        as u8
+    let free_site_valence_twice = 2 * i32::from(node.atom_properties.free_sites.unwrap_or(0));
+    ((8
+        - connection_order_twice
+        - radical_valence_twice
+        - free_site_valence_twice
+        - 2 * node.charge.abs())
+    .clamp(0, 8)
+        / 2) as u8
 }
 
 pub(super) fn typical_valence_for_implicit_hydrogen(
