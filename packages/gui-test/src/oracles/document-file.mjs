@@ -157,6 +157,8 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       freeSites: node?.atomProperties?.freeSites ?? node?.atom_properties?.free_sites ?? null,
       substituentsUpTo: node?.atomProperties?.substituentsUpTo ?? node?.atom_properties?.substituents_up_to ?? null,
       substituentsExactly: node?.atomProperties?.substituentsExactly ?? node?.atom_properties?.substituents_exactly ?? null,
+      showTerminalCarbonLabel: node?.atomProperties?.showTerminalCarbonLabel ?? node?.atom_properties?.show_terminal_carbon_label ?? null,
+      showNonTerminalCarbonLabel: node?.atomProperties?.showNonTerminalCarbonLabel ?? node?.atom_properties?.show_non_terminal_carbon_label ?? null,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };

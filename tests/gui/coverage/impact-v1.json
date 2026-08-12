@@ -51,6 +51,7 @@
     { "id": "source.scenario.core.atom.query-abnormal-valence-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-query-abnormal-valence-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.query-list-values-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-query-list-values-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.query-numeric-values-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-query-numeric-values-history-persistence-production.json"] },
+    { "id": "source.scenario.core.atom.carbon-label-visibility-history-persistence.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-carbon-label-visibility-history-persistence-production.json"] },
     { "id": "source.scenario.core.atom.periodic-representative-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-representative-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-common-value-matrix.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-common-value-matrix-production.json"] },
     { "id": "source.scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "source", "patterns": ["tests/gui/scenarios/core/atom-periodic-noble-lanthanide-free-placement-production.json"] },
@@ -127,6 +128,7 @@
     { "id": "capability.editor.atom.query-abnormal-valence", "kind": "capability" },
     { "id": "capability.editor.atom.query-lists", "kind": "capability" },
     { "id": "capability.editor.atom.query-numeric", "kind": "capability" },
+    { "id": "capability.editor.atom.carbon-label-visibility", "kind": "capability" },
     { "id": "capability.editor.atom.implicit-hydrogen-visibility", "kind": "capability" },
     { "id": "capability.editor.atom.charge-symbol-attachment", "kind": "capability" },
     { "id": "capability.editor.ring.insert", "kind": "capability" },
@@ -186,6 +188,7 @@
     { "id": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.query-list-values-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.query-numeric-values-history-persistence.production", "kind": "scenario" },
+    { "id": "scenario.core.atom.carbon-label-visibility-history-persistence.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-representative-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-common-value-matrix.production", "kind": "scenario" },
     { "id": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "kind": "scenario" },
@@ -285,6 +288,7 @@
     { "from": "component.gui-runner", "to": "scenario.core.atom.query-abnormal-valence-history-persistence.production", "reason": "Runner, nested Atom Query menus, history, query-indicator absence, native save, and exact abnormal-valence oracle changes invalidate atom-query abnormal-valence evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.query-list-values-history-persistence.production", "reason": "Runner, Atom Query text dialogs, history, native save, and exact ordered-list oracles invalidate atom-query list evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.query-numeric-values-history-persistence.production", "reason": "Runner, Atom Query numeric dialogs, history, native save, and exact numeric-node oracles invalidate atom-query numeric evidence." },
+    { "from": "component.gui-runner", "to": "scenario.core.atom.carbon-label-visibility-history-persistence.production", "reason": "Runner, Carbon label visibility checked states, derived labels, history, native save, and exact node oracles invalidate Carbon-label evidence." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-representative-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the representative periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-common-value-matrix.production", "reason": "Runner, repeated guarded periodic-palette targeting, native save, and exact multi-node element oracles invalidate the common-value periodic matrix." },
     { "from": "component.gui-runner", "to": "scenario.core.atom.periodic-noble-lanthanide-free-placement.production", "reason": "Runner, guarded free-placement input, native save, and exact multi-node element oracles invalidate the noble/lanthanide matrix." },
@@ -973,5 +977,12 @@
     ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.query-numeric-values-history-persistence.production", "reason": "The physical driver uses real right-click menus, numeric text entry, explicit focus transitions, clear, guarded history keys, and native Save As." }
     ,{ "from": "oracle.dom", "to": "scenario.core.atom.query-numeric-values-history-persistence.production", "reason": "Exact dialog values and *2/U4/X3 transitions kill disconnected-dialog, stale-prefill, wrong-precedence, stale-render, clear, and history mutants." }
     ,{ "from": "oracle.document-file", "to": "scenario.core.atom.query-numeric-values-history-persistence.production", "reason": "Exact freeSites=2, substituentsUpTo=4, substituentsExactly=3, CH2, and one-object counts kill lost-value, swapped-field, display-only, valence, collapsed-object, and accidental-bond mutants." }
+    ,{ "from": "component.editor-interaction", "to": "capability.editor.atom.carbon-label-visibility", "reason": "Terminal/nonterminal applicability, checked state, derived formula labels, history, and persistence form one public Carbon-label capability." }
+    ,{ "from": "capability.editor.atom.query-numeric", "to": "scenario.core.atom.carbon-label-visibility-history-persistence.production", "reason": "The completed adjacent Atom Properties closure supplies trusted context menus, history, derived Carbon formula semantics, and native save without repeating numeric queries." }
+    ,{ "from": "capability.editor.atom.carbon-label-visibility", "to": "scenario.core.atom.carbon-label-visibility-history-persistence.production", "reason": "The production cell traverses both Show/Hide value pairs on terminal and nonterminal Carbon and persists their distinct explicit flags." }
+    ,{ "from": "source.scenario.core.atom.carbon-label-visibility-history-persistence.production", "to": "scenario.core.atom.carbon-label-visibility-history-persistence.production", "reason": "Changing the Carbon-label visibility, applicability, history, or persistence cell invalidates only its evidence." }
+    ,{ "from": "driver.production-black-box", "to": "scenario.core.atom.carbon-label-visibility-history-persistence.production", "reason": "The physical driver draws the three-Carbon chain and uses real right-click menus, guarded history keys, and native Save As." }
+    ,{ "from": "oracle.dom", "to": "scenario.core.atom.carbon-label-visibility-history-persistence.production", "reason": "Regenerated checked states plus exact CH3/CH2 appearance, removal, undo, and redo kill wrong-applicability, stale-menu, stale-label, and broken-history mutants." }
+    ,{ "from": "oracle.document-file", "to": "scenario.core.atom.carbon-label-visibility-history-persistence.production", "reason": "Exact distinct terminal/nonterminal visibility flags, CH3/CH2 labels, and three-node/two-bond counts kill swapped-field, display-only, label-only, collapsed-topology, and accidental-object mutants." }
   ]
 }

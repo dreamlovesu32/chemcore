@@ -67,6 +67,7 @@ export const productionBlackBoxCapabilities = Object.freeze([
   "editor.atom.query-abnormal-valence",
   "editor.atom.query-lists",
   "editor.atom.query-numeric",
+  "editor.atom.carbon-label-visibility",
   "document.save-as",
   "document.open",
   "document.close-discard",

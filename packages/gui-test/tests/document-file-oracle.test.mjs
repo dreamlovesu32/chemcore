@@ -320,6 +320,26 @@ test("saved-document node oracle kills swapped, missing, and display-only atom-q
   assert.equal(evaluateDocumentNodeProperties(displayOnly, expected).passed, false);
 });
 
+test("saved-document node oracle kills swapped and display-only carbon-label visibility mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 3, atomProperties: { showTerminalCarbonLabel: true }, label: { text: "CH3", sourceText: "CH3" } },
+    { id: "n_2", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, atomProperties: { showNonTerminalCarbonLabel: true }, label: { text: "CH2", sourceText: "CH2" } },
+  ] } } } }));
+  const expected = [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 3, showTerminalCarbonLabel: true, showNonTerminalCarbonLabel: null, labelText: "CH3", labelSourceText: "CH3" },
+    { id: "n_2", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, showTerminalCarbonLabel: null, showNonTerminalCarbonLabel: true, labelText: "CH2", labelSourceText: "CH2" },
+  ];
+  assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], showTerminalCarbonLabel: false }, expected[1]]).passed, false);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [expected[0], { ...expected[1], showNonTerminalCarbonLabel: false }]).passed, false);
+  assert.equal(evaluateDocumentNodeProperties(bytes, [expected[0], { ...expected[1], labelText: "C" }]).passed, false);
+  const displayOnly = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 3, atomProperties: {}, label: { text: "CH3", sourceText: "CH3", meta: { showTerminalCarbonLabel: true } } },
+    { id: "n_2", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, atomProperties: {}, label: { text: "CH2", sourceText: "CH2", meta: { showNonTerminalCarbonLabel: true } } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(displayOnly, expected).passed, false);
+});
+
 test("saved-document arrow oracle checks exact public CCJS properties", () => {
   const bytes = Buffer.from(JSON.stringify({
     styles: { style_red: { stroke: "#ff0000" } },

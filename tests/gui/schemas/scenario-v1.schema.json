@@ -348,6 +348,8 @@
                   "freeSites": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
                   "substituentsUpTo": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
                   "substituentsExactly": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+                  "showTerminalCarbonLabel": { "type": ["boolean", "null"] },
+                  "showNonTerminalCarbonLabel": { "type": ["boolean", "null"] },
                   "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }
                 }

@@ -69,6 +69,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.locked-mixed-properties.production",
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.atom.carbon-label-visibility-history-persistence.production",
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.electron-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
@@ -172,6 +173,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.locked-mixed-properties.production",
       "scenario.core.arrow.multi-property-history.production",
       "scenario.core.arrow.property-matrix-persistence.production",
+      "scenario.core.atom.carbon-label-visibility-history-persistence.production",
       "scenario.core.atom.charge-symbol-attachment-persistence.production",
       "scenario.core.atom.electron-symbol-attachment-persistence.production",
       "scenario.core.atom.element-label-persistence.production",
@@ -275,6 +277,7 @@ test("impact selection follows the transitive source to scenario closure", async
     "scenario.core.arrow.locked-mixed-properties.production",
     "scenario.core.arrow.multi-property-history.production",
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.atom.carbon-label-visibility-history-persistence.production",
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.electron-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
@@ -366,6 +369,7 @@ test("impact selection follows the transitive source to scenario closure", async
   ]);
   assert.deepEqual(selectImpactedScenarios(graph, ["packages/gui-test/src/oracles/document-file.mjs"]), [
     "scenario.core.arrow.property-matrix-persistence.production",
+    "scenario.core.atom.carbon-label-visibility-history-persistence.production",
     "scenario.core.atom.charge-symbol-attachment-persistence.production",
     "scenario.core.atom.electron-symbol-attachment-persistence.production",
     "scenario.core.atom.element-label-persistence.production",
@@ -452,6 +456,7 @@ test("impact selection follows the transitive source to scenario closure", async
       "scenario.core.arrow.locked-mixed-properties.production",
       "scenario.core.arrow.multi-property-history.production",
       "scenario.core.arrow.property-matrix-persistence.production",
+      "scenario.core.atom.carbon-label-visibility-history-persistence.production",
       "scenario.core.atom.charge-symbol-attachment-persistence.production",
       "scenario.core.atom.electron-symbol-attachment-persistence.production",
       "scenario.core.atom.element-label-persistence.production",
@@ -586,6 +591,7 @@ test("coverage audit binds every registered source and scenario", async () => {
     join(guiTestsDir, "scenarios", "core", "atom-query-abnormal-valence-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-query-list-values-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-query-numeric-values-history-persistence-production.json"),
+    join(guiTestsDir, "scenarios", "core", "atom-carbon-label-visibility-history-persistence-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-early-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-actinide-remaining-free-placement-production.json"),
     join(guiTestsDir, "scenarios", "core", "atom-periodic-alkali-alkaline-free-placement-production.json"),
@@ -634,8 +640,8 @@ test("coverage audit binds every registered source and scenario", async () => {
   const scenarios = await Promise.all(scenarioPaths.map((path) => readValidatedDocument(path)));
   const result = await auditCoverage({ registry, scenarios, scenarioPaths });
   assert.equal(result.valid, true, result.errors.join("\n"));
-  assert.equal(result.summary.entries, 57);
-  assert.equal(result.summary.scenarios, 87);
+  assert.equal(result.summary.entries, 58);
+  assert.equal(result.summary.scenarios, 88);
   assert.equal(result.summary.gaps, 0);
 
   const invalidScenarios = structuredClone(scenarios);
@@ -1219,6 +1225,24 @@ test("the atom-query numeric matrix kills swapped fields, wrong precedence, stal
     [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, freeSites: 2, substituentsUpTo: 4, substituentsExactly: 3, labelText: "CH2", labelSourceText: "CH2" }],
   );
   assert.deepEqual(scenario.oracles.find((oracle) => oracle.id === "saved-numeric-query-carbon-counts").expected, { nodes: 1, bonds: 0, molecules: 1, objects: 1 });
+});
+
+test("the Carbon label visibility cell kills unchecked, wrong-applicability, stale-label, broken-history, and display-only mutants", async () => {
+  const scenario = await readValidatedDocument(join(guiTestsDir, "scenarios", "core", "atom-carbon-label-visibility-history-persistence-production.json"));
+  assert.ok(scenario.capabilities.includes("editor.atom.carbon-label-visibility"));
+  assert.match(scenario.actions.find((action) => action.id === "open-default-terminal-label-menu").completion.selector, /show-terminal-carbon-label:false.*aria-checked/);
+  assert.match(scenario.actions.find((action) => action.id === "open-default-nonterminal-label-menu").completion.selector, /show-non-terminal-carbon-label:false.*aria-checked/);
+  assert.equal(scenario.actions.find((action) => action.id === "show-terminal-carbon-label").completion.text, "CH3");
+  assert.equal(scenario.actions.find((action) => action.id === "show-nonterminal-carbon-label").completion.text, "CH2");
+  assert.ok(scenario.actions.some((action) => action.id === "undo-terminal-hide-for-final"));
+  assert.ok(scenario.actions.some((action) => action.id === "undo-nonterminal-hide-for-final"));
+  assert.deepEqual(
+    scenario.oracles.find((oracle) => oracle.id === "saved-explicit-carbon-label-visibility-semantics").expected,
+    [
+      { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 3, showTerminalCarbonLabel: true, showNonTerminalCarbonLabel: null, labelText: "CH3", labelSourceText: "CH3" },
+      { id: "n_2", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, showTerminalCarbonLabel: null, showNonTerminalCarbonLabel: true, labelText: "CH2", labelSourceText: "CH2" },
+    ],
+  );
 });
 
 test("the interior lanthanide cell kills endpoint-only, row-order, implicit-hydrogen, collapsed-object, and accidental-bond mutants", async () => {
