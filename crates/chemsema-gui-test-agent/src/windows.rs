@@ -298,6 +298,25 @@ fn send_mouse(flags: u32) -> Result<(), String> {
     Ok(())
 }
 
+const CLICK_CURSOR_SETTLE: Duration = Duration::from_millis(25);
+const CLICK_BUTTON_DWELL: Duration = Duration::from_millis(25);
+
+fn deliver_click_with_timing(
+    down: u32,
+    up: u32,
+    mut send: impl FnMut(u32) -> Result<(), String>,
+    mut wait: impl FnMut(Duration),
+) -> Result<(), String> {
+    // SetCursorPos followed immediately by a zero-dwell down/up pair can be
+    // accepted by SendInput without WebView2 dispatching a DOM click. Preserve
+    // the real OS input path while giving the compositor one bounded interval
+    // to settle the cursor and the control one interval to observe button-down.
+    wait(CLICK_CURSOR_SETTLE);
+    send(down)?;
+    wait(CLICK_BUTTON_DWELL);
+    send(up)
+}
+
 fn uses_virtual_key_input(virtual_key: u16) -> bool {
     matches!(virtual_key, VK_DELETE | VK_LEFT | VK_RIGHT | VK_UP | VK_DOWN)
 }
@@ -588,8 +607,7 @@ pub fn click(
     let (down, up) = button_flags(button)?;
     let modifier_keys = parse_pointer_modifiers(modifiers)?;
     with_modifier_keys(&modifier_keys, || {
-        send_mouse(down)?;
-        send_mouse(up)
+        deliver_click_with_timing(down, up, send_mouse, thread::sleep)
     })?;
     let after = attest()?;
     crate::validate_input_guard(&after, guard)?;
@@ -760,10 +778,12 @@ pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        parse_pointer_modifiers, parse_shortcut, retryable_window_snapshot_error,
-        uses_virtual_key_input, validate_text_input, VK_CONTROL, VK_DELETE, VK_DOWN, VK_LEFT,
+        deliver_click_with_timing, parse_pointer_modifiers, parse_shortcut,
+        retryable_window_snapshot_error, uses_virtual_key_input, validate_text_input,
+        CLICK_BUTTON_DWELL, CLICK_CURSOR_SETTLE, VK_CONTROL, VK_DELETE, VK_DOWN, VK_LEFT,
         VK_MENU, VK_RIGHT, VK_SHIFT, VK_UP,
     };
+    use std::cell::RefCell;
 
     #[test]
     fn only_invalid_window_handles_are_retried_during_snapshot_capture() {
@@ -815,6 +835,27 @@ mod tests {
             vec![VK_CONTROL, VK_MENU]
         );
         assert!(parse_pointer_modifiers("Windows").is_err());
+    }
+
+    #[test]
+    fn physical_click_settles_before_down_and_dwells_before_up() {
+        let events = RefCell::new(Vec::new());
+        deliver_click_with_timing(
+            10,
+            20,
+            |flag| {
+                events.borrow_mut().push(format!("send:{flag}"));
+                Ok(())
+            },
+            |duration| events.borrow_mut().push(format!("wait:{}", duration.as_millis())),
+        )
+        .unwrap();
+        assert!(CLICK_CURSOR_SETTLE >= std::time::Duration::from_millis(20));
+        assert!(CLICK_BUTTON_DWELL >= std::time::Duration::from_millis(20));
+        assert_eq!(
+            events.into_inner(),
+            vec!["wait:25", "send:10", "wait:25", "send:20"]
+        );
     }
 }
 
