@@ -78,7 +78,9 @@ fn radical_updates_generated_carbon_formula_hydrogens_and_label() {
         let node = &fragment.nodes[0];
         assert_eq!(node.num_hydrogens, hydrogens, "{radical}");
         assert_eq!(
-            node.label.as_ref().and_then(|label| label.source_text.as_deref()),
+            node.label
+                .as_ref()
+                .and_then(|label| label.source_text.as_deref()),
             Some(formula),
             "{radical}"
         );
@@ -1544,13 +1546,15 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
             "mixed orbital values must not claim a uniform {label}: {menu}"
         );
     }
-    assert!(menu.as_array().is_some_and(|items| items.iter().all(|item| {
-        item.get("label").and_then(serde_json::Value::as_str) != Some("Shape Style")
-    })));
+    assert!(menu
+        .as_array()
+        .is_some_and(|items| items.iter().all(|item| {
+            item.get("label").and_then(serde_json::Value::as_str) != Some("Shape Style")
+        })));
 
     assert!(engine.apply_orbital_template_to_selection("dz2"));
-    let rendered_after_template = serde_json::to_string(&engine.render_list())
-        .expect("retargeted orbitals should render");
+    let rendered_after_template =
+        serde_json::to_string(&engine.render_list()).expect("retargeted orbitals should render");
     for id in ["obj_shape_orbital_1", "obj_shape_orbital_2"] {
         assert!(
             rendered_after_template.contains(id),
@@ -1560,9 +1564,20 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
     assert!(engine.apply_orbital_template_to_selection("oval"));
     let rendered_after_ellipse = serde_json::to_string(&engine.render_list())
         .expect("ellipse-retargeted orbitals should render");
-    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
-        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
-    }) {
+    for object in engine
+        .state()
+        .document
+        .scene_objects()
+        .into_iter()
+        .filter(|object| {
+            object
+                .payload
+                .extra
+                .get("kind")
+                .and_then(serde_json::Value::as_str)
+                == Some("orbital")
+        })
+    {
         assert!(rendered_after_ellipse.contains(&object.id));
         assert!(object.payload.extra.get("center").is_some());
         assert!(object.payload.extra.get("majorAxisEnd").is_some());
@@ -1572,23 +1587,50 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
     }
     assert!(engine.apply_orbital_template_to_selection("dz2"));
     assert!(engine.apply_orbital_style_to_selection("filled"));
-    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
-        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
-    }) {
+    for object in engine
+        .state()
+        .document
+        .scene_objects()
+        .into_iter()
+        .filter(|object| {
+            object
+                .payload
+                .extra
+                .get("kind")
+                .and_then(serde_json::Value::as_str)
+                == Some("orbital")
+        })
+    {
         let style = engine
             .state()
             .document
             .styles
-            .get(object.style_ref.as_deref().expect("filled orbital style reference"))
+            .get(
+                object
+                    .style_ref
+                    .as_deref()
+                    .expect("filled orbital style reference"),
+            )
             .expect("filled orbital style should exist");
         assert_eq!(style["fill"], "#000000");
         assert_eq!(style["stroke"], serde_json::Value::Null);
     }
     assert!(engine.apply_orbital_style_to_selection("shaded"));
     assert!(engine.apply_orbital_phase_to_selection("minus"));
-    for object in engine.state().document.scene_objects().into_iter().filter(|object| {
-        object.payload.extra.get("kind").and_then(serde_json::Value::as_str) == Some("orbital")
-    }) {
+    for object in engine
+        .state()
+        .document
+        .scene_objects()
+        .into_iter()
+        .filter(|object| {
+            object
+                .payload
+                .extra
+                .get("kind")
+                .and_then(serde_json::Value::as_str)
+                == Some("orbital")
+        })
+    {
         assert_eq!(object.payload.extra["orbitalTemplate"], "dz2");
         assert_eq!(object.payload.extra["orbitalStyle"], "shaded");
         assert_eq!(object.payload.extra["orbitalPhase"], "minus");
@@ -1596,7 +1638,12 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
             .state()
             .document
             .styles
-            .get(object.style_ref.as_deref().expect("orbital style reference"))
+            .get(
+                object
+                    .style_ref
+                    .as_deref()
+                    .expect("orbital style reference"),
+            )
             .expect("orbital style should exist");
         assert_eq!(style["kind"], "shape");
         assert_eq!(style["shaded"], true);
@@ -1645,7 +1692,10 @@ fn multi_orbital_selection_exposes_and_applies_public_property_menus() {
         .flatten()
         .find(|item| item.get("value").and_then(serde_json::Value::as_str) == Some("minus"))
         .expect("minus phase should remain public after undo");
-    assert_ne!(minus["checked"], true, "undo must restore the mixed original phases");
+    assert_ne!(
+        minus["checked"], true,
+        "undo must restore the mixed original phases"
+    );
 }
 
 #[test]

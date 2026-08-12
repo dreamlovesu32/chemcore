@@ -51,9 +51,8 @@ fn enable_physical_pixel_coordinates() -> Result<(), String> {
     static DPI_AWARENESS: OnceLock<Result<(), String>> = OnceLock::new();
     DPI_AWARENESS
         .get_or_init(|| {
-            if unsafe {
-                SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
-            } == 0
+            if unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) }
+                == 0
             {
                 Err(last_error("SetProcessDpiAwarenessContext"))
             } else {
@@ -328,7 +327,10 @@ fn settle_after_text_input(mut wait: impl FnMut(Duration)) {
 }
 
 fn uses_virtual_key_input(virtual_key: u16) -> bool {
-    matches!(virtual_key, VK_DELETE | VK_LEFT | VK_RIGHT | VK_UP | VK_DOWN)
+    matches!(
+        virtual_key,
+        VK_DELETE | VK_LEFT | VK_RIGHT | VK_UP | VK_DOWN
+    )
 }
 
 fn send_key_event(virtual_key: u16, flags: u32) -> Result<(), String> {
@@ -355,8 +357,18 @@ fn send_key_event(virtual_key: u16, flags: u32) -> Result<(), String> {
         Anonymous: INPUT_0 {
             ki: KEYBDINPUT {
                 wVk: if use_virtual_key { virtual_key } else { 0 },
-                wScan: if use_virtual_key { 0 } else { (mapped & 0xff) as u16 },
-                dwFlags: flags | extended | if use_virtual_key { 0 } else { KEYEVENTF_SCANCODE },
+                wScan: if use_virtual_key {
+                    0
+                } else {
+                    (mapped & 0xff) as u16
+                },
+                dwFlags: flags
+                    | extended
+                    | if use_virtual_key {
+                        0
+                    } else {
+                        KEYEVENTF_SCANCODE
+                    },
                 time: 0,
                 dwExtraInfo: 0,
             },
@@ -860,7 +872,11 @@ mod tests {
                 events.borrow_mut().push(format!("send:{flag}"));
                 Ok(())
             },
-            |duration| events.borrow_mut().push(format!("wait:{}", duration.as_millis())),
+            |duration| {
+                events
+                    .borrow_mut()
+                    .push(format!("wait:{}", duration.as_millis()))
+            },
         )
         .unwrap();
         assert!(CLICK_CURSOR_SETTLE >= std::time::Duration::from_millis(20));
@@ -876,7 +892,10 @@ mod tests {
         let waits = RefCell::new(Vec::new());
         settle_after_text_input(|duration| waits.borrow_mut().push(duration));
         assert!(TEXT_INPUT_EVENT_SETTLE >= std::time::Duration::from_millis(100));
-        assert_eq!(waits.into_inner(), vec![std::time::Duration::from_millis(100)]);
+        assert_eq!(
+            waits.into_inner(),
+            vec![std::time::Duration::from_millis(100)]
+        );
         assert!(include_str!("windows.rs").contains("settle_after_text_input(thread::sleep);"));
     }
 }

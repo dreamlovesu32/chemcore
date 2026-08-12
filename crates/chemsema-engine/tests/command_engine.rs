@@ -1664,9 +1664,9 @@ fn editor_commands_create_native_tlc_and_gel_plate_models() {
     assert_eq!(tlc["payload"]["showSideTicks"], true);
     let tlc_lanes = tlc["payload"]["lanes"].as_array().expect("TLC lanes");
     assert!((3..=12).contains(&tlc_lanes.len()));
-    assert!(tlc_lanes.iter().all(|lane| lane["spots"].as_array().is_some_and(|spots| {
-        spots.len() == 1 && spots[0]["rf"] == 0.15
-    })));
+    assert!(tlc_lanes.iter().all(|lane| lane["spots"]
+        .as_array()
+        .is_some_and(|spots| { spots.len() == 1 && spots[0]["rf"] == 0.15 })));
 
     let gel = find_object(&document, &gel_id);
     assert_eq!(gel["payload"]["kind"], "gelPlate");
@@ -1674,56 +1674,71 @@ fn editor_commands_create_native_tlc_and_gel_plate_models() {
     let gel_lanes = gel_data["lanes"].as_array().expect("gel lanes");
     assert_eq!(gel_data["color"], "#ff0000");
     assert!((3..=12).contains(&gel_lanes.len()));
-    assert!(gel_lanes.iter().all(|lane| lane["bands"].as_array().is_some_and(|bands| {
-        bands.len() == 1
-            && bands[0]["value"] == 0.5
-            && bands[0]["color"] == "#ff0000"
-            && bands[0]["visible"] == true
-    })));
+    assert!(gel_lanes
+        .iter()
+        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
+            bands.len() == 1
+                && bands[0]["value"] == 0.5
+                && bands[0]["color"] == "#ff0000"
+                && bands[0]["visible"] == true
+        })));
 
     assert!(engine.select_all());
     assert!(engine.apply_color_to_selection("#0000ff"));
     let recolored = document_value(&engine);
     let tlc = find_object(&recolored, &tlc_id);
-    assert!(tlc["payload"]["lanes"].as_array().expect("recolored TLC lanes").iter().all(|lane| {
-        lane["spots"].as_array().is_some_and(|spots| {
-            spots.iter().all(|spot| spot["color"] == "#0000ff")
-        })
-    }));
+    assert!(tlc["payload"]["lanes"]
+        .as_array()
+        .expect("recolored TLC lanes")
+        .iter()
+        .all(|lane| {
+            lane["spots"]
+                .as_array()
+                .is_some_and(|spots| spots.iter().all(|spot| spot["color"] == "#0000ff"))
+        }));
     let gel = find_object(&recolored, &gel_id);
     assert_eq!(gel["payload"]["gelElectrophoresis"]["color"], "#0000ff");
     assert!(gel["payload"]["gelElectrophoresis"]["lanes"]
         .as_array()
         .expect("recolored gel lanes")
         .iter()
-        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
-            bands.iter().all(|band| band["color"] == "#0000ff")
-        })));
-    assert!(engine.undo(), "batch chromatography color should be one history step");
+        .all(|lane| lane["bands"]
+            .as_array()
+            .is_some_and(|bands| { bands.iter().all(|band| band["color"] == "#0000ff") })));
+    assert!(
+        engine.undo(),
+        "batch chromatography color should be one history step"
+    );
     let undone = document_value(&engine);
     let tlc = find_object(&undone, &tlc_id);
-    assert!(tlc["payload"]["lanes"].as_array().expect("undone TLC lanes").iter().all(|lane| {
-        lane["spots"].as_array().is_some_and(|spots| {
-            spots.iter().all(|spot| spot.get("color").is_none())
-        })
-    }));
+    assert!(tlc["payload"]["lanes"]
+        .as_array()
+        .expect("undone TLC lanes")
+        .iter()
+        .all(|lane| {
+            lane["spots"]
+                .as_array()
+                .is_some_and(|spots| spots.iter().all(|spot| spot.get("color").is_none()))
+        }));
     let gel = find_object(&undone, &gel_id);
     assert!(gel["payload"]["gelElectrophoresis"]["lanes"]
         .as_array()
         .expect("undone gel lanes")
         .iter()
-        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
-            bands.iter().all(|band| band["color"] == "#ff0000")
-        })));
+        .all(|lane| lane["bands"]
+            .as_array()
+            .is_some_and(|bands| { bands.iter().all(|band| band["color"] == "#ff0000") })));
     assert!(engine.redo());
     let redone = document_value(&engine);
-    assert!(find_object(&redone, &gel_id)["payload"]["gelElectrophoresis"]["lanes"]
-        .as_array()
-        .expect("redone gel lanes")
-        .iter()
-        .all(|lane| lane["bands"].as_array().is_some_and(|bands| {
-            bands.iter().all(|band| band["color"] == "#0000ff")
-        })));
+    assert!(
+        find_object(&redone, &gel_id)["payload"]["gelElectrophoresis"]["lanes"]
+            .as_array()
+            .expect("redone gel lanes")
+            .iter()
+            .all(|lane| lane["bands"]
+                .as_array()
+                .is_some_and(|bands| { bands.iter().all(|band| band["color"] == "#0000ff") }))
+    );
 }
 
 #[test]
