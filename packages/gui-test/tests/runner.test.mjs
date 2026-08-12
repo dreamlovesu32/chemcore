@@ -1163,7 +1163,16 @@ test("the atom-query list matrix kills skipped include/exclude states, reordered
     assert.ok(scenario.actions.some((action) => action.completion?.kind === "dom-text" && action.completion.text === text), `missing exact list dialog state ${text}`);
   }
   assert.equal(scenario.actions.find((action) => action.id === "clear-generic-list-input").completion.text, "");
-  assert.equal(scenario.actions.find((action) => action.id === "cancel-element-list").key, "Escape");
+  for (const actionId of ["cancel-element-list", "close-element-list-after-undo", "close-final-generic-list"]) {
+    const action = scenario.actions.find((candidate) => candidate.id === actionId);
+    assert.equal(action.type, "click", `${actionId} must exercise the public modal control, not a targetless key`);
+    assert.deepEqual(action.target, {
+      strategy: "role",
+      value: "button",
+      name: "Cancel",
+      scope: { role: "form", name: actionId === "close-final-generic-list" ? "Generic List" : "Element List" },
+    });
+  }
   assert.ok(scenario.actions.some((action) => action.id === "undo-excluded-element-list"));
   assert.ok(scenario.actions.some((action) => action.id === "redo-excluded-element-list"));
   assert.ok(scenario.actions.some((action) => action.id === "undo-cleared-generic-list"));
