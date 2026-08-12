@@ -345,6 +345,9 @@
                   "elementListExcluded": { "type": "boolean" },
                   "genericList": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 64 }, "uniqueItems": true, "maxItems": 32 },
                   "genericListExcluded": { "type": "boolean" },
+                  "freeSites": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+                  "substituentsUpTo": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
+                  "substituentsExactly": { "type": ["integer", "null"], "minimum": 0, "maximum": 255 },
                   "labelText": { "type": "string", "minLength": 1, "maxLength": 128 },
                   "labelSourceText": { "type": "string", "minLength": 1, "maxLength": 128 }
                 }

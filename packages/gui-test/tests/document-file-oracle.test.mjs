@@ -301,6 +301,25 @@ test("saved-document node oracle kills reordered, missing, exclusion, and displa
   assert.equal(evaluateDocumentNodeProperties(displayOnly, expected).passed, false);
 });
 
+test("saved-document node oracle kills swapped, missing, and display-only atom-query numeric mutants", () => {
+  const bytes = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, atomProperties: { freeSites: 2, substituentsUpTo: 4, substituentsExactly: 3 }, label: { text: "CH2", sourceText: "CH2" } },
+  ] } } } }));
+  const expected = [{ id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, freeSites: 2, substituentsUpTo: 4, substituentsExactly: 3, labelText: "CH2", labelSourceText: "CH2" }];
+  assert.equal(evaluateDocumentNodeProperties(bytes, expected).passed, true);
+  for (const mutant of [
+    { freeSites: 4 }, { substituentsUpTo: 3 }, { substituentsExactly: 4 }, { numHydrogens: 4 }, { labelText: "CH4" },
+  ]) assert.equal(evaluateDocumentNodeProperties(bytes, [{ ...expected[0], ...mutant }]).passed, false);
+  const missing = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, atomProperties: {}, label: { text: "CH2", sourceText: "CH2" } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(missing, expected).passed, false);
+  const displayOnly = Buffer.from(JSON.stringify({ resources: { mol: { type: "molecule_fragment2d", data: { nodes: [
+    { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, atomProperties: {}, label: { text: "CH2", sourceText: "CH2", meta: { freeSites: 2, substituentsUpTo: 4, substituentsExactly: 3 } } },
+  ] } } } }));
+  assert.equal(evaluateDocumentNodeProperties(displayOnly, expected).passed, false);
+});
+
 test("saved-document arrow oracle checks exact public CCJS properties", () => {
   const bytes = Buffer.from(JSON.stringify({
     styles: { style_red: { stroke: "#ff0000" } },

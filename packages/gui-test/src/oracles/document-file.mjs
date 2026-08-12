@@ -154,6 +154,9 @@ export function evaluateDocumentNodeProperties(bytes, expected) {
       elementListExcluded: node?.atomProperties?.elementListExcluded ?? node?.atom_properties?.element_list_excluded ?? false,
       genericList: node?.atomProperties?.genericList ?? node?.atom_properties?.generic_list ?? [],
       genericListExcluded: node?.atomProperties?.genericListExcluded ?? node?.atom_properties?.generic_list_excluded ?? false,
+      freeSites: node?.atomProperties?.freeSites ?? node?.atom_properties?.free_sites ?? null,
+      substituentsUpTo: node?.atomProperties?.substituentsUpTo ?? node?.atom_properties?.substituents_up_to ?? null,
+      substituentsExactly: node?.atomProperties?.substituentsExactly ?? node?.atom_properties?.substituents_exactly ?? null,
       labelText: node?.label?.text ?? null,
       labelSourceText: node?.label?.sourceText ?? node?.label?.source_text ?? null,
     };

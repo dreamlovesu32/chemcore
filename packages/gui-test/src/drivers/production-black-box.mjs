@@ -66,6 +66,7 @@ export const productionBlackBoxCapabilities = Object.freeze([
   "editor.atom.query-translation",
   "editor.atom.query-abnormal-valence",
   "editor.atom.query-lists",
+  "editor.atom.query-numeric",
   "document.save-as",
   "document.open",
   "document.close-discard",
