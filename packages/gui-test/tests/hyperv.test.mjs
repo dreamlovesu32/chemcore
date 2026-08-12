@@ -460,9 +460,13 @@ test("production bond-endpoint targets recover closed-polygon centerlines and ki
     && /bondEndpointRect \|\| selectorGeometryRect \|\| renderedRect/.test(candidate)
   );
   assert.equal(endpointContract(source), true);
-  const helperSource = source
-    .match(/  const bondEndpointPointerRect = [\s\S]*?\n  };\n  const find/)[0]
-    .replace(/\n  const find$/, "");
+  const extractBondEndpointHelper = (candidate) => {
+    const match = candidate.match(/  const bondEndpointPointerRect = [\s\S]*?\r?\n  };\r?\n  const find/);
+    assert.ok(match, "bond endpoint helper must be extractable with LF or CRLF line endings");
+    return match[0].replace(/\r?\n  const find$/, "");
+  };
+  const helperSource = extractBondEndpointHelper(source);
+  assert.doesNotThrow(() => extractBondEndpointHelper(source.replace(/\r?\n/g, "\r\n")));
   class IdentityDomPoint {
     constructor(x, y) { this.x = x; this.y = y; }
     matrixTransform() { return this; }
