@@ -218,6 +218,44 @@ fn element_tool_replaces_focused_endpoint_without_adding_node() {
 }
 
 #[test]
+fn element_tool_uses_shared_directional_layout_on_left_endpoint() {
+    let mut engine = Engine::new();
+    engine.set_tool_state(bond_tool());
+    click(&mut engine, FIRST_START_X, FIRST_START_Y);
+    let node_id = node_id_at(&engine, Point::new(FIRST_START_X, FIRST_START_Y))
+        .expect("left terminal node should exist");
+
+    engine.set_tool_state(ToolState {
+        active_tool: Tool::Element,
+        element_symbol: "N".to_string(),
+        element_atomic_number: 7,
+        ..ToolState::default()
+    });
+    hover(&mut engine, FIRST_START_X, FIRST_START_Y);
+    click(&mut engine, FIRST_START_X, FIRST_START_Y);
+
+    let node = engine
+        .state()
+        .document
+        .editable_fragment()
+        .expect("editable fragment should exist")
+        .fragment
+        .nodes
+        .iter()
+        .find(|node| node.id == node_id)
+        .expect("replaced node should still exist");
+    let label = node.label.as_ref().expect("nitrogen label should exist");
+    assert_eq!(label.source_text.as_deref(), Some("NH2"));
+    assert_eq!(label.text, "H2N");
+    assert_eq!(label.attachment.as_deref(), Some("node"));
+    let nitrogen = label_glyph_box(label, 2);
+    assert!(
+        nitrogen[0] <= node.position[0] && node.position[0] <= nitrogen[2],
+        "the element glyph, not the hydrogen suffix, must own the bond attachment: {label:?}"
+    );
+}
+
+#[test]
 fn element_tool_replaces_structure_label_but_ignores_free_text() {
     let mut engine = Engine::new();
     engine.set_tool_state(bond_tool());

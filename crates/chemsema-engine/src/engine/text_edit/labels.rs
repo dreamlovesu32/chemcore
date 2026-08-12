@@ -2305,7 +2305,16 @@ pub(super) fn refreshed_attached_node_label(
         round2(world_anchor.x - object_translate[0]),
         round2(world_anchor.y - object_translate[1]),
     ];
-    if is_generated_centered_label(label) {
+    // Periodic-element tools initially create an unconnected atom as a centered
+    // label. Once that atom participates in a bond, it is chemically attached
+    // and must use the same directional layout as a keyboard-authored endpoint
+    // label. Keeping it centered here used to bypass reversal and stacking for
+    // element-tool and generated carbon-display labels.
+    let generated_chemical_attachment = is_generated_centered_label(label)
+        && !connection_angles.is_empty()
+        && label_interprets_chemically(label)
+        && label_text_matches_node_element(&source_text, node);
+    if is_generated_centered_label(label) && !generated_chemical_attachment {
         return Some(make_centered_node_label(
             &label.text,
             local_anchor,
@@ -2344,6 +2353,7 @@ pub(super) fn refreshed_attached_node_label(
         implicit_hydrogen_label_text(node, &source_text)
     };
     if !is_attached_node_label(label)
+        && !generated_chemical_attachment
         && !is_source_measured_attached_label(label)
         && !is_cdxml_imported_right_aligned_attached_label(label)
         && !is_cdxml_imported_centered_attached_label(label)

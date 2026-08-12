@@ -57,7 +57,7 @@ pub use self::command::{
 pub use self::patch::{DocumentPatch, SceneEntityPatch};
 pub use self::spatial_index::SpatialQueryResult;
 pub(crate) use self::text_edit::{
-    carbon_valence_hydrogen_count_for_node, formula_hydrogen_count_for_node,
+    carbon_valence_hydrogen_count_for_node, element_symbol_info, formula_hydrogen_count_for_node,
     implicit_hydrogen_label_text_for_count, make_periodic_element_node_label,
     refresh_attached_node_label_geometry_for_all_nodes,
     refresh_attached_node_label_geometry_for_all_nodes_with_profile,
@@ -66,7 +66,7 @@ pub(crate) use self::text_edit::{
     refresh_implicit_hydrogens, refresh_label_recognition_for_node,
 };
 use self::text_edit::{
-    element_symbol_info, endpoint_label_world_bounds, mark_shortcut_implicit_hydrogen_label,
+    endpoint_label_world_bounds, mark_shortcut_implicit_hydrogen_label,
     refresh_element_valence_recognition_for_all_nodes, standalone_element_hydrogen_count,
 };
 pub use self::text_edit::{

@@ -2143,6 +2143,100 @@ fn atom_query_value_menus_report_selected_values_and_kill_hard_coded_false_mutan
 }
 
 #[test]
+fn generated_carbon_display_labels_follow_shared_attachment_direction_layout() {
+    let mut engine = Engine::new();
+    let first_bond = execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": { "x": 100.0, "y": 100.0 },
+            "end": { "x": 148.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+    let shared_node_id = created_node_id(&first_bond, 1);
+    execute(
+        &mut engine,
+        json!({
+            "type": "add-bond",
+            "begin": {
+                "nodeId": shared_node_id,
+                "x": 148.0,
+                "y": 100.0
+            },
+            "end": { "x": 196.0, "y": 100.0 },
+            "order": 1,
+            "variant": "single"
+        }),
+    );
+
+    let document = document_value(&engine);
+    let mut nodes: Vec<_> = document["resources"]
+        .as_object()
+        .expect("resources")
+        .values()
+        .flat_map(|resource| {
+            resource["data"]["nodes"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .cloned()
+        })
+        .collect();
+    nodes.sort_by(|left, right| {
+        left["position"][0]
+            .as_f64()
+            .unwrap()
+            .total_cmp(&right["position"][0].as_f64().unwrap())
+    });
+    let node_ids: Vec<_> = nodes
+        .iter()
+        .map(|node| node["id"].as_str().unwrap().to_string())
+        .collect();
+    assert_eq!(node_ids.len(), 3);
+    execute(
+        &mut engine,
+        json!({ "type": "select-targets", "targets": { "nodes": node_ids } }),
+    );
+    for property in [
+        "show-terminal-carbon-label",
+        "show-non-terminal-carbon-label",
+    ] {
+        assert_eq!(
+            execute(
+                &mut engine,
+                json!({
+                    "type": "set-atom-property-for-selection",
+                    "property": property,
+                    "value": "true"
+                }),
+            )["changed"],
+            true
+        );
+    }
+
+    let document = document_value(&engine);
+    let labels: Vec<_> = node_ids
+        .iter()
+        .map(|node_id| find_node(&document, node_id)["label"].clone())
+        .collect();
+    assert_eq!(labels[0]["sourceText"], "CH3");
+    assert_eq!(labels[0]["text"], "H3C");
+    assert_eq!(labels[0]["attachment"], "node");
+    assert_eq!(labels[0]["layout"], "attached-group");
+
+    assert_eq!(labels[1]["sourceText"], "CH2");
+    assert_eq!(labels[1]["text"], "H2\nC");
+    assert_eq!(labels[1]["lines"], json!(["H2", "C"]));
+    assert_eq!(labels[1]["layout"], "attached-group-above");
+
+    assert_eq!(labels[2]["sourceText"], "CH3");
+    assert_eq!(labels[2]["text"], "CH3");
+    assert_eq!(labels[2]["attachment"], "node");
+}
+
+#[test]
 fn bond_query_reaction_command_round_trips_through_ccjs_cdxml_and_cdx() {
     let mut engine = Engine::new();
     let add = execute(

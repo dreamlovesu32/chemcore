@@ -61,7 +61,14 @@ fn refresh_atom_query_list_label(node: &mut Node) -> bool {
         values.join(", ")
     );
     let mut label = crate::engine::make_periodic_element_node_label(&text, node.position);
-    label.meta = serde_json::json!({"queryListLabel": {"source": "editor-generated"}});
+    label
+        .meta
+        .as_object_mut()
+        .expect("generated node label metadata must be an object")
+        .insert(
+            "queryListLabel".to_string(),
+            serde_json::json!({"source": "editor-generated"}),
+        );
     replace_if_different(&mut node.label, Some(label))
 }
 
@@ -109,7 +116,14 @@ fn refresh_carbon_display_labels(
         if show && (node.label.is_none() || generated) {
             let text = crate::engine::implicit_hydrogen_label_text_for_count("C", hydrogens);
             let mut label = crate::engine::make_periodic_element_node_label(&text, node.position);
-            label.meta = serde_json::json!({"carbonDisplayLabel": {"source": "editor-generated"}});
+            label
+                .meta
+                .as_object_mut()
+                .expect("generated node label metadata must be an object")
+                .insert(
+                    "carbonDisplayLabel".to_string(),
+                    serde_json::json!({"source": "editor-generated"}),
+                );
             changed |= replace_if_different(&mut node.num_hydrogens, hydrogens);
             changed |= replace_if_different(&mut node.label, Some(label));
         } else if !show && generated {
@@ -1191,7 +1205,10 @@ impl Engine {
         }
         if matches!(
             update,
-            AtomPropertyUpdate::Radical(_) | AtomPropertyUpdate::FreeSites(_)
+            AtomPropertyUpdate::Radical(_)
+                | AtomPropertyUpdate::FreeSites(_)
+                | AtomPropertyUpdate::ShowTerminalCarbonLabel(_)
+                | AtomPropertyUpdate::ShowNonTerminalCarbonLabel(_)
         ) {
             let stroke_width = self.options.bond_stroke_world_pt().value();
             if let Some(mut entry) = self.state.document.editable_fragment_mut() {

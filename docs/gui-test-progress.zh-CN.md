@@ -4,9 +4,9 @@
 状态：持续实施；**尚未达到完整 GUI 资格，也尚未达到展示资格**  
 登记场景：**88**
 
-当前产品候选：`825faa2302a50f3f36ae7f1c94b224e12ec50ae632ee9f661d559f88a800eccd`（源码闭包 `d1749344bea79f8385793b5c55f9548093968e063244b14a63d7d20a48ce8b8d`）
+当前产品候选：`8233f1532d89002e17e3368e0dcfa84417fc1e01b211ac32f3f7db98e755bfc2`（源码闭包 `ae95bb266a9dca9732f9c49265a6fe470349203cc59669c57c5c2ba93123083f`）
 
-当前源码闭包已登记场景资格：**87/88 reusable passed，0 product failed，1 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。六元环 Bond 融合、Element、正电荷、Lone pair、implicit-hydrogen、Bond Reaction Participation、自由原子规范化、Isotope、Radical、Atom Number、Atom Query Ring Bond Count、Abnormal Valence、List 与 Numeric 的首次失败证据永久保留。全部 118 个周期表值及 Atom Properties 的 Isotope、Isotopic Abundance、Radical、Atom Number、Stereochemistry，以及 Atom Query 的全部公开固定、列表与数值字段现已取得独立实机证据。影响图从完成的 numeric-count 闭包推进到相邻且尚无 physical coverage 的 Terminal/Nonterminal Carbon Label 显隐、checked state、派生标签、历史与精确持久化，不重复任何已通过 Atom Query 值域。完整 GUI 功能矩阵仍未完成，本文总体状态不变。
+当前源码闭包已登记场景资格：**88/88 reusable passed，0 product failed，0 pending，0 qualification diagnostics**。不可变 41/41 qualification 仍有效；后续独立修复与扩展闭包均保留各自候选身份，未把不同 candidate SHA 的报告错误混入单候选 qualification。第 88 场景已补上真实显示方向 oracle：左端 Carbon 的源语义保持 `CH3`，可见字形为 `H3C` 且 Carbon 靠键；两键中心 Carbon 的源语义保持 `CH2`，并按连接键空扇区显示为 `C\nH2`。完整 GUI 功能矩阵仍未完成；按用户 stop boundary，不启动第 89 场景、soak 或大文档测试。
 
 本文是 GUI 测试工作的唯一总进度表。[长期架构文档](./gui-test-platform-and-demo-reliability.zh-CN.md)说明为什么和怎样测试；本文只回答四个问题：已经完成什么、还缺什么、下一步是什么、什么时候才算结束。
 
@@ -56,7 +56,7 @@
 
 | 状态 | 功能族 | 已有真实覆盖 | 明确剩余 |
 |---|---|---|---|
-| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen/Oxygen Element、全部八种 Charge/Electron symbol→atom、implicit-hydrogen Automatic/Hide、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、三种 wedge 端点反转、全部公开 bond tool 中心替换/循环、全部 118 个周期表值及 Isotope/Isotopic Abundance/Radical/Atom Number/Stereochemistry、Atom Query 全部公开值域已取得真实 OS 输入与精确持久化证据 | 当前 Terminal/Nonterminal Carbon Label 的显隐、checked state、派生标签、历史与精确持久化待实机证据；混合选择与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
+| 🟡 | 分子、原子、键 | 单键绘制、历史、多键/混合选择与剪贴板；十种非单键工具、Chain/环连接、Nitrogen/Oxygen Element、全部八种 Charge/Electron symbol→atom、implicit-hydrogen Automatic/Hide、Bond Reaction Participation、Query Order、Topology、Absolute Stereo、Query/Reaction/Stereo 显示、双键位置、三种 wedge 端点反转、全部公开 bond tool 中心替换/循环、全部 118 个周期表值及 Isotope/Isotopic Abundance/Radical/Atom Number/Stereochemistry、Atom Query 全部公开值域、Terminal/Nonterminal Carbon Label 显隐、checked state、方向布局、历史与精确持久化均已取得真实 OS 输入证据 | 混合选择与格式；Template Library 还需要本机生成且不入库的授权 catalog/CDXML 资产 |
 | 🟡 | Arrow | 多对象属性、锁定混合、属性持久化 | 全部直接绘制预设、所有 head/curve/no-go/color 值、组合/大文档 |
 | 🟡 | Text | 新建、既有编辑、多行、主要样式、行距、取消、历史、持久化 | 局部选区、全部字体/字号/对齐/行距边界、IME/composition、Formula、端点标签、锁定/组合/大文档 |
 | 🟡 | Shape | 四种 kind、五种代表样式、批量样式、历史、持久化 | 全颜色/Faded、控制点、缩放/旋转、锁定/组合/剪贴板、格式与大文档 |
@@ -91,7 +91,7 @@
 
 ## 4. 已登记的 88 个场景
 
-所有 88 个场景均已实现并进入 registry。41 个既有场景保持单候选完整 qualification，后续独立修复/扩展闭包均保留自身候选身份，因此当前 registry 为 87/88 reusable passed；三种 wedge 端点反转、所有公开 bond tool 的中心替换/循环、全部 118 个周期表值、Isotope、Isotopic Abundance、Radical、Atom Number、Stereochemistry 与 Atom Query 全部公开值域均已通过，影响图接着选择 Terminal/Nonterminal Carbon Label 显隐、checked state、派生标签、历史与精确持久化闭包。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
+所有 88 个场景均已实现并进入 registry，当前为 88/88 reusable passed。第 88 场景在修复共享化学标签布局后由当前 Codex 直接以 production-black-box 真实输入重跑通过，并以 DOM、截图和独立保存文件同时验证可见方向与源语义。即使这一 registry 闭包全绿，也不表示对应功能族或本文列出的完整 GUI 矩阵已经覆盖。
 
 | 当前候选 | 场景 | 验证内容 |
 |---|---|---|
@@ -146,7 +146,7 @@
 | ✅ | `core.atom.query-abnormal-valence-history-persistence.production` | 在公开 Atom Query 菜单遍历 Allow Abnormal Valence 与 Use Normal Valence，验证 regenerated checked state、undo/redo、无伪 query indicator，并最终精确保存 `abnormalValence=true`；产品 checked-state 修复后的独立实机闭包已通过 |
 | ✅ | `core.atom.query-list-values-history-persistence.production` | 在公开 Atom Query 的 Element List 与 Generic List 对话框输入 include/exclude 值，验证精确字段值、预填、取消、清除、undo/redo、无伪 indicator，并最终精确保存列表与 exclusion flags；修复真实输入 agent 的 Backspace 能力后独立实机闭包已通过 |
 | ✅ | `core.atom.query-numeric-values-history-persistence.production` | 公开 Atom Query 的物理数值输入、精确预填/清除、`*2`→`U4`→`X3` 显示优先级、undo/redo 与三个字段保存全部通过；修复 Free Sites Carbon 价态/标签共享重算后的独立闭包取得 46/46 actions、4/4 oracles、0 diagnostics 精确证据 |
-| ✅ | `core.atom.carbon-label-visibility-history-persistence.production` | 从空白画布以 Chain 工具真实绘制三 Carbon 连通链，通过可恢复闭合 polygon 逻辑端点的语义 bond endpoint 命中尚无 DOM primitive 的隐式 Carbon，在正确的 Atom Query 子菜单遍历 Show/Hide Terminal 与 Nonterminal Carbon Labels，验证 regenerated checked state、精确 `CH3`/`CH2` 派生标签、undo/redo 及两个独立显隐字段持久化；独立实机重跑 27/27 actions、4/4 oracles、0 diagnostics 通过 |
+| ✅ | `core.atom.carbon-label-visibility-history-persistence.production` | 从空白画布以 Chain 工具真实绘制三 Carbon 连通链，在 Atom Query 子菜单遍历 Terminal/Nonterminal Carbon Label 显隐并验证 checked state、undo/redo 与保存语义；最终实机证据同时证明左端 `CH3` 显示为键侧 `H3C`，中心 `CH2` 按空扇区显示为 `C\nH2`，源文本仍分别为 `CH3`/`CH2`；27/27 actions、4/4 oracles、0 diagnostics |
 | ✅ | `core.atom.charge-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，以公开 Charge/Electron Symbol 工具附着默认正电荷；精确持久化 +1 formal charge、三个隐式氢、`NH3` 标签、symbol chemistry delta、目标 atom ID 与 auto-link 来源的修复批次已通过 |
 | ✅ | `core.atom.negative-charge-symbol-attachment-persistence.production` | 从真实单键端点与 Oxygen Element 状态继续，在 Secondary toolbar 选择 Circle minus 并附着；精确持久化 -1 formal charge、零隐式氢、`O` 标签、symbol chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
 | ✅ | `core.atom.radical-cation-symbol-attachment-persistence.production` | 从真实单键端点与 Nitrogen Element 状态继续，在 Secondary toolbar 选择 Radical cation 并附着；精确持久化 +1 formal charge、两个隐式氢、`NH2` 标签、radical count 1、双 chemistry delta、目标 atom ID 与 auto-link 来源的独立后台批次已通过 |
@@ -348,6 +348,8 @@ Carbon Label 第三批 `impact-bab33d4-atom-carbon-label-menu-hierarchy-fix-prod
 
 目标限定重跑 `impact-2fa5a0b-atom-carbon-label-polygon-endpoint-fix-production-1786500716808` 已完成：唯一场景 `core.atom.carbon-label-visibility-history-persistence.production` 以 27/27 actions、4/4 oracles、0 diagnostics 通过。终态、heartbeat、checkpoint、报告与 manifest SHA-256 分别为 `b503d90cbb82547bb4134f29d9e2063f6bfa214bc65154c8330808ec439f670a`、`3c6bfe3a79703a12968b3a6fc1a8bedf7bda4cd376998c2f8b2c040b979b1afc`、`fcfafa6c69a1517b6d29e25d8353e8a83eb32c2816e0b312299f59ca7dddc2ca`、`0bb372e712655a8b870a5db132b53c16d7e02d8a2c8f17c9ca4785e733da9cee`、`eb613a9b1424014e17107f2524df9cfbca60054332cd2da1568965ab5f7e66dd`；9 个 evidence 对象共 8,624,609 bytes 全部独立复算一致。运行提交 `2fa5a0b3d64c32bd60e1619c00b5fba6fbd76810`、候选 `825faa2302a50f3f36ae7f1c94b224e12ec50ae632ee9f661d559f88a800eccd`、源码闭包 `d1749344bea79f8385793b5c55f9548093968e063244b14a63d7d20a48ce8b8d`、profile `502462c2249c63bd6e44a00dacc55a1df5a9b0b194fb5d89ce4df93acd0fe661` 与 queue `11c7c458696841c1e1efcd04a5d0c8ab9b7c260fdb4f5285805a48b387574539` 均匹配。stop boundary 已遵守：未选择或启动任何后续场景、soak 或 large-document run。
 
+用户复核指出上述通过只检查了 `CH3`/`CH2` 文本语义，未证明 Carbon 字形贴近键及非末端氢的上下避让，因此该旧报告不再作为方向布局的充分证据。通用修复把键盘输入、Element 工具和自动生成 Carbon 标签统一接入 attached-label direction layout，并保留生成标签的 `sourceRuns` 化学语义；回归覆盖左端 `H3C`、水平两键中心 `H2\nC`、当前折线两键中心 `C\nH2` 及 Element 工具端点。最终直接实机运行位于 `%LOCALAPPDATA%\ChemSema\gui-test\manual-88-carbon-label-direction-r3`，27/27 actions、4/4 oracles、0 diagnostics，报告时间 `2026-08-12T02:36:26Z` 至 `02:37:08Z`。候选 SHA-256 为 `8233f1532d89002e17e3368e0dcfa84417fc1e01b211ac32f3f7db98e755bfc2`，源码闭包为 `ae95bb266a9dca9732f9c49265a6fe470349203cc59669c57c5c2ba93123083f`；截图、保存文件、run report 与 artifact manifest SHA-256 分别为 `f11ae95b12a5cb6ed509214adf52ac3a62c364a6776cf0de3d21d33cac1714ac`、`d9bad24fb6b20b2ebc4a91197343c356eb8053815195e18aa1aa3c083c50cd40`、`1c786832c13b38c977c2afb75b2cd421f11ed88dbc38cecefa87dcb926298240`、`bfb355e0447ba75f9fc63bc407c5d4241c4eb191e7323a61e65695eb80a893b0`，manifest 内全部对象已独立复算匹配。按 stop boundary，registry 停在 88/88，不启动任何后续批次。
+
 当前候选的两个前端 production 场景均通过。真实鼠标/键盘观测为 1280×900 CSS viewport、DPR 1.5；键盘焦点环、hover、disabled cursor/opacity 均通过。真实绘制、字体切换和全选后，文本选择框同时满足字形包含与字体度量紧边界，单键选择框为 40×12 CSS px，两个独立选择框共有 16 个 6×6 CSS px resize handle；上下文菜单提交后画布重新取得 focused、focus-within 和 hover。选择几何与前端状态报告 SHA-256 分别为 `0a06c635c68851063938202f7e961219206d0aba0d22b643a6cf7b6591a00b15`、`aaf54a0ffa03f51318d13736e7247c0fae753b580ca3e1068fda108d945ef72b`。
 
 ## 4.1 物理工作节点第一阶段记录
@@ -356,7 +358,7 @@ Carbon Label 第三批 `impact-bab33d4-atom-carbon-label-menu-hierarchy-fix-prod
 - 全新依赖基线：`npm ci` 0 漏洞、GUI 平台初始 72/72；物理节点、守护进程和前端 oracle 测试持续增加，当前 registry/audit 为 88 场景且继续要求 0 gap/0 warning；每次提交仍需 `CI=true npm run verify`。
 - 本机 profile 位于 `%LOCALAPPDATA%\\ChemSema\\gui-test\\profiles\\physical-current.json`；机器名、账户、MachineGuid 哈希和证据均不提交 Git。
 - 物理 adapter 与 Hyper-V adapter 并存；Hyper-V 仍强制专用 guest 账户，物理 adapter 精确绑定本机当前账户和 session 1，不配置 autologon。
-- 扩展前 registry 的 41 场景已有单候选完整 qualification；后续独立修复/扩展闭包均保留候选身份并已通过。当前 88 场景 registry 保留全部首次 test/oracle/product 失败；所有公开 bond tool 的中心替换/循环、三种 wedge 反转、全部 118 个周期表值及 Atom Properties 的 Isotope、Isotopic Abundance、Radical、Atom Number、Stereochemistry 与 Atom Query 全部公开值域已通过，影响图当前只启动尚未覆盖的 Terminal/Nonterminal Carbon Label 显隐、checked state、派生标签、历史与精确持久化闭包。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
+- 扩展前 registry 的 41 场景已有单候选完整 qualification；后续独立修复/扩展闭包均保留候选身份并已通过。当前 registry 为 88/88 reusable passed，且 Terminal/Nonterminal Carbon Label 已补齐真实显示方向、checked state、历史与精确持久化证据；按 stop boundary 不再推进下一批。这不关闭尚未登记的功能、属性、格式、规模、环境和稳定性缺口。
 - 第一阶段尚未完成：正式 NSIS 安装/文件关联验证、长期 supervisor/子进程重启续跑与终态事件触发验收、PR CI 收口。
 
 ## 5. 下一阶段执行顺序

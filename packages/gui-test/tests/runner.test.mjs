@@ -1264,15 +1264,21 @@ test("the Carbon label visibility cell kills unchecked, wrong-applicability, sta
   assert.equal(scenario.actions.find((action) => action.id === "clear-created-chain-selection").target.value, "page-background");
   assert.match(scenario.actions.find((action) => action.id === "open-default-terminal-label-menu").completion.selector, /show-terminal-carbon-label:false.*aria-checked/);
   assert.match(scenario.actions.find((action) => action.id === "open-default-nonterminal-label-menu").completion.selector, /show-non-terminal-carbon-label:false.*aria-checked/);
-  assert.equal(scenario.actions.find((action) => action.id === "show-terminal-carbon-label").completion.text, "CH3");
-  assert.equal(scenario.actions.find((action) => action.id === "show-nonterminal-carbon-label").completion.text, "CH2");
+  assert.equal(scenario.actions.find((action) => action.id === "show-terminal-carbon-label").completion.text, "H3C");
+  assert.deepEqual(scenario.actions.find((action) => action.id === "show-nonterminal-carbon-label").completion, {
+    kind: "dom-count",
+    selector: 'text[data-node-id="n_2"]',
+    operator: "eq",
+    value: 2,
+    timeoutMs: 8000,
+  });
   assert.ok(scenario.actions.some((action) => action.id === "undo-terminal-hide-for-final"));
   assert.ok(scenario.actions.some((action) => action.id === "undo-nonterminal-hide-for-final"));
   assert.deepEqual(
     scenario.oracles.find((oracle) => oracle.id === "saved-explicit-carbon-label-visibility-semantics").expected,
     [
-      { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 3, showTerminalCarbonLabel: true, showNonTerminalCarbonLabel: null, labelText: "CH3", labelSourceText: "CH3" },
-      { id: "n_2", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, showTerminalCarbonLabel: null, showNonTerminalCarbonLabel: true, labelText: "CH2", labelSourceText: "CH2" },
+      { id: "n_1", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 3, showTerminalCarbonLabel: true, showNonTerminalCarbonLabel: null, labelText: "H3C", labelSourceText: "CH3" },
+      { id: "n_2", element: "C", atomicNumber: 6, charge: 0, numHydrogens: 2, showTerminalCarbonLabel: null, showNonTerminalCarbonLabel: true, labelText: "C\nH2", labelSourceText: "CH2" },
     ],
   );
 });
