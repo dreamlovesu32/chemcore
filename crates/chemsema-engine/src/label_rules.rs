@@ -271,9 +271,8 @@ fn split_compact_label_groups(compact: &str) -> Vec<String> {
         // attachment group and H3 is the movable group. Let the normal
         // uppercase boundary splitter handle it instead of collapsing the
         // alias into one indivisible display token.
-        let leading_element_hydrogen_formula = groups.is_empty()
-            && current.is_empty()
-            && starts_with_element_hydrogen_formula(rest);
+        let leading_element_hydrogen_formula =
+            groups.is_empty() && current.is_empty() && starts_with_element_hydrogen_formula(rest);
         if !leading_element_hydrogen_formula {
             if let Some(prefix_len) = crate::label_group_prefix_len(rest) {
                 if !current.is_empty() {

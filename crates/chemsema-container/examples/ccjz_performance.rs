@@ -12,6 +12,12 @@ fn elapsed_ms(start: Instant) -> f64 {
     start.elapsed().as_secs_f64() * 1000.0
 }
 
+fn median_sample(samples: &mut [f64]) -> f64 {
+    assert!(!samples.is_empty(), "performance samples must not be empty");
+    samples.sort_by(f64::total_cmp);
+    samples[samples.len() / 2]
+}
+
 fn hash_file(path: &Path) -> Result<String, String> {
     let mut file = File::open(path).map_err(|error| error.to_string())?;
     let mut digest = Sha256::new();
@@ -163,27 +169,40 @@ fn main() -> Result<(), String> {
                 })),
             );
             let archive_path = directory.join(format!("attachment-{size}.ccjz"));
-            let start = Instant::now();
-            let mut output = File::create(&archive_path).map_err(|error| error.to_string())?;
-            write_ccjz_with_files(
-                &mut output,
-                &source,
-                1024,
-                &[],
-                &[FileAttachment {
-                    id: "large",
-                    media_type: "application/octet-stream",
-                    extension: "bin",
-                    path: &payload_path,
-                }],
-            )?;
-            output.sync_all().map_err(|error| error.to_string())?;
-            let write_ms = elapsed_ms(start);
             let minimum_mib_per_second = 20.0;
-            let throughput = (size as f64 / (1u64 << 20) as f64) / (write_ms / 1000.0);
+            // A single 10 MiB sync is dominated by transient hosted-runner disk
+            // scheduling. Keep the absolute throughput floor, but use an odd
+            // sample count and its median so one cold or preempted write cannot
+            // make the smoke gate flaky. Larger full-mode payloads remain a
+            // single sample because their duration already smooths short noise.
+            let sample_count = if size <= (10u64 << 20) { 3 } else { 1 };
+            let mut write_samples_ms = Vec::with_capacity(sample_count);
+            let mut throughput_samples = Vec::with_capacity(sample_count);
+            for _ in 0..sample_count {
+                let start = Instant::now();
+                let mut output = File::create(&archive_path).map_err(|error| error.to_string())?;
+                write_ccjz_with_files(
+                    &mut output,
+                    &source,
+                    1024,
+                    &[],
+                    &[FileAttachment {
+                        id: "large",
+                        media_type: "application/octet-stream",
+                        extension: "bin",
+                        path: &payload_path,
+                    }],
+                )?;
+                output.sync_all().map_err(|error| error.to_string())?;
+                let write_ms = elapsed_ms(start);
+                write_samples_ms.push(write_ms);
+                throughput_samples.push((size as f64 / (1u64 << 20) as f64) / (write_ms / 1000.0));
+            }
+            let write_ms = median_sample(&mut write_samples_ms);
+            let throughput = median_sample(&mut throughput_samples);
             if throughput < minimum_mib_per_second {
                 return Err(format!(
-                    "CCJZ attachment throughput was {throughput:.1} MiB/s; minimum is {minimum_mib_per_second:.1} MiB/s"
+                    "CCJZ attachment median throughput was {throughput:.2} MiB/s across {sample_count} sample(s); minimum is {minimum_mib_per_second:.1} MiB/s; samples={throughput_samples:?}"
                 ));
             }
             let start = Instant::now();
@@ -200,7 +219,9 @@ fn main() -> Result<(), String> {
                 "bytes": size,
                 "archiveBytes": fs::metadata(&archive_path).map_err(|error| error.to_string())?.len(),
                 "writeMs": write_ms,
+                "writeSamplesMs": write_samples_ms,
                 "throughputMiBPerSecond": throughput,
+                "throughputSamplesMiBPerSecond": throughput_samples,
                 "manifestOpenMs": open_ms,
                 "storedRangeBytes": range.size,
             }));
@@ -220,4 +241,21 @@ fn main() -> Result<(), String> {
     })();
     let _ = fs::remove_dir_all(&directory);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::median_sample;
+
+    #[test]
+    fn median_gate_ignores_one_transient_slow_sample() {
+        let mut samples = [17.0, 24.0, 23.0];
+        assert_eq!(median_sample(&mut samples), 23.0);
+    }
+
+    #[test]
+    fn median_gate_does_not_hide_a_persistent_regression() {
+        let mut samples = [24.0, 18.0, 17.0];
+        assert_eq!(median_sample(&mut samples), 18.0);
+    }
 }

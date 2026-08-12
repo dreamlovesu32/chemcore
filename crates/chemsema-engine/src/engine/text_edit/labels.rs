@@ -1994,8 +1994,8 @@ fn refresh_element_valence_recognition_for_node(
     }
     let is_element_label = label_text_matches_node_element(trimmed, &fragment.nodes[node_index])
         || parse_element_hydrogen_label(trimmed)
-        .and_then(|parsed| element_label_replacement(parsed.element).map(|_| parsed))
-        .is_some()
+            .and_then(|parsed| element_label_replacement(parsed.element).map(|_| parsed))
+            .is_some()
         || element_label_replacement(trimmed).is_some();
     if !is_element_label {
         return;
@@ -2912,8 +2912,7 @@ pub(crate) fn carbon_valence_hydrogen_count_for_node(
         .sum();
     let radical_valence_twice = 2 * crate::node_radical_count(node);
     let free_site_valence_twice = 2 * i32::from(node.atom_properties.free_sites.unwrap_or(0));
-    ((8
-        - connection_order_twice
+    ((8 - connection_order_twice
         - radical_valence_twice
         - free_site_valence_twice
         - 2 * node.charge.abs())

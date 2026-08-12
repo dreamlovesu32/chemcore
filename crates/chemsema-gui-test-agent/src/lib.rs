@@ -44,7 +44,10 @@ pub fn validate_input_guard(
     attestation: &AgentAttestation,
     guard: &InputGuard,
 ) -> Result<(), String> {
-    if !attestation.account.eq_ignore_ascii_case(&guard.expected_agent_account) {
+    if !attestation
+        .account
+        .eq_ignore_ascii_case(&guard.expected_agent_account)
+    {
         return Err("input agent account does not match the authorized worker account".to_string());
     }
     if !attestation.interactive_ready {
@@ -81,7 +84,10 @@ pub fn validate_target_guard(
     attestation: &AgentAttestation,
     guard: &InputGuard,
 ) -> Result<(), String> {
-    if !attestation.account.eq_ignore_ascii_case(&guard.expected_agent_account) {
+    if !attestation
+        .account
+        .eq_ignore_ascii_case(&guard.expected_agent_account)
+    {
         return Err("input agent account does not match the authorized worker account".to_string());
     }
     if attestation.session_id == 0
