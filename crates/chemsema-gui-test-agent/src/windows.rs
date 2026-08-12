@@ -317,6 +317,15 @@ fn deliver_click_with_timing(
     send(up)
 }
 
+const TEXT_INPUT_EVENT_SETTLE: Duration = Duration::from_millis(100);
+
+fn settle_after_text_input(mut wait: impl FnMut(Duration)) {
+    // SendInput can return after accepting a Unicode batch while WebView2 is
+    // still draining its key/input event queue. A following click or Escape
+    // can otherwise be swallowed even though CDP already observes input.value.
+    wait(TEXT_INPUT_EVENT_SETTLE);
+}
+
 fn uses_virtual_key_input(virtual_key: u16) -> bool {
     matches!(virtual_key, VK_DELETE | VK_LEFT | VK_RIGHT | VK_UP | VK_DOWN)
 }
@@ -468,6 +477,7 @@ pub fn text(guard: &InputGuard, value: &str) -> Result<AgentAttestation, String>
     if sent as usize != inputs.len() {
         return Err(last_error("SendInput(text)"));
     }
+    settle_after_text_input(thread::sleep);
     let after = attest()?;
     crate::validate_input_guard(&after, guard)?;
     Ok(after)
@@ -779,9 +789,9 @@ pub fn dismiss_known_blocker() -> Result<AgentAttestation, String> {
 mod tests {
     use super::{
         deliver_click_with_timing, parse_pointer_modifiers, parse_shortcut,
-        retryable_window_snapshot_error, uses_virtual_key_input, validate_text_input,
-        CLICK_BUTTON_DWELL, CLICK_CURSOR_SETTLE, VK_CONTROL, VK_DELETE, VK_DOWN, VK_LEFT,
-        VK_MENU, VK_RIGHT, VK_SHIFT, VK_UP,
+        retryable_window_snapshot_error, settle_after_text_input, uses_virtual_key_input,
+        validate_text_input, CLICK_BUTTON_DWELL, CLICK_CURSOR_SETTLE, TEXT_INPUT_EVENT_SETTLE,
+        VK_CONTROL, VK_DELETE, VK_DOWN, VK_LEFT, VK_MENU, VK_RIGHT, VK_SHIFT, VK_UP,
     };
     use std::cell::RefCell;
 
@@ -856,6 +866,15 @@ mod tests {
             events.into_inner(),
             vec!["wait:25", "send:10", "wait:25", "send:20"]
         );
+    }
+
+    #[test]
+    fn unicode_text_input_settles_before_the_next_physical_action() {
+        let waits = RefCell::new(Vec::new());
+        settle_after_text_input(|duration| waits.borrow_mut().push(duration));
+        assert!(TEXT_INPUT_EVENT_SETTLE >= std::time::Duration::from_millis(100));
+        assert_eq!(waits.into_inner(), vec![std::time::Duration::from_millis(100)]);
+        assert!(include_str!("windows.rs").contains("settle_after_text_input(thread::sleep);"));
     }
 }
 
