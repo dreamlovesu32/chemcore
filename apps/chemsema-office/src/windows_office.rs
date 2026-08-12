@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::env;
-use std::ffi::c_void;
+use std::ffi::{c_void, OsString};
 use std::io::{Cursor, Read, Write};
 use std::mem::zeroed;
 use std::net::{SocketAddr, TcpStream};
-use std::os::windows::ffi::OsStrExt;
+use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -58,6 +58,7 @@ mod desktop_launch;
 mod emf_preview;
 mod ole_object;
 mod payload;
+mod persist_file;
 mod presentation_storage;
 mod registration;
 mod server;
@@ -76,6 +77,7 @@ use emf_preview::{
 use ole_object::*;
 pub(crate) use payload::write_emf_payload_json;
 use payload::*;
+use persist_file::*;
 use presentation_storage::*;
 use registration::*;
 use server::*;
@@ -347,6 +349,7 @@ struct ChemSemaOleObject {
     ref_count: AtomicU32,
     data_object: InterfacePart<DataObjectVtbl>,
     persist_storage: InterfacePart<PersistStorageVtbl>,
+    persist_file: InterfacePart<PersistFileVtbl>,
     ole_object: InterfacePart<OleObjectVtbl>,
     view_object2: InterfacePart<ViewObject2Vtbl>,
     runnable_object: InterfacePart<RunnableObjectVtbl>,
@@ -360,6 +363,7 @@ struct ChemSemaOleObject {
     payload: OleObjectPayload,
     extent_himetric: SIZE,
     dirty: bool,
+    current_file: Option<PathBuf>,
 }
 
 #[repr(C)]
@@ -386,6 +390,10 @@ impl ChemSemaOleObject {
                 vtbl: &PERSIST_STORAGE_VTBL,
                 owner: null_mut(),
             },
+            persist_file: InterfacePart {
+                vtbl: &PERSIST_FILE_VTBL,
+                owner: null_mut(),
+            },
             ole_object: InterfacePart {
                 vtbl: &OLE_OBJECT_VTBL,
                 owner: null_mut(),
@@ -408,6 +416,7 @@ impl ChemSemaOleObject {
             payload,
             extent_himetric,
             dirty: false,
+            current_file: None,
         }
     }
 
@@ -415,6 +424,7 @@ impl ChemSemaOleObject {
         let owner = self as *mut ChemSemaOleObject;
         self.data_object.owner = owner;
         self.persist_storage.owner = owner;
+        self.persist_file.owner = owner;
         self.ole_object.owner = owner;
         self.view_object2.owner = owner;
         self.runnable_object.owner = owner;
@@ -557,6 +567,31 @@ static PERSIST_STORAGE_VTBL: PersistStorageVtbl = PersistStorageVtbl {
     save: persist_storage_save,
     save_completed: persist_storage_save_completed,
     hands_off_storage: persist_storage_hands_off_storage,
+};
+
+#[repr(C)]
+struct PersistFileVtbl {
+    query_interface: unsafe extern "system" fn(*mut c_void, *const GUID, *mut *mut c_void) -> i32,
+    add_ref: unsafe extern "system" fn(*mut c_void) -> u32,
+    release: unsafe extern "system" fn(*mut c_void) -> u32,
+    get_class_id: unsafe extern "system" fn(*mut c_void, *mut GUID) -> i32,
+    is_dirty: unsafe extern "system" fn(*mut c_void) -> i32,
+    load: unsafe extern "system" fn(*mut c_void, *const u16, u32) -> i32,
+    save: unsafe extern "system" fn(*mut c_void, *const u16, i32) -> i32,
+    save_completed: unsafe extern "system" fn(*mut c_void, *const u16) -> i32,
+    get_cur_file: unsafe extern "system" fn(*mut c_void, *mut *mut u16) -> i32,
+}
+
+static PERSIST_FILE_VTBL: PersistFileVtbl = PersistFileVtbl {
+    query_interface: part_query_interface::<PersistFileVtbl>,
+    add_ref: part_add_ref::<PersistFileVtbl>,
+    release: part_release::<PersistFileVtbl>,
+    get_class_id: persist_file_get_class_id,
+    is_dirty: persist_file_is_dirty,
+    load: persist_file_load,
+    save: persist_file_save,
+    save_completed: persist_file_save_completed,
+    get_cur_file: persist_file_get_cur_file,
 };
 
 #[repr(C)]

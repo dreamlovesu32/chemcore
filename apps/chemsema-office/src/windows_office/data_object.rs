@@ -51,6 +51,8 @@ pub(super) fn chemsema_object_query_interface(
         } else if guid_eq(riid, &IID_IPERSIST) || guid_eq(riid, &IID_IPERSIST_STORAGE) {
             (&mut (*object).persist_storage as *mut InterfacePart<PersistStorageVtbl>)
                 .cast::<c_void>()
+        } else if guid_eq(riid, &IID_IPERSIST_FILE) {
+            (&mut (*object).persist_file as *mut InterfacePart<PersistFileVtbl>).cast::<c_void>()
         } else if guid_eq(riid, &IID_IOLE_OBJECT) {
             (&mut (*object).ole_object as *mut InterfacePart<OleObjectVtbl>).cast::<c_void>()
         } else if guid_eq(riid, &IID_IVIEW_OBJECT) || guid_eq(riid, &IID_IVIEW_OBJECT2) {

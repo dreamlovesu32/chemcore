@@ -75,6 +75,14 @@ pub(super) fn register(scope: RegistrationScope) -> Result<(), String> {
     )?;
     register_std_file_editing(root, PROG_ID, &server_command)?;
     register_std_file_editing(root, VERSIONED_PROG_ID, &server_command)?;
+    for prog_id in FILE_ASSOCIATION_PROG_IDS {
+        set_key_default(
+            root,
+            &classes_path(&format!("{prog_id}\\CLSID")),
+            CLSID_STRING,
+        )?;
+        register_std_file_editing(root, prog_id, &server_command)?;
+    }
 
     println!(
         "Registered {DOCUMENT_DISPLAY_NAME} for {} at {}",
@@ -129,6 +137,13 @@ pub(super) fn unregister(scope: RegistrationScope) -> Result<(), String> {
     delete_tree(root, &classes_path(PROG_ID))?;
     delete_tree(root, &classes_path(VERSIONED_PROG_ID))?;
     delete_tree(root, &classes_path(&format!("CLSID\\{CLSID_STRING}")))?;
+    for prog_id in FILE_ASSOCIATION_PROG_IDS {
+        delete_tree(root, &classes_path(&format!("{prog_id}\\CLSID")))?;
+        delete_tree(
+            root,
+            &classes_path(&format!("{prog_id}\\Protocol\\StdFileEditing")),
+        )?;
+    }
     println!(
         "Unregistered {DOCUMENT_DISPLAY_NAME} for {} from {}",
         scope.label(),

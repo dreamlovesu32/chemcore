@@ -4,6 +4,13 @@ pub(crate) const APP_NAME: &str = "ChemSema";
 pub(crate) const DOCUMENT_DISPLAY_NAME: &str = "ChemSema Document";
 pub(crate) const PROG_ID: &str = "ChemSema.Document";
 pub(crate) const VERSIONED_PROG_ID: &str = "ChemSema.Document.1";
+pub(crate) const FILE_ASSOCIATION_PROG_IDS: [&str; 5] = [
+    "ChemSema JSON Document",
+    "ChemSema Compressed Document",
+    "ChemDraw CDXML Document",
+    "ChemDraw CDX Document",
+    "MDL SDfile",
+];
 pub(crate) const CLSID_STRING: &str = "{CB69F54F-F21E-44DE-84FB-89D98FECE056}";
 pub(crate) const CLIPBOARD_FORMAT_NATIVE: &str = "Native";
 pub(crate) const OLE_STREAM_MANIFEST: &str = "ChemSemaManifest";
@@ -91,6 +98,13 @@ pub(crate) const IID_IPERSIST: GUID = GUID {
 
 pub(crate) const IID_IPERSIST_STORAGE: GUID = GUID {
     data1: 0x0000010a,
+    data2: 0x0000,
+    data3: 0x0000,
+    data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],
+};
+
+pub(crate) const IID_IPERSIST_FILE: GUID = GUID {
+    data1: 0x0000010b,
     data2: 0x0000,
     data3: 0x0000,
     data4: [0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46],

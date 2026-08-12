@@ -45,7 +45,8 @@
   --secondary-divider-margin: 4px;
   --cc-icon-stroke-thin: 1.65;
   --cc-icon-stroke-thick: 4.6px;
-  --chrome-svg-stroke-width: var(--cc-icon-stroke-thin);
+  --chrome-svg-stroke-width: 1.8;
+  --chrome-dense-svg-stroke-width: var(--cc-icon-stroke-thin);
   --cc-bond-stroke-width: var(--cc-icon-stroke-thin);
   --cc-bond-hash-stroke-width: var(--cc-icon-stroke-thick);
   --cc-arrow-stroke-width: var(--cc-icon-stroke-thin);
@@ -715,9 +716,9 @@ body.native-frame-shell .document-tab-close svg {
   overflow: visible;
 }
 
-.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon):not(.cc-kernel-template-icon) path,
-.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon):not(.cc-kernel-template-icon) rect,
-.editor-topbar svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon):not(.cc-kernel-template-icon) circle,
+.editor-topbar svg:not(.cc-image-command-icon):not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon):not(.cc-kernel-template-icon) path,
+.editor-topbar svg:not(.cc-image-command-icon):not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon):not(.cc-kernel-template-icon) rect,
+.editor-topbar svg:not(.cc-image-command-icon):not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon):not(.cc-kernel-template-icon) circle,
 .tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon):not(.cc-kernel-template-icon) path,
 .tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon):not(.cc-kernel-template-icon) rect,
 .tool-rail svg:not(.cc-bond-icon):not(.cc-kernel-arrow-icon):not(.cc-kernel-shape-icon):not(.cc-kernel-symbol-icon):not(.cc-kernel-orbital-icon):not(.cc-kernel-chain-icon):not(.cc-kernel-bio-draw-icon):not(.cc-kernel-template-icon) circle,
@@ -733,6 +734,16 @@ body.native-frame-shell .document-tab-close svg {
   fill: none;
   stroke: currentColor;
   stroke-width: var(--chrome-svg-stroke-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.editor-topbar .cc-image-command-icon path,
+.editor-topbar .cc-image-command-icon rect,
+.editor-topbar .cc-image-command-icon circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--chrome-dense-svg-stroke-width);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1187,6 +1198,10 @@ body.native-frame-shell .document-tab-close svg {
 
 .tool-rail-template-switch + .tool-rail-switch {
   margin-top: 0;
+}
+
+.tool-rail-template-switch[hidden] + .tool-rail-switch {
+  margin-top: auto;
 }
 
 .tool-rail-template-switch.is-active,
@@ -2450,13 +2465,9 @@ body.native-frame-shell .document-tab-close svg {
   background: #ffffff;
 }
 
-.viewer-container:focus {
-  outline: none;
-}
-
+.viewer-container:focus,
 .viewer-container:focus-visible {
-  outline: 2px solid var(--active);
-  outline-offset: -2px;
+  outline: none;
 }
 
 .numeric-dialog-field input.is-invalid {

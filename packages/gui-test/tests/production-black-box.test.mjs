@@ -18,7 +18,7 @@ function foreground() {
   };
 }
 
-test("canvas focus and selection controls have explicit accessible frontend geometry", async () => {
+test("canvas focus stays functional without a release-visible frame and selection controls have explicit frontend geometry", async () => {
   const [index, app, styles, overlay, contextMenu] = await Promise.all([
     readFile(new URL("../../../viewer/index.html", import.meta.url), "utf8"),
     readFile(new URL("../../../viewer/app.js", import.meta.url), "utf8"),
@@ -31,7 +31,8 @@ test("canvas focus and selection controls have explicit accessible frontend geom
   assert.match(app, /focusCanvas: \(\) => viewerContainer\?\.focus\(\{ preventScroll: true \}\)/);
   assert.match(contextMenu, /contextMenuShouldRestoreCanvasFocus\(document\.activeElement, document\)/);
   assert.match(contextMenu, /options\.focusCanvas\?\.\(\)/);
-  assert.match(styles, /\.viewer-container:focus-visible\s*\{[^}]*outline: 2px solid var\(--active\)/s);
+  assert.match(styles, /\.viewer-container:focus,\s*\.viewer-container:focus-visible\s*\{[^}]*outline: none/s);
+  assert.doesNotMatch(styles, /\.viewer-container:focus-visible\s*\{[^}]*outline:\s*2px\s+solid/s);
   assert.match(overlay, /SELECTION_RESIZE_HANDLE_SCREEN_PX = 6/);
   assert.match(overlay, /SELECTION_BOND_BOX_MIN_SCREEN_PX = 12/);
   assert.match(overlay, /SELECTION_ROTATE_HANDLE_RADIUS_SCREEN_PX = 4/);
@@ -40,6 +41,27 @@ test("canvas focus and selection controls have explicit accessible frontend geom
 test("nested context submenus paint above overlapping ancestor-menu siblings", async () => {
   const styles = await readFile(new URL("../../../viewer/styles.css", import.meta.url), "utf8");
   assert.match(styles, /\.canvas-context-submenu\s*\{[^}]*position: absolute;[^}]*z-index: 1;/s);
+});
+
+test("chrome icons use a consistent optical stroke system", async () => {
+  const [index, styles] = await Promise.all([
+    readFile(new URL("../../../viewer/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../../../viewer/styles.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(styles, /--chrome-svg-stroke-width:\s*1\.8;/);
+  assert.match(styles, /--chrome-dense-svg-stroke-width:\s*var\(--cc-icon-stroke-thin\);/);
+  assert.match(index, /data-command="insert-image"[\s\S]*?<svg class="cc-image-command-icon"/);
+  assert.match(styles, /\.editor-topbar \.cc-image-command-icon path,[\s\S]*?stroke-width:\s*var\(--chrome-dense-svg-stroke-width\)/);
+});
+
+test("release UI hides the licensed local-template switch until its catalog is available", async () => {
+  const [index, host] = await Promise.all([
+    readFile(new URL("../../../viewer/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../../../viewer/template_library_host.js", import.meta.url), "utf8"),
+  ]);
+  assert.match(index, /data-template-rail-toggle hidden/);
+  assert.match(host, /local-template-libraries[\s\S]*?if \(!localLibrariesEnabled\) return;[\s\S]*?await ensureCatalog\(\);[\s\S]*?toggle\.hidden = false;/);
+  assert.match(host, /await ensureCatalog\(\);[\s\S]*?editorState\.toolRailMode = "templates";/);
 });
 
 test("bond selection boxes retain a centered minimum interactive size", () => {

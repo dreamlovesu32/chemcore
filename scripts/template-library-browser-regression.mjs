@@ -44,7 +44,7 @@ try {
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}?local-template-libraries=1`, { waitUntil: "domcontentloaded" });
   await page.locator('body[data-runtime-state="ready"]').waitFor();
   await page.evaluate(() => localStorage.removeItem("chemsema.template-library-state.v2"));
   await page.locator("[data-template-rail-toggle]").click();

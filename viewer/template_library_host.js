@@ -72,16 +72,16 @@ export function createTemplateLibraryHost(options) {
 
   async function enterTemplateMode() {
     if (editorState.toolRailMode === "templates") return;
-    editorState.toolRailLastDrawingMode = editorState.toolRailMode === "biology" ? "biology" : "main";
-    await options.activateEditorTool?.("select");
-    editorState.toolRailMode = "templates";
     editorState.templateLibrariesLoading = true;
     options.syncEditorPrimaryToolButtons?.();
     options.renderSecondaryToolbar?.();
     try {
       await ensureCatalog();
+      editorState.toolRailLastDrawingMode = editorState.toolRailMode === "biology" ? "biology" : "main";
+      await options.activateEditorTool?.("select");
+      editorState.toolRailMode = "templates";
     } catch (error) {
-      options.notify?.(`Template libraries could not be loaded: ${error.message || error}`);
+      options.notify?.("No local template libraries are installed on this device.");
     } finally {
       editorState.templateLibrariesLoading = false;
       options.syncEditorPrimaryToolButtons?.();
@@ -510,6 +510,23 @@ export function createTemplateLibraryHost(options) {
     viewerContainer?.addEventListener("pointercancel", handlePlacementPointerCancel, true);
   }
 
+  async function initializeAvailability() {
+    const toggle = root.querySelector("[data-template-rail-toggle]");
+    if (!toggle) return;
+    toggle.hidden = true;
+    const localLibrariesEnabled = new URLSearchParams(window.location.search)
+      .get("local-template-libraries") === "1"
+      || localStorage.getItem("chemsema.local-template-libraries.enabled") === "true";
+    if (!localLibrariesEnabled) return;
+    try {
+      await ensureCatalog();
+      toggle.hidden = false;
+      options.syncEditorPrimaryToolButtons?.();
+    } catch {
+      toggle.hidden = true;
+    }
+  }
+
   function placementIsActive() {
     return editorState.toolRailMode === "templates"
       && editorState.activeTool === "templates"
@@ -553,6 +570,7 @@ export function createTemplateLibraryHost(options) {
   }
 
   bind();
+  void initializeAvailability();
   return {
     enterTemplateMode,
     leaveTemplateMode,
